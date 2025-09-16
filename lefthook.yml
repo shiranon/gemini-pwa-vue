@@ -1,0 +1,7 @@
+pre-commit:
+  parallel: true
+  jobs:
+    - run: bun lint
+      glob: "*.{vue,ts}"
+    - run: bun typecheck
+      glob: "*.{vue,ts}"
