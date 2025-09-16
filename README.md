@@ -8,19 +8,18 @@
 *   [アップデート予定](#アップデート予定)
 
 ## 使い方
-ローカルで使用する場合
-[Node](https://nodejs.org/ja/download)をインストール
-[Bun](https://bun.com/docs/installation)をインストール (Bun推奨 yarn or npm可)
+ローカルで使用する場合  
+[Node](https://nodejs.org/ja/download)をインストール  
+[Bun](https://bun.com/docs/installation)をインストール (Bun推奨 yarn or npm可)  
 
 ```bash
 bun install
 bun run build
 bun preview
 ```
-
-リモートで使用する場合
+  
+リモートで使用する場合  
 リポジトリを作成し、[Vercel](https://vercel.com/)等にデプロイしてください。
-
 
 ## 主な機能
 
@@ -28,17 +27,17 @@ bun preview
 
 ## 追加機能
 
-- 思考プロセス翻訳設定
-思考プロセスの翻訳にGeminiとDeeplを選択できます。
-Deeplを使う場合にはDeepl用のAPIキーが必要です。
+- 思考プロセス翻訳設定  
+思考プロセスの翻訳にGeminiとDeeplを選択できます。  
+Deeplを使う場合にはDeepl用のAPIキーが必要です。  
 
-- フォント設定
-フォントをプリセット(Google Font)から選択、システムフォントから選択、アップロードして使用することが出来ます。
-設定したフォントをプレビューできます。
+- フォント設定  
+フォントをプリセット(Google Font)から選択、システムフォントから選択、アップロードして使用することが出来ます。  
+設定したフォントをプレビューできます。  
 
-- Geminiモデルを公式から取得して設定
-有効なAPIが設定されていれば公式からモデル一覧を取得します。
-モデル名にgeminiが含まれるもののみ表示・設定可能にしています。
+- Geminiモデルを公式から取得して設定  
+有効なAPIが設定されていれば公式からモデル一覧を取得します。  
+モデル名にgeminiが含まれるもののみ表示・設定可能にしています。  
 
 ## 移植しきれていない機能(上から順に優先度高)
 - スワイプナビゲーション
@@ -56,7 +55,8 @@ Deeplを使う場合にはDeepl用のAPIキーが必要です。
 ---
 
 ## 更新履歴
-### Version 0.1.0-beta (2025-9-16)
+### Version 0.1.0-beta (2025-9-16)  
 
-### LICENSE MIT
+---
+## LICENSE MIT
 
