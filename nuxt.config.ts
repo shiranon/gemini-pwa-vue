@@ -11,7 +11,7 @@ export default defineNuxtConfig({
 
   app: {
     head: {
-      title: process.env.ENVIRONMENT === 'production' ? 'Gemini PWA Vue' : `Gemini PWA Vue (${process.env.ENVIRONMENT})`,
+      title: process.env.ENVIRONMENT === 'development' ? `Gemini PWA Vue (${process.env.ENVIRONMENT})` : 'Gemini PWA Vue',
       meta: [
         { name: 'description', content: 'Gemini PWA Vue' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },

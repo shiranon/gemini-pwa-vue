@@ -35,6 +35,7 @@
       :model-value="localSettings.enableAutoRetry"
       label="自動リトライ"
       description="エラー時の自動再試行を有効化"
+      disabled
       @update:model-value="(value: boolean) => updateSetting('enableAutoRetry', value)"
     />
   </SettingSection>
