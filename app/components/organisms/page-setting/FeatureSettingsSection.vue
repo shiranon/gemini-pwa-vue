@@ -28,7 +28,6 @@
       v-model="localSettings.enterToSend"
       label="Enterで送信"
       description="Enterキーでメッセージを送信"
-      disabled
     />
 
     <SettingToggle
