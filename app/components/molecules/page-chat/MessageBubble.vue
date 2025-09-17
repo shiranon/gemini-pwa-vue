@@ -98,7 +98,7 @@
         />
       </Button>
       <Button
-        v-if="options.allowRetry && message.role === 'user'"
+        v-if="options.allowRetry"
         variant="ghost"
         size="sm"
         class="h-8 w-8 p-0"

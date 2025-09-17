@@ -51,6 +51,16 @@
         </Button>
       </div>
     </div>
+
+    <!-- リトライ確認ダイアログ -->
+    <RetryConfirmDialog
+      v-model="showRetryDialogLocal"
+      :target-message="retryDialogTargetMessage"
+      :message-count="chatStore.retryMessageCount"
+      :resend-message="retryDialogResendMessage"
+      @confirm="handleRetryConfirm"
+      @cancel="handleRetryCancel"
+    />
   </div>
 </template>
 
@@ -61,9 +71,10 @@ import { useGeminiStore } from '~/stores/gemini'
 import { scrollToBottom } from '~/lib/scroll'
 import MessageBubble from '~/components/molecules/page-chat/MessageBubble.vue'
 import SystemPromptEditor from '~/components/molecules/page-chat/SystemPromptEditor.vue'
+import RetryConfirmDialog from '~/components/molecules/dialogs/RetryConfirmDialog.vue'
 import { Button } from '~/components/ui/button'
 import { hexToRgba } from '~/utils/color'
-import type { ApiError, ChatMessage, AttachedFile, UserMessage } from '~/types/chat'
+import type { ApiError, ChatMessage, AttachedFile, Message } from '~/types/chat'
 import { toast } from 'vue-sonner'
 
 const chatStore = useChatStore()
@@ -90,7 +101,25 @@ const overlayColorStyle = computed(() => {
 })
 
 const messages = computed(() => chatStore.currentMessages)
+const retryDialogTargetMessage = computed(() => chatStore.retryTargetMessage as Message | null)
+const retryDialogResendMessage = computed(() => chatStore.retryResendMessage as Message | null)
 const isSending = computed(() => geminiStore.isSending)
+
+// ローカルなダイアログ状態管理
+const showRetryDialogLocal = ref(false)
+
+// ChatStoreの状態と同期
+watch(
+  () => chatStore.showRetryDialog,
+  (newValue) => {
+    showRetryDialogLocal.value = newValue
+  },
+  { immediate: true }
+)
+
+watch(showRetryDialogLocal, (newValue) => {
+  chatStore.setShowRetryDialog(newValue)
+})
 const ERROR_TOAST_ID = 'gemini-error'
 
 const dismissErrorToast = () => {
@@ -129,13 +158,73 @@ const showErrorToast = (error: ApiError) => {
   })
 }
 
+const buildGeminiSettings = () => ({ ...settingsStore.apiSettings, systemPrompt: chatStore.systemPrompt })
+type GeminiSettings = ReturnType<typeof buildGeminiSettings>
+
+const createGeminiCallbacks = (settings: GeminiSettings) => ({
+  onAssistantMessageStart: (_message: ChatMessage) => {
+    chatStore.startStreaming()
+    console.log('[ChatInterface] メッセージ作成を geminiStore に委譲')
+    return -1
+  },
+  onAssistantMessageAdd: (message: ChatMessage) => {
+    if (!settings.streamingOutput) {
+      chatStore.addMessage({
+        role: message.role,
+        content: message.content,
+        timestamp: message.timestamp || Date.now(),
+        thoughts: message.thoughts,
+        translatedThoughts: message.translatedThoughts,
+        error: message.error,
+        functionCalls: message.functionCalls,
+        functionResults: message.functionResults,
+      })
+      chatStore.completeStreaming({
+        functionCalls: message.functionCalls,
+        functionResults: message.functionResults,
+      })
+    }
+  },
+  onMessageUpdate: (index: number, updates: Partial<ChatMessage>) => {
+    chatStore.updateMessage(index, {
+      content: updates.content,
+      error: updates.error,
+      thoughts: updates.thoughts,
+      translatedThoughts: updates.translatedThoughts,
+      functionCalls: updates.functionCalls,
+      functionResults: updates.functionResults,
+    })
+
+    if (updates.isStreamingComplete) {
+      chatStore.completeStreaming({
+        functionCalls: updates.functionCalls,
+        functionResults: updates.functionResults,
+      })
+    }
+  },
+  onError: (error: ApiError | null) => {
+    if (error) {
+      chatStore.setError(error)
+      showErrorToast(error)
+    } else {
+      chatStore.clearError()
+      dismissErrorToast()
+    }
+  },
+})
+
+const executeGeminiSend = async (settings: GeminiSettings) => {
+  const preparedMessages = messages.value
+  await geminiStore.sendMessage(preparedMessages, settings, createGeminiCallbacks(settings))
+}
+
 const sendMessage = async (options?: { contentOverride?: string; skipAddingUserMessage?: boolean; attachmentsOverride?: AttachedFile[] }) => {
   const rawContent = options?.contentOverride ?? inputText.value
   const content = rawContent.trim()
   if (!content) return
 
   // 最新の設定を都度取得し、チャット固有システムプロンプトで上書き
-  const settings = { ...settingsStore.apiSettings, systemPrompt: chatStore.systemPrompt }
+  const settings = buildGeminiSettings()
   if (!settings.apiKey) {
     alert('APIキーを設定してください')
     return
@@ -158,63 +247,7 @@ const sendMessage = async (options?: { contentOverride?: string; skipAddingUserM
       inputText.value = ''
 
       // Gemini APIを呼び出し（チャット固有のシステムプロンプトを優先適用）
-      await geminiStore.sendMessage(messages.value, settings, {
-        onAssistantMessageStart: (_message: ChatMessage) => {
-          chatStore.startStreaming()
-          console.log('[ChatInterface] メッセージ作成を geminiStore に委譲')
-          return -1
-        },
-        onAssistantMessageAdd: (message: ChatMessage) => {
-          // ストリーミング時は重複防止のため何もしない
-          // 非ストリーミング時のみメッセージ追加
-          if (!settings.streamingOutput) {
-            chatStore.addMessage({
-              role: message.role,
-              content: message.content,
-              timestamp: message.timestamp || Date.now(),
-              thoughts: message.thoughts,
-              translatedThoughts: message.translatedThoughts,
-              error: message.error,
-              functionCalls: message.functionCalls,
-              functionResults: message.functionResults,
-            })
-            // 非ストリーミング完了時にsaveOnResponseを実行
-            chatStore.completeStreaming({
-              functionCalls: message.functionCalls,
-              functionResults: message.functionResults,
-            })
-          }
-        },
-        onMessageUpdate: (index: number, updates: Partial<ChatMessage>) => {
-          chatStore.updateMessage(index, {
-            content: updates.content,
-            error: updates.error,
-            thoughts: updates.thoughts,
-            translatedThoughts: updates.translatedThoughts,
-            functionCalls: updates.functionCalls,
-            functionResults: updates.functionResults,
-          })
-
-          // ストリーミング完了の判断：明示的な完了フラグを使用
-          // これにより、Function Call実行中の中間状態での保存を防ぐ
-          if (updates.isStreamingComplete) {
-            // ストリーミング完了時にsaveOnResponseを実行
-            chatStore.completeStreaming({
-              functionCalls: updates.functionCalls,
-              functionResults: updates.functionResults,
-            })
-          }
-        },
-        onError: (error: ApiError | null) => {
-          if (error) {
-            chatStore.setError(error)
-            showErrorToast(error)
-          } else {
-            chatStore.clearError()
-            dismissErrorToast()
-          }
-        },
-      })
+      await executeGeminiSend(settings)
     }
   } catch (error) {
     console.error('Message sending error:', error)
@@ -258,16 +291,27 @@ const handleMessageCopy = (copiedMessage: ChatMessage) => {
 
 const handleMessageRetry = async (messageToRetry: ChatMessage) => {
   if (isSending.value) return
-  if (messageToRetry.role !== 'user') return
 
-  const originalMessage = chatStore.visibleMessages.find((m) => m.createdAt === messageToRetry.timestamp && m.role === 'user') as UserMessage | undefined
-  const attachments = originalMessage?.attachments ? [...originalMessage.attachments] : undefined
+  // ChatStoreのvisibleMessagesからメッセージIDを検索してリトライ
+  const originalMessage = chatStore.visibleMessages.find((m) => m.createdAt === messageToRetry.timestamp)
+  if (originalMessage) {
+    await chatStore.retryWithConfirmation(originalMessage.id)
+  }
+}
 
-  await sendMessage({
-    contentOverride: originalMessage?.content ?? messageToRetry.content,
-    skipAddingUserMessage: true,
-    attachmentsOverride: attachments,
-  })
+const handleRetryConfirm = async () => {
+  const success = await chatStore.confirmRetry()
+  if (success) {
+    inputText.value = ''
+    // リトライ成功時にGeminiAPIを呼び出し
+    const settings = buildGeminiSettings()
+    await executeGeminiSend(settings)
+  }
+}
+
+const handleRetryCancel = () => {
+  chatStore.cancelRetry()
+  showRetryDialogLocal.value = false
 }
 
 const scrollToBottomInternal = () => {

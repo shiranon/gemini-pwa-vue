@@ -35,6 +35,13 @@ export const useChatStore = defineStore('chat', () => {
   const isEditingSystemPrompt = ref(false)
   const systemPromptBackup = ref('')
 
+  // リトライ確認ダイアログ用の状態
+  const showRetryDialog = ref(false)
+  const retryTargetMessageId = ref<string | null>(null)
+  const retryTargetMessage = ref<Message | null>(null)
+  const retryResendMessage = ref<UserMessage | null>(null)
+  const retryMessageCount = ref(0)
+
   const hasActiveSession = computed(() => currentSession.value !== null)
   const sessionId = computed(() => currentSession.value?.id || null)
   const sessionTitle = computed(() => currentSession.value?.title || '新規チャット')
@@ -460,6 +467,150 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
+  /**
+   * 選択したメッセージ以降（そのメッセージ含む）をすべて削除
+   * ユーザーメッセージでもアシスタントメッセージでも同様に動作
+   */
+  const deleteMessagesAfter = async (messageId: string): Promise<boolean> => {
+    const messageIndex = visibleMessages.value.findIndex((m: Message) => m.id === messageId)
+    if (messageIndex === -1) {
+      console.error('Message not found:', messageId)
+      return false
+    }
+
+    try {
+      const beforeLength = visibleMessages.value.length
+      // 選択したメッセージ以降（そのメッセージ含む）を削除
+      visibleMessages.value = visibleMessages.value.slice(0, messageIndex)
+
+      // セッションに反映して保存
+      await saveSession()
+
+      console.log(`Deleted ${beforeLength - messageIndex} messages from selected message onwards`)
+      return true
+    } catch (error) {
+      console.error('Failed to delete messages after:', error)
+      return false
+    }
+  }
+
+  /** 指定したメッセージからリトライ（確認なし） */
+  const retryFromMessage = async (messageId: string): Promise<boolean> => {
+    if (isSending.value) {
+      console.warn('Cannot retry while sending')
+      return false
+    }
+
+    try {
+      const targetMessage = visibleMessages.value.find((m: Message) => m.id === messageId)
+      if (!targetMessage) {
+        console.error('Target message not found:', messageId)
+        return false
+      }
+
+      if (targetMessage.role !== 'user') {
+        console.error('Retry target must be a user message')
+        return false
+      }
+
+      const messageToResend = targetMessage as UserMessage
+
+      // 指定メッセージ以降を削除
+      const deleteSuccess = await deleteMessagesAfter(messageId)
+      if (!deleteSuccess) {
+        return false
+      }
+
+      // メッセージを再送信
+      setInputText(messageToResend.content)
+      attachedFiles.value = messageToResend.attachments ? [...messageToResend.attachments] : []
+
+      clearError()
+      const sendSuccess = await sendMessage()
+
+      if (sendSuccess) {
+        console.log('Retry from message successful:', messageId)
+      } else {
+        console.error('Failed to resend message during retry')
+      }
+
+      return sendSuccess
+    } catch (error) {
+      console.error('Failed to retry from message:', error)
+      setError({
+        code: 'RETRY_ERROR',
+        message: 'リトライに失敗しました',
+        retirable: true,
+      })
+      return false
+    }
+  }
+
+  /** 確認ダイアログ付きリトライ */
+  const retryWithConfirmation = async (messageId: string): Promise<boolean> => {
+    if (isSending.value) {
+      console.warn('Cannot retry while sending')
+      return false
+    }
+
+    const targetMessage = visibleMessages.value.find((m: Message) => m.id === messageId)
+    if (!targetMessage) {
+      console.error('Target message not found:', messageId)
+      return false
+    }
+
+    if (targetMessage.role !== 'user') {
+      console.error('Retry target must be a user message')
+      return false
+    }
+
+    const messageToResend = targetMessage as UserMessage
+
+    // 削除されるメッセージ数を計算
+    const messageIndex = visibleMessages.value.findIndex((m: Message) => m.id === messageId)
+    const messagesToDelete = visibleMessages.value.length - messageIndex
+
+    // ダイアログの状態を設定
+    retryTargetMessageId.value = messageId
+    retryTargetMessage.value = targetMessage
+    retryResendMessage.value = messageToResend
+    retryMessageCount.value = messagesToDelete
+    showRetryDialog.value = true
+
+    return true
+  }
+
+  /** リトライダイアログの確認処理 */
+  const confirmRetry = async (): Promise<boolean> => {
+    const messageId = retryTargetMessageId.value
+    if (!messageId) return false
+
+    showRetryDialog.value = false
+    const result = await retryFromMessage(messageId)
+
+    // 状態をクリア
+    retryTargetMessageId.value = null
+    retryTargetMessage.value = null
+    retryResendMessage.value = null
+    retryMessageCount.value = 0
+
+    return result
+  }
+
+  /** リトライダイアログのキャンセル処理 */
+  const cancelRetry = () => {
+    showRetryDialog.value = false
+    retryTargetMessageId.value = null
+    retryTargetMessage.value = null
+    retryResendMessage.value = null
+    retryMessageCount.value = 0
+  }
+
+  /** リトライダイアログの表示状態を設定 */
+  const setShowRetryDialog = (show: boolean) => {
+    showRetryDialog.value = show
+  }
+
   const generateTitleFromMessage = (content: string): string => {
     // 最初の50文字を使用してタイトルを生成
     const title = content.trim().substring(0, 50)
@@ -697,6 +848,18 @@ export const useChatStore = defineStore('chat', () => {
     setError,
     clearError,
     retryFromError,
+    deleteMessagesAfter,
+    retryFromMessage,
+    retryWithConfirmation,
+    confirmRetry,
+    cancelRetry,
+    setShowRetryDialog,
+
+    // リトライダイアログ状態
+    showRetryDialog: readonly(showRetryDialog),
+    retryTargetMessage: readonly(retryTargetMessage),
+    retryResendMessage: readonly(retryResendMessage),
+    retryMessageCount: readonly(retryMessageCount),
 
     clearChat,
     duplicateSession,
