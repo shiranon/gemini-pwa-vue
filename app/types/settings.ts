@@ -163,8 +163,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
   functionCallingMode: 'auto' as const,
   geminiEnableGrounding: false,
 
-  // TODO: リトライ設定
-  // @google/genaiを使っているので基本的にリトライは不要なはず
   enableAutoRetry: false,
   maxRetries: 5,
   useFixedRetryDelay: false,
@@ -201,7 +199,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   messageOpacity: 0.9,
 
   // ナビゲーション
-  enterToSend: false, // TODO:shadcnのInputがデフォルトでEnterキーで送信するようになっている
+  enterToSend: false,
   enableSwipeNavigation: true,
   hideSystemPromptInChat: false,
 

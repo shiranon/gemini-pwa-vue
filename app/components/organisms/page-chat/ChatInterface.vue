@@ -121,9 +121,14 @@ watch(showRetryDialogLocal, (newValue) => {
   chatStore.setShowRetryDialog(newValue)
 })
 const ERROR_TOAST_ID = 'gemini-error'
+const RETRY_TOAST_ID = 'gemini-auto-retry'
 
 const dismissErrorToast = () => {
   toast.dismiss(ERROR_TOAST_ID)
+}
+
+const dismissRetryToast = () => {
+  toast.dismiss(RETRY_TOAST_ID)
 }
 
 const showErrorToast = (error: ApiError) => {
@@ -138,9 +143,9 @@ const showErrorToast = (error: ApiError) => {
     const maxRetries = error.maxRetries ?? 0
     const seconds = Math.ceil(error.nextRetryDelayMs / 1000)
     if (maxRetries > 0) {
-      descriptionParts.push(`自動再試行予定: ${seconds}秒後 (${attempt}/${maxRetries})`)
+      descriptionParts.push(`自動リトライ予定: ${seconds}秒後 (${attempt}/${maxRetries})`)
     } else {
-      descriptionParts.push(`自動再試行予定: ${seconds}秒後`)
+      descriptionParts.push(`自動リトライ予定: ${seconds}秒後`)
     }
   }
 
@@ -149,105 +154,72 @@ const showErrorToast = (error: ApiError) => {
     description: descriptionParts.join('\n') || undefined,
     action: error.retirable
       ? {
-          label: '再試行',
+          label: 'リトライ',
           onClick: () => {
-            chatStore.retryFromError()
+            void geminiStore.retryLastUserMessage({
+              onError: handleGeminiError,
+              onRetryScheduled: notifyRetryScheduled,
+              onRetryStarted: notifyRetryStarted,
+            })
           },
         }
       : undefined,
   })
 }
 
-const buildGeminiSettings = () => ({ ...settingsStore.apiSettings, systemPrompt: chatStore.systemPrompt })
-type GeminiSettings = ReturnType<typeof buildGeminiSettings>
+const notifyRetryScheduled = ({ attempt, delayMs }: { attempt: number; delayMs: number }) => {
+  const seconds = Math.ceil(delayMs / 1000)
+  const maxRetries = settingsStore.retrySettings.maxRetries
+  const suffix = maxRetries > 0 ? ` (${attempt}/${maxRetries})` : ''
 
-const createGeminiCallbacks = (settings: GeminiSettings) => ({
-  onAssistantMessageStart: (_message: ChatMessage) => {
-    chatStore.startStreaming()
-    console.log('[ChatInterface] メッセージ作成を geminiStore に委譲')
-    return -1
-  },
-  onAssistantMessageAdd: (message: ChatMessage) => {
-    if (!settings.streamingOutput) {
-      chatStore.addMessage({
-        role: message.role,
-        content: message.content,
-        timestamp: message.timestamp || Date.now(),
-        thoughts: message.thoughts,
-        translatedThoughts: message.translatedThoughts,
-        error: message.error,
-        functionCalls: message.functionCalls,
-        functionResults: message.functionResults,
-      })
-      chatStore.completeStreaming({
-        functionCalls: message.functionCalls,
-        functionResults: message.functionResults,
-      })
-    }
-  },
-  onMessageUpdate: (index: number, updates: Partial<ChatMessage>) => {
-    chatStore.updateMessage(index, {
-      content: updates.content,
-      error: updates.error,
-      thoughts: updates.thoughts,
-      translatedThoughts: updates.translatedThoughts,
-      functionCalls: updates.functionCalls,
-      functionResults: updates.functionResults,
-    })
+  toast.info(`自動リトライを準備中${suffix}`, {
+    id: RETRY_TOAST_ID,
+    description: `${seconds}秒後にリトライします`,
+  })
+}
 
-    if (updates.isStreamingComplete) {
-      chatStore.completeStreaming({
-        functionCalls: updates.functionCalls,
-        functionResults: updates.functionResults,
-      })
-    }
-  },
-  onError: (error: ApiError | null) => {
-    if (error) {
-      chatStore.setError(error)
-      showErrorToast(error)
-    } else {
-      chatStore.clearError()
-      dismissErrorToast()
-    }
-  },
-})
+const notifyRetryStarted = ({ attempt }: { attempt: number }) => {
+  const retryCount = Math.max(1, attempt - 1)
+  const maxRetries = settingsStore.retrySettings.maxRetries
+  const suffix = maxRetries > 0 ? ` (${retryCount}/${maxRetries})` : ''
 
-const executeGeminiSend = async (settings: GeminiSettings) => {
-  const preparedMessages = messages.value
-  await geminiStore.sendMessage(preparedMessages, settings, createGeminiCallbacks(settings))
+  toast.loading(`自動リトライ${suffix}を実行中...`, {
+    id: RETRY_TOAST_ID,
+  })
+}
+
+const handleGeminiError = (error: ApiError | null) => {
+  if (error) {
+    showErrorToast(error)
+    if (!error.retrying) {
+      dismissRetryToast()
+    }
+  } else {
+    dismissErrorToast()
+    dismissRetryToast()
+  }
 }
 
 const sendMessage = async (options?: { contentOverride?: string; skipAddingUserMessage?: boolean; attachmentsOverride?: AttachedFile[] }) => {
   const rawContent = options?.contentOverride ?? inputText.value
   const content = rawContent.trim()
-  if (!content) return
+  const hasAttachmentsOverride = (options?.attachmentsOverride?.length ?? 0) > 0
+  if (!content && !hasAttachmentsOverride) return
 
-  // 最新の設定を都度取得し、チャット固有システムプロンプトで上書き
-  const settings = buildGeminiSettings()
-  if (!settings.apiKey) {
-    alert('APIキーを設定してください')
-    return
-  }
-
-  if (options?.attachmentsOverride) {
-    chatStore.clearInput()
-    options.attachmentsOverride.forEach((file) => {
-      chatStore.attachFile(file)
-    })
-  }
-
-  chatStore.setInputText(content)
+  dismissRetryToast()
 
   try {
-    // chatStore.sendMessageを使用してsaveOnSendを有効化
-    const success = await chatStore.sendMessage({ skipAddingUserMessage: options?.skipAddingUserMessage })
+    const success = await geminiStore.sendChatMessage({
+      content: rawContent,
+      attachments: options?.attachmentsOverride,
+      skipAddingUserMessage: options?.skipAddingUserMessage,
+      onError: handleGeminiError,
+      onRetryScheduled: notifyRetryScheduled,
+      onRetryStarted: notifyRetryStarted,
+    })
 
     if (success) {
       inputText.value = ''
-
-      // Gemini APIを呼び出し（チャット固有のシステムプロンプトを優先適用）
-      await executeGeminiSend(settings)
     }
   } catch (error) {
     console.error('Message sending error:', error)
@@ -255,7 +227,7 @@ const sendMessage = async (options?: { contentOverride?: string; skipAddingUserM
 }
 
 const handleKeydown = (e: KeyboardEvent) => {
-  if (e.key === 'Enter' && !e.shiftKey) {
+  if (e.key === 'Enter' && !e.shiftKey && settingsStore.settings.enterToSend) {
     e.preventDefault()
     sendMessage()
   }
@@ -300,12 +272,23 @@ const handleMessageRetry = async (messageToRetry: ChatMessage) => {
 }
 
 const handleRetryConfirm = async () => {
-  const success = await chatStore.confirmRetry()
-  if (success) {
-    inputText.value = ''
-    // リトライ成功時にGeminiAPIを呼び出し
-    const settings = buildGeminiSettings()
-    await executeGeminiSend(settings)
+  try {
+    const messageToResend = await chatStore.confirmRetry()
+    if (messageToResend) {
+      inputText.value = ''
+      dismissRetryToast()
+      await geminiStore.sendChatMessage({
+        content: messageToResend.content,
+        attachments: messageToResend.attachments,
+        onError: handleGeminiError,
+        onRetryScheduled: notifyRetryScheduled,
+        onRetryStarted: notifyRetryStarted,
+      })
+    }
+  } catch (error) {
+    console.error('Retry confirmation error:', error)
+    chatStore.cancelRetry()
+    showRetryDialogLocal.value = false
   }
 }
 

@@ -452,19 +452,21 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  const retryFromError = async () => {
-    if (!currentError.value?.retirable) return
+  const retryFromError = (): UserMessage | null => {
+    if (!currentError.value?.retirable) return null
 
     clearError()
-    // 最後のユーザーメッセージを再送信
+    // 最後のユーザーメッセージを再送信準備
     const lastUserMessage = [...visibleMessages.value].reverse().find((m: Message) => m.role === 'user')
     if (lastUserMessage) {
       inputText.value = lastUserMessage.content
       if ((lastUserMessage as UserMessage).attachments) {
         attachedFiles.value = [...(lastUserMessage as UserMessage).attachments!]
       }
-      await sendMessage({ skipAddingUserMessage: true })
+      return lastUserMessage as UserMessage
     }
+
+    return null
   }
 
   /**
@@ -495,22 +497,22 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   /** 指定したメッセージからリトライ（確認なし） */
-  const retryFromMessage = async (messageId: string): Promise<boolean> => {
+  const retryFromMessage = async (messageId: string): Promise<UserMessage | null> => {
     if (isSending.value) {
       console.warn('Cannot retry while sending')
-      return false
+      return null
     }
 
     try {
       const targetMessage = visibleMessages.value.find((m: Message) => m.id === messageId)
       if (!targetMessage) {
         console.error('Target message not found:', messageId)
-        return false
+        return null
       }
 
       if (targetMessage.role !== 'user') {
         console.error('Retry target must be a user message')
-        return false
+        return null
       }
 
       const messageToResend = targetMessage as UserMessage
@@ -518,23 +520,17 @@ export const useChatStore = defineStore('chat', () => {
       // 指定メッセージ以降を削除
       const deleteSuccess = await deleteMessagesAfter(messageId)
       if (!deleteSuccess) {
-        return false
+        return null
       }
 
-      // メッセージを再送信
+      // メッセージ再送信の準備
       setInputText(messageToResend.content)
       attachedFiles.value = messageToResend.attachments ? [...messageToResend.attachments] : []
 
       clearError()
-      const sendSuccess = await sendMessage()
 
-      if (sendSuccess) {
-        console.log('Retry from message successful:', messageId)
-      } else {
-        console.error('Failed to resend message during retry')
-      }
-
-      return sendSuccess
+      console.log('Retry from message prepared:', messageId)
+      return messageToResend
     } catch (error) {
       console.error('Failed to retry from message:', error)
       setError({
@@ -542,7 +538,7 @@ export const useChatStore = defineStore('chat', () => {
         message: 'リトライに失敗しました',
         retirable: true,
       })
-      return false
+      return null
     }
   }
 
@@ -581,12 +577,12 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   /** リトライダイアログの確認処理 */
-  const confirmRetry = async (): Promise<boolean> => {
+  const confirmRetry = async (): Promise<UserMessage | null> => {
     const messageId = retryTargetMessageId.value
-    if (!messageId) return false
+    if (!messageId) return null
 
     showRetryDialog.value = false
-    const result = await retryFromMessage(messageId)
+    const message = await retryFromMessage(messageId)
 
     // 状態をクリア
     retryTargetMessageId.value = null
@@ -594,7 +590,7 @@ export const useChatStore = defineStore('chat', () => {
     retryResendMessage.value = null
     retryMessageCount.value = 0
 
-    return result
+    return message
   }
 
   /** リトライダイアログのキャンセル処理 */

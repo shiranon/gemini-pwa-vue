@@ -27,15 +27,14 @@
     <SettingToggle
       v-model="localSettings.enterToSend"
       label="Enterで送信"
-      description="Enterキーでメッセージを送信(未実装 デフォルトで送信される)"
+      description="Enterキーでメッセージを送信"
       disabled
     />
 
     <SettingToggle
       :model-value="localSettings.enableAutoRetry"
       label="自動リトライ"
-      description="エラー時の自動再試行を有効化"
-      disabled
+      description="エラー時の自動リトライを有効化"
       @update:model-value="(value: boolean) => updateSetting('enableAutoRetry', value)"
     />
   </SettingSection>
