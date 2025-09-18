@@ -19,9 +19,9 @@ bun preview
 ```
   
 リモートで使用する場合  
-リポジトリをFork、Cloneし、[Vercel](https://vercel.com/)等にデプロイしてください。  
+リポジトリをFork、Cloneし、[Vercel](https://vercel.com/) 等にデプロイしてください。  
   
-[デモサイト](gemini-pwa-vue.vercel.app)
+[デモサイト](https://gemini-pwa-vue.vercel.app/)
 
 ## 主な機能
 
