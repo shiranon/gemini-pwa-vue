@@ -36,6 +36,12 @@
       description="エラー時の自動リトライを有効化"
       @update:model-value="(value: boolean) => updateSetting('enableAutoRetry', value)"
     />
+    <SettingToggle
+      v-model="localSettings.enableSwipeNavigation"
+      label="スワイプナビゲーション"
+      description="スワイプジェスチャーでのナビゲーションを有効化(未実装)"
+      disabled
+    />
   </SettingSection>
 </template>
 

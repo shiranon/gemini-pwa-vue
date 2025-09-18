@@ -36,13 +36,6 @@
     </SettingItem>
 
     <SettingToggle
-      v-model="localSettings.enableSwipeNavigation"
-      label="スワイプナビゲーション"
-      description="スワイプジェスチャーでのナビゲーションを有効化"
-      disabled
-    />
-
-    <SettingToggle
       v-model="localSettings.useFixedRetryDelay"
       label="固定リトライ間隔"
       description="指数バックオフではなく固定間隔でリトライ"

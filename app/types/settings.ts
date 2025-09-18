@@ -104,6 +104,25 @@ export interface NavigationSettings {
   hideSystemPromptInChat: boolean
 }
 
+/** アバター個別設定 */
+export interface AvatarConfig {
+  imageUrl?: string
+}
+
+/** アバター設定 */
+export interface AvatarSettings {
+  enabled: boolean
+  size: number // アイコンサイズ(px): 10-150
+  defaultUserAvatar: AvatarConfig
+  defaultAssistantAvatar: AvatarConfig
+}
+
+/** チャット個別アバター設定 */
+export interface ChatAvatarSettings {
+  userAvatar?: AvatarConfig
+  assistantAvatar?: AvatarConfig
+}
+
 // ============================================================================
 // 統合設定型
 // ============================================================================
@@ -117,7 +136,8 @@ export interface AppSettings
     ProofreadingSettings,
     ThemeSettings,
     BackgroundImageSettings,
-    NavigationSettings {
+    NavigationSettings,
+    AvatarSettings {
   /** Gemini API基本設定 */
   apiKey: string
   modelName: string
@@ -191,7 +211,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
   userBubbleColor: '#eff6ff',
   assistantBubbleColor: '#ffffff',
 
-  //TODO: 背景画像
   backgroundImageBlob: null,
   backgroundImageDataUrl: null,
   overlayColor: '#000000',
@@ -209,6 +228,12 @@ export const DEFAULT_SETTINGS: AppSettings = {
   enableDummyModelPrompt: false,
   dummyModelPrompt: '',
   prependDummyModelToResponse: false,
+
+  // アバター設定
+  enabled: true,
+  size: 32, // デフォルト32px
+  defaultUserAvatar: {},
+  defaultAssistantAvatar: {},
 } as const
 
 /** 設定値のバリデーション関数の型 */

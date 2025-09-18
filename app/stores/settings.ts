@@ -138,6 +138,13 @@ export const useSettingsStore = defineStore('settings', () => {
     hideSystemPromptInChat: settings.value.hideSystemPromptInChat,
   }))
 
+  const avatarSettings = computed(() => ({
+    enabled: settings.value.enabled,
+    size: settings.value.size,
+    defaultUserAvatar: settings.value.defaultUserAvatar,
+    defaultAssistantAvatar: settings.value.defaultAssistantAvatar,
+  }))
+
   if (import.meta.client) {
     watch(
       () => ({
@@ -368,6 +375,7 @@ export const useSettingsStore = defineStore('settings', () => {
     themeSettings,
     backgroundSettings,
     navigationSettings,
+    avatarSettings,
     messageAppearanceSettings,
 
     isValidApiKey,

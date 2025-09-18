@@ -1,5 +1,5 @@
 <template>
-  <div class="mx-auto w-full max-w-5xl flex-1 items-center justify-between px-4">
+  <div class="mx-auto mb-8 w-full max-w-5xl flex-1 items-center justify-between px-4">
     <SettingsHeader
       :is-dirty="isDirty"
       :saving="saving"
@@ -41,6 +41,11 @@
         />
 
         <UiSettingsSection
+          :local-settings="localSettings"
+          :update-local-setting="updateLocalSetting"
+        />
+
+        <AvatarSettingsSection
           :local-settings="localSettings"
           :update-local-setting="updateLocalSetting"
         />
@@ -104,6 +109,7 @@ import FeatureSettingsSection from '~/components/organisms/page-setting/FeatureS
 import FunctionCallingSettingsSection from '~/components/organisms/page-setting/FunctionCallingSettingsSection.vue'
 import ThemeSettingsSection from '~/components/organisms/page-setting/ThemeSettingsSection.vue'
 import UiSettingsSection from '~/components/organisms/page-setting/UiSettingsSection.vue'
+import AvatarSettingsSection from '~/components/organisms/page-setting/AvatarSettingsSection.vue'
 import AdvancedSettingsSection from '~/components/organisms/page-setting/AdvancedSettingsSection.vue'
 import DummyPromptSettingsSection from '~/components/organisms/page-setting/DummyPromptSettingsSection.vue'
 import BackgroundImageSettingsSection from '~/components/organisms/page-setting/BackgroundImageSettingsSection.vue'

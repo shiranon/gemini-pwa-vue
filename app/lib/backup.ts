@@ -84,9 +84,9 @@ export const exportFullData = async (): Promise<FullBackupData> => {
   const stats = database.stats.value
 
   const backupData: FullBackupData = {
-    version: '1.0.0',
+    version: '1.0.1',
     exportedAt: Date.now(),
-    application: 'Gemini TRPG PWA',
+    application: 'Gemini TRPG Assistant',
     data: {
       chats,
       settings: settingsStore.exportSettings(),

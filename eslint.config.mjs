@@ -9,9 +9,6 @@ export default createConfigForNuxt({
   },
 }).append(
   {
-    ignores: ['old/**/*'],
-  },
-  {
     files: ['**/*.vue', '**/*.ts', '**/*.js', '**/*.mjs'],
     plugins: {
       prettier: prettierPlugin,

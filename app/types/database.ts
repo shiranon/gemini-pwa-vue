@@ -19,6 +19,8 @@ export interface ChatRecord {
   systemPrompt: string
   /** 永続的メモリ（JSON文字列） */
   persistentMemory: string
+  /** チャット個別アバター設定（JSON文字列） */
+  avatarSettings?: string
   /** 作成日時 */
   createdAt: number
   /** 更新日時 */
