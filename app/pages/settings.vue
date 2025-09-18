@@ -1,5 +1,5 @@
 <template>
-  <div class="mx-auto w-full max-w-5xl flex-1 items-center justify-between px-4">
+  <div class="mx-auto mb-8 w-full max-w-5xl flex-1 items-center justify-between px-4">
     <SettingsHeader
       :is-dirty="isDirty"
       :saving="saving"
