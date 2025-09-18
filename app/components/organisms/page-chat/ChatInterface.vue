@@ -15,7 +15,7 @@
       class="z-10 flex-1 space-y-6 overflow-y-auto p-4 pb-6"
     >
       <SystemPromptEditor />
-      <MessageBubble
+      <MessageWithAvatar
         v-for="(message, index) in messages"
         :key="`${message.timestamp}-${index}`"
         :message="message"
@@ -69,7 +69,7 @@ import { useChatStore } from '~/stores/chat'
 import { useSettingsStore } from '~/stores/settings'
 import { useGeminiStore } from '~/stores/gemini'
 import { scrollToBottom } from '~/lib/scroll'
-import MessageBubble from '~/components/molecules/page-chat/MessageBubble.vue'
+import MessageWithAvatar from '~/components/molecules/page-chat/MessageWithAvatar.vue'
 import SystemPromptEditor from '~/components/molecules/page-chat/SystemPromptEditor.vue'
 import RetryConfirmDialog from '~/components/molecules/dialogs/RetryConfirmDialog.vue'
 import { Button } from '~/components/ui/button'

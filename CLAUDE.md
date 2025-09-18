@@ -3,7 +3,9 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
-This is a Nuxt 3 Progressive Web App for Gemini interactions. The project has been refactored from an older JavaScript structure to a modern Vue 3/Nuxt 3 TypeScript setup with PWA capabilities.
+This is a Nuxt 3 Progressive Web App for Gemini AI interactions, designed for TRPG (tabletop role-playing game) use cases. The project has been refactored from an older JavaScript structure ([Gemini PWA Client Mk-II](https://github.com/kinkan04/Gemini-PWA-Mk-II)) to a modern Vue 3/Nuxt 3 TypeScript setup with PWA capabilities.
+
+**Demo**: [gemini-pwa-vue.vercel.app](https://gemini-pwa-vue.vercel.app)
 
 ## Development Commands
 
@@ -13,6 +15,7 @@ This is a Nuxt 3 Progressive Web App for Gemini interactions. The project has be
 - `bun run build` - Build for production 
 - `bun run typecheck` - Run TypeScript type checking
 - `bun run lint` - Run ESLint
+- `bun lint --fix` - Auto-fix ESLint issues
 - `bun run generate` - Generate static site
 - `bun run preview` - Preview production build
 - `bun run generate-pwa-assets` - Generate PWA assets from icon.png
@@ -213,8 +216,8 @@ import { Icon } from '@iconify/vue'
 
 ## Gemini API Integration
 
-### @google/generative-ai Library
-This project uses the official `@google/generative-ai` library for Gemini API integration:
+### @google/genai Library
+This project uses the official `@google/genai` library for Gemini API integration:
 
 - **Primary Interface**: `useGeminiApi()` composable in `app/composables/useGeminiApi.ts`
 - **Methods**:
@@ -236,6 +239,11 @@ for await (const chunk of generateContentStream(messages, config, systemInstruct
   console.log(chunk.contentText)
 }
 ```
+
+### Additional Features
+- **DeepL Translation**: Optional thought process translation using DeepL API (requires DeepL API key)
+- **Font Management**: Preset fonts (Google Fonts), system fonts, and custom font upload support
+- **Official Model Fetching**: Retrieves available Gemini models directly from Google's API
 
 ### Quality Gates (MANDATORY)
 After every code change, run:
