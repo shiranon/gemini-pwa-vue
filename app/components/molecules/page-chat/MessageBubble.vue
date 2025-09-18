@@ -188,9 +188,9 @@ const bubbleClasses = computed(() => {
   const baseClasses = ['message-bubble relative border shadow-sm transition-all duration-200']
 
   if (props.message.role === 'user') {
-    baseClasses.push('ml-8')
+    baseClasses.push('ml-2')
   } else {
-    baseClasses.push('mr-8')
+    baseClasses.push('mr-2')
   }
 
   if (props.message.error) {

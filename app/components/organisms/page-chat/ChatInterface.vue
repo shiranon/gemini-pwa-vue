@@ -15,22 +15,41 @@
       class="z-10 flex-1 space-y-6 overflow-y-auto p-4 pb-6"
     >
       <SystemPromptEditor />
-      <MessageWithAvatar
+      <template
         v-for="(message, index) in messages"
         :key="`${message.timestamp}-${index}`"
-        :message="message"
-        :options="{
-          showTimestamp: true,
-          allowEdit: true,
-          allowDelete: true,
-          allowRetry: message.role === 'user',
-        }"
-        class="message-fade-in"
-        @edit="handleMessageEdit"
-        @delete="handleMessageDelete"
-        @copy="handleMessageCopy"
-        @retry="handleMessageRetry"
-      />
+      >
+        <MessageWithAvatar
+          v-if="settingsStore.settings.enabled"
+          :message="message"
+          :options="{
+            showTimestamp: true,
+            allowEdit: true,
+            allowDelete: true,
+            allowRetry: message.role === 'user',
+          }"
+          class="message-fade-in"
+          @edit="handleMessageEdit"
+          @delete="handleMessageDelete"
+          @copy="handleMessageCopy"
+          @retry="handleMessageRetry"
+        />
+        <MessageBubble
+          v-else
+          :message="message"
+          :options="{
+            showTimestamp: true,
+            allowEdit: true,
+            allowDelete: true,
+            allowRetry: message.role === 'user',
+          }"
+          class="message-fade-in"
+          @edit="handleMessageEdit"
+          @delete="handleMessageDelete"
+          @copy="handleMessageCopy"
+          @retry="handleMessageRetry"
+        />
+      </template>
     </div>
 
     <div class="border-border bg-background/90 sticky bottom-0 z-20 border-t p-4 shadow-lg backdrop-blur">
@@ -70,6 +89,7 @@ import { useSettingsStore } from '~/stores/settings'
 import { useGeminiStore } from '~/stores/gemini'
 import { scrollToBottom } from '~/lib/scroll'
 import MessageWithAvatar from '~/components/molecules/page-chat/MessageWithAvatar.vue'
+import MessageBubble from '~/components/molecules/page-chat/MessageBubble.vue'
 import SystemPromptEditor from '~/components/molecules/page-chat/SystemPromptEditor.vue'
 import RetryConfirmDialog from '~/components/molecules/dialogs/RetryConfirmDialog.vue'
 import { Button } from '~/components/ui/button'

@@ -1,22 +1,21 @@
 <template>
   <div
-    :class="containerClasses"
     :style="containerStyle"
+    class="flex items-start"
   >
-    <!-- Assistant Avatar (Left Side) -->
     <Avatar
       v-if="shouldShowAvatar && !isUserMessage"
       :class="avatarClasses"
+      :style="avatarStyle"
     >
       <AvatarImage
         v-if="avatarConfig.imageUrl"
         :src="avatarConfig.imageUrl"
         :alt="`${message.role} avatar`"
       />
-      <AvatarFallback>{{ avatarConfig.fallbackText }}</AvatarFallback>
+      <AvatarFallback>{{ message.role === 'user' ? 'U' : 'AI' }}</AvatarFallback>
     </Avatar>
 
-    <!-- Message Content -->
     <div class="min-w-0 flex-1">
       <MessageBubble
         :message="message"
@@ -34,13 +33,14 @@
     <Avatar
       v-if="shouldShowAvatar && isUserMessage"
       :class="avatarClasses"
+      :style="avatarStyle"
     >
       <AvatarImage
         v-if="avatarConfig.imageUrl"
         :src="avatarConfig.imageUrl"
         :alt="`${message.role} avatar`"
       />
-      <AvatarFallback>{{ avatarConfig.fallbackText }}</AvatarFallback>
+      <AvatarFallback>{{ message.role === 'user' ? 'U' : 'AI' }}</AvatarFallback>
     </Avatar>
   </div>
 </template>
@@ -95,24 +95,7 @@ const avatarConfig = computed((): AvatarConfig => {
   const systemConfig = role === 'user' ? settingsStore.avatarSettings.defaultUserAvatar : settingsStore.avatarSettings.defaultAssistantAvatar
 
   // 3. ハードコードされたフォールバック
-  return (
-    systemConfig || {
-      fallbackText: role === 'user' ? 'U' : 'AI',
-    }
-  )
-})
-
-const containerClasses = computed(() => {
-  const baseClasses = ['flex', 'items-start']
-
-  // アライメント設定
-  if (settingsStore.avatarSettings.alignment === 'center') {
-    baseClasses.push('items-center')
-  } else {
-    baseClasses.push('items-start')
-  }
-
-  return baseClasses.join(' ')
+  return systemConfig || {}
 })
 
 const containerStyle = computed(() => {
@@ -121,36 +104,21 @@ const containerStyle = computed(() => {
   }
 
   return {
-    '--avatar-size': getAvatarSize(),
-    '--avatar-gap': `${settingsStore.avatarSettings.gap}px`,
-    gap: 'var(--avatar-gap)',
+    '--avatar-size': `${settingsStore.avatarSettings.size}px`,
+    gap: '12px', // 固定の間隔
   }
 })
 
 const avatarClasses = computed(() => {
-  const sizeClass = getSizeClass()
-  return ['shrink-0', sizeClass].join(' ')
+  return 'shrink-0 mt-2'
 })
 
-const getAvatarSize = () => {
-  const sizeMap = {
-    sm: '1.5rem', // 24px
-    md: '2rem', // 32px
-    lg: '2.5rem', // 40px
-    xl: '3rem', // 48px
+const avatarStyle = computed(() => {
+  return {
+    width: `${settingsStore.avatarSettings.size}px`,
+    height: `${settingsStore.avatarSettings.size}px`,
   }
-  return sizeMap[settingsStore.avatarSettings.size] || sizeMap.md
-}
-
-const getSizeClass = () => {
-  const sizeMap = {
-    sm: 'size-6', // 24px
-    md: 'size-8', // 32px
-    lg: 'size-10', // 40px
-    xl: 'size-12', // 48px
-  }
-  return sizeMap[settingsStore.avatarSettings.size] || sizeMap.md
-}
+})
 </script>
 
 <style scoped>

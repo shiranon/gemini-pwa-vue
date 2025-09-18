@@ -141,8 +141,6 @@ export const useSettingsStore = defineStore('settings', () => {
   const avatarSettings = computed(() => ({
     enabled: settings.value.enabled,
     size: settings.value.size,
-    gap: settings.value.gap,
-    alignment: settings.value.alignment,
     defaultUserAvatar: settings.value.defaultUserAvatar,
     defaultAssistantAvatar: settings.value.defaultAssistantAvatar,
   }))

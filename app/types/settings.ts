@@ -107,15 +107,12 @@ export interface NavigationSettings {
 /** アバター個別設定 */
 export interface AvatarConfig {
   imageUrl?: string
-  fallbackText: string
 }
 
 /** アバター設定 */
 export interface AvatarSettings {
   enabled: boolean
-  size: 'sm' | 'md' | 'lg' | 'xl'
-  gap: number
-  alignment: 'top' | 'center'
+  size: number // アイコンサイズ(px): 10-150
   defaultUserAvatar: AvatarConfig
   defaultAssistantAvatar: AvatarConfig
 }
@@ -234,15 +231,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
 
   // アバター設定
   enabled: true,
-  size: 'md' as const,
-  gap: 12,
-  alignment: 'top' as const,
-  defaultUserAvatar: {
-    fallbackText: 'U',
-  },
-  defaultAssistantAvatar: {
-    fallbackText: 'AI',
-  },
+  size: 32, // デフォルト32px
+  defaultUserAvatar: {},
+  defaultAssistantAvatar: {},
 } as const
 
 /** 設定値のバリデーション関数の型 */
