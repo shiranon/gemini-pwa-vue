@@ -11,7 +11,7 @@ import { proofreadText } from '~/composables/useProofreader'
 import { translateThoughts } from '~/composables/useTranslator'
 import { useChatStore } from '~/stores/chat'
 import { useSettingsStore } from '~/stores/settings'
-import type { ApiError, ChatMessage, GeminiApiSettings, GeminiMessage } from '~/types/chat'
+import type { ApiError, AssistantMessage, AttachedFile, ChatMessage, GeminiApiSettings, GeminiMessage } from '~/types/chat'
 import type { FunctionCall, FunctionCallResult } from '~/types/function-calling'
 
 export const useGeminiStore = defineStore('gemini', () => {
@@ -84,6 +84,21 @@ export const useGeminiStore = defineStore('gemini', () => {
 
   const settingsStore = useSettingsStore()
 
+  type SendChatMessageOptions = {
+    content?: string
+    attachments?: AttachedFile[]
+    skipAddingUserMessage?: boolean
+    onError?: (error: ApiError | null) => void
+    onRetryScheduled?: (info: { attempt: number; delayMs: number }) => void
+    onRetryStarted?: (info: { attempt: number }) => void
+  }
+
+  type ChatCallbackHooks = {
+    onError?: (error: ApiError | null) => void
+    onRetryScheduled?: (info: { attempt: number; delayMs: number }) => void
+    onRetryStarted?: (info: { attempt: number }) => void
+  }
+
   const sleep = (ms: number) =>
     new Promise<void>((resolve) => {
       setTimeout(resolve, ms)
@@ -122,8 +137,13 @@ export const useGeminiStore = defineStore('gemini', () => {
     }
 
     const lowerMessage = message.toLowerCase()
-    const nonRetriableKeywords = ['invalid argument', 'invalid api key', 'permission', 'unauthorized', 'format', 'quota', '不正']
-    const retirable = !nonRetriableKeywords.some((keyword) => lowerMessage.includes(keyword))
+    const nonRetriableKeywords = ['invalid argument', 'invalid api key', 'permission', 'unauthorized', 'format', 'quota']
+    const nonRetriablePatterns = [/api\s*キーが不正/, /不正な\s*api\s*キー/]
+    let retirable = !nonRetriableKeywords.some((keyword) => lowerMessage.includes(keyword))
+
+    if (retirable) {
+      retirable = !nonRetriablePatterns.some((pattern) => pattern.test(lowerMessage))
+    }
 
     const apiError: ApiError = {
       code,
@@ -180,12 +200,32 @@ export const useGeminiStore = defineStore('gemini', () => {
               assistantMessage.content = `${settings.dummyModelPrompt}\n`
               streamingContent.value = assistantMessage.content
             }
-            // ChatInterface.vueが-1を返すので、こちらでメッセージを直接追加
             const chatStore = useChatStore()
-            chatStore.addMessage(assistantMessage)
-            messageIndex = chatStore.currentMessages.length - 1
-            streamingMessageId.value = assistantMessage.timestamp?.toString() || null
-            console.log('[Geminiストア] アシスタントメッセージを作成（インデックス）:', messageIndex)
+            const reuseIndex = callbacks.onMessageStart(assistantMessage)
+
+            if (reuseIndex >= 0) {
+              const existingMessage = chatStore.visibleMessages[reuseIndex] as AssistantMessage | undefined
+              const baseTimestamp = existingMessage?.createdAt ?? Date.now()
+              assistantMessage.timestamp = baseTimestamp
+              messageIndex = reuseIndex
+              streamingMessageId.value = baseTimestamp.toString()
+              streamingContent.value = assistantMessage.content
+
+              callbacks.onMessageUpdate(messageIndex, {
+                content: assistantMessage.content,
+                error: false,
+                thoughts: existingMessage?.thoughts ? '' : undefined,
+                translatedThoughts: existingMessage?.translatedThoughts ? '' : undefined,
+                functionCalls: [],
+                functionResults: [],
+              })
+            } else {
+              // ChatInterface.vueが-1を返すので、こちらでメッセージを直接追加
+              chatStore.addMessage(assistantMessage)
+              messageIndex = chatStore.currentMessages.length - 1
+              streamingMessageId.value = assistantMessage.timestamp?.toString() || null
+              console.log('[Geminiストア] アシスタントメッセージを作成（インデックス）:', messageIndex)
+            }
           }
 
           // コンテンツの更新
@@ -391,7 +431,7 @@ export const useGeminiStore = defineStore('gemini', () => {
   /**
    * Geminiメッセージを送信する統合処理
    */
-  const sendMessage = async (
+  const executeGeminiRequest = async (
     messages: ChatMessage[],
     settings: GeminiApiSettings,
     callbacks: {
@@ -399,11 +439,18 @@ export const useGeminiStore = defineStore('gemini', () => {
       onAssistantMessageAdd: (message: ChatMessage) => void
       onMessageUpdate: (index: number, updates: Partial<ChatMessage>) => void
       onError?: (error: ApiError | null) => void
+      onRetryScheduled?: (info: { attempt: number; delayMs: number }) => void
+      onRetryStarted?: (info: { attempt: number }) => void
     }
   ) => {
     if (isSending.value || isStreaming.value) {
       throw new Error('別のメッセージが処理中です')
     }
+
+    console.log('[自動リトライ] リクエスト送信を開始します', {
+      messageCount: messages.length,
+      streaming: settings.streamingOutput,
+    })
 
     try {
       isSending.value = true
@@ -422,6 +469,13 @@ export const useGeminiStore = defineStore('gemini', () => {
         attempt++
         totalApiCalls.value++
 
+        console.log('[自動リトライ] リクエスト試行を開始します', { attempt })
+
+        if (attempt > 1) {
+          callbacks.onRetryStarted?.({ attempt })
+          console.log('[自動リトライ] 再試行を実行中です', { attempt })
+        }
+
         try {
           if (settings.streamingOutput) {
             await handleStreamingResponse(messagesForApi, generationConfig, systemInstruction, settings, {
@@ -435,6 +489,11 @@ export const useGeminiStore = defineStore('gemini', () => {
           }
 
           callbacks.onError?.(null)
+          if (attempt > 1) {
+            console.log('[自動リトライ] 再試行に成功しました', { attempt })
+          } else {
+            console.log('[自動リトライ] 初回の試行で成功しました')
+          }
           break
         } catch (error) {
           const apiError = toApiError(error)
@@ -459,7 +518,19 @@ export const useGeminiStore = defineStore('gemini', () => {
             retrying: shouldRetry,
           })
 
+          if (shouldRetry && delayMs) {
+            callbacks.onRetryScheduled?.({ attempt: retryNumber, delayMs })
+            console.log('[自動リトライ] 再試行を予約しました', {
+              nextAttempt: retryNumber + 1,
+              delayMs,
+            })
+          }
+
           if (!shouldRetry || !delayMs) {
+            console.log('[自動リトライ] 再試行を断念します', {
+              finalAttempt: attempt,
+              errorCode: apiError.code,
+            })
             const propagated = Object.assign(new Error(apiError.message), {
               apiError,
               alreadyNotified: true,
@@ -478,6 +549,139 @@ export const useGeminiStore = defineStore('gemini', () => {
     } finally {
       isSending.value = false
     }
+  }
+
+  const createChatCallbacks = (hooks?: ChatCallbackHooks) => {
+    const chatStore = useChatStore()
+
+    return {
+      onAssistantMessageStart: (_message: ChatMessage) => {
+        chatStore.startStreaming()
+
+        const lastIndex = chatStore.visibleMessages.length - 1
+        if (lastIndex >= 0) {
+          const lastMessage = chatStore.visibleMessages[lastIndex] as AssistantMessage | undefined
+          if (lastMessage?.role === 'assistant' && lastMessage.error) {
+            return lastIndex
+          }
+        }
+
+        return -1
+      },
+      onAssistantMessageAdd: (message: ChatMessage) => {
+        chatStore.addMessage({
+          role: message.role,
+          content: message.content,
+          timestamp: message.timestamp || Date.now(),
+          thoughts: message.thoughts,
+          translatedThoughts: message.translatedThoughts,
+          error: message.error,
+          functionCalls: message.functionCalls,
+          functionResults: message.functionResults,
+        })
+        chatStore.completeStreaming({
+          functionCalls: message.functionCalls,
+          functionResults: message.functionResults,
+        })
+      },
+      onMessageUpdate: (index: number, updates: Partial<ChatMessage>) => {
+        chatStore.updateMessage(index, {
+          content: updates.content,
+          error: updates.error,
+          thoughts: updates.thoughts,
+          translatedThoughts: updates.translatedThoughts,
+          functionCalls: updates.functionCalls,
+          functionResults: updates.functionResults,
+        })
+
+        if (updates.isStreamingComplete) {
+          chatStore.completeStreaming({
+            functionCalls: updates.functionCalls,
+            functionResults: updates.functionResults,
+          })
+        }
+      },
+      onError: (error: ApiError | null) => {
+        if (error) {
+          chatStore.setError(error)
+        } else {
+          chatStore.clearError()
+        }
+
+        hooks?.onError?.(error)
+      },
+      onRetryScheduled: hooks?.onRetryScheduled,
+      onRetryStarted: hooks?.onRetryStarted,
+    }
+  }
+
+  const sendChatMessage = async (options: SendChatMessageOptions = {}): Promise<boolean> => {
+    const chatStore = useChatStore()
+
+    if (options.attachments && options.attachments.length > 0) {
+      chatStore.clearInput()
+      options.attachments.forEach((file) => {
+        chatStore.attachFile(file)
+      })
+    }
+
+    if (options.content !== undefined) {
+      chatStore.setInputText(options.content.trim())
+    }
+
+    const settings = {
+      ...settingsStore.apiSettings,
+      systemPrompt: chatStore.systemPrompt,
+    }
+
+    if (!settings.apiKey) {
+      const apiError: ApiError = {
+        code: 'NO_API_KEY',
+        message: 'APIキーを設定してください',
+        retirable: false,
+      }
+      setError(apiError.message)
+      chatStore.setError(apiError)
+      options.onError?.(apiError)
+      return false
+    }
+
+    const sendSuccess = await chatStore.sendMessage({ skipAddingUserMessage: options.skipAddingUserMessage })
+    if (!sendSuccess) {
+      return false
+    }
+
+    await executeGeminiRequest(
+      chatStore.currentMessages,
+      settings,
+      createChatCallbacks({
+        onError: options.onError,
+        onRetryScheduled: options.onRetryScheduled,
+        onRetryStarted: options.onRetryStarted,
+      })
+    )
+
+    console.log('[自動リトライ] sendChatMessageが正常終了しました')
+
+    return true
+  }
+
+  const retryLastUserMessage = async (hooks?: ChatCallbackHooks): Promise<boolean> => {
+    const chatStore = useChatStore()
+    const messageToRetry = chatStore.retryFromError()
+    if (!messageToRetry) {
+      console.log('[自動リトライ] リトライ対象のユーザーメッセージが見つかりませんでした')
+      return false
+    }
+
+    return await sendChatMessage({
+      content: messageToRetry.content,
+      attachments: messageToRetry.attachments,
+      skipAddingUserMessage: true,
+      onError: hooks?.onError,
+      onRetryScheduled: hooks?.onRetryScheduled,
+      onRetryStarted: hooks?.onRetryStarted,
+    })
   }
 
   /**
@@ -553,7 +757,8 @@ export const useGeminiStore = defineStore('gemini', () => {
     hasError,
     successRate,
 
-    sendMessage,
+    sendChatMessage,
+    retryLastUserMessage,
 
     setError,
     clearError,
