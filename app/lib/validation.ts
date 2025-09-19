@@ -268,6 +268,7 @@ export const settingsFormSchema = z.object({
   // 高度な設定
   streamingSpeed: z.number().min(10).max(200).optional(),
   maxRetries: z.number().min(0).max(10).optional(),
+  enabledFunctionTools: z.array(z.string()).optional(),
 
   // UI設定
   fontFamily: z.string().optional(),

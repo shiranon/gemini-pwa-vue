@@ -384,23 +384,58 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   const completeStreaming = async (finalData?: Partial<AssistantMessage>) => {
-    if (streamingMessage.value) {
-      const finalMessage: AssistantMessage = {
-        id: streamingMessage.value.id!,
-        role: 'assistant',
-        content: streamingMessage.value.content || '',
-        createdAt: streamingMessage.value.createdAt!,
-        ...finalData,
-      }
+    if (finalData) {
+      const lastAssistantReverseIndex = [...visibleMessages.value].reverse().findIndex((msg) => msg.role === 'assistant')
+      if (lastAssistantReverseIndex !== -1) {
+        const targetIndex = visibleMessages.value.length - 1 - lastAssistantReverseIndex
+        const currentMessage = visibleMessages.value[targetIndex] as AssistantMessage
+        const nextMessage: AssistantMessage = { ...currentMessage }
 
-      // 保存直前の連結処理（ストリーミング完了時）
-      const s = useSettingsStore()
-      const api = s.apiSettings
-      if (api.prependDummyModelToResponse && api.enableDummyModelPrompt && api.dummyModelPrompt?.trim()) {
-        finalMessage.content = `${api.dummyModelPrompt}\n${finalMessage.content}`
-      }
+        let didMutate = false
 
-      visibleMessages.value.push(finalMessage)
+        if (finalData.content !== undefined) {
+          nextMessage.content = finalData.content
+          didMutate = true
+        }
+        if (finalData.error !== undefined) {
+          nextMessage.error = finalData.error
+          didMutate = true
+        }
+        if (finalData.thoughts !== undefined) {
+          nextMessage.thoughts = finalData.thoughts
+          didMutate = true
+        }
+        if (finalData.translatedThoughts !== undefined) {
+          nextMessage.translatedThoughts = finalData.translatedThoughts
+          didMutate = true
+        }
+        if (finalData.functionCalls !== undefined) {
+          nextMessage.functionCalls = finalData.functionCalls
+          didMutate = true
+        }
+        if (finalData.functionResults !== undefined) {
+          nextMessage.functionResults = finalData.functionResults
+          didMutate = true
+        }
+        if (finalData.citations !== undefined) {
+          nextMessage.citations = finalData.citations
+          didMutate = true
+        }
+        if (finalData.originalContent !== undefined) {
+          nextMessage.originalContent = finalData.originalContent
+          didMutate = true
+        }
+        if (finalData.isProofread !== undefined) {
+          nextMessage.isProofread = finalData.isProofread
+          didMutate = true
+        }
+
+        if (didMutate) {
+          nextMessage.updatedAt = Date.now()
+        }
+
+        visibleMessages.value[targetIndex] = nextMessage
+      }
     }
 
     streamingState.value = 'completed'

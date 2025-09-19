@@ -114,9 +114,30 @@ export const useGeminiApi = () => {
     if (settings.functionCalling?.enabled) {
       const enabledFunctions = getEnabledFunctionDeclarations()
       console.log('[関数呼び出し] 有効な関数:', enabledFunctions)
-      if (enabledFunctions.length > 0) {
+
+      let functionDeclarations = enabledFunctions
+      if (settings.functionCalling.allowedFunctionNames?.length) {
+        const allowedSet = new Set(settings.functionCalling.allowedFunctionNames)
+        const availableNames = new Set(enabledFunctions.map((declaration) => declaration.name).filter((name): name is string => typeof name === 'string'))
+        const missingNames = settings.functionCalling.allowedFunctionNames.filter((name) => !availableNames.has(name))
+        if (missingNames.length > 0) {
+          console.warn('[関数呼び出し] allowedFunctionNamesに未登録の関数があります:', missingNames)
+        }
+
+        functionDeclarations = enabledFunctions.filter((declaration) => declaration.name && allowedSet.has(declaration.name))
+
+        if (functionDeclarations.length !== enabledFunctions.length) {
+          console.log('[関数呼び出し] allowedFunctionNamesで関数をフィルタリングしました', {
+            before: enabledFunctions.length,
+            after: functionDeclarations.length,
+            allowedFunctionNames: settings.functionCalling.allowedFunctionNames,
+          })
+        }
+      }
+
+      if (functionDeclarations.length > 0) {
         tools.push({
-          functionDeclarations: enabledFunctions as FunctionDeclaration[],
+          functionDeclarations: functionDeclarations as FunctionDeclaration[],
         })
       }
     } else {

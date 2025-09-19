@@ -2,6 +2,8 @@
  * 設定関連の型定義
  */
 
+import { defaultEnabledFunctionToolNames } from '~/utils/functions/defaults'
+
 // ============================================================================
 // 基本設定型
 // ============================================================================
@@ -23,6 +25,7 @@ export interface GeminiAdvancedSettings {
   enableThinking: boolean
   includeThoughts: boolean
   geminiEnableFunctionCalling: boolean
+  enabledFunctionTools: string[]
   functionCallingMode: 'auto' | 'any' | 'none'
   geminiEnableGrounding: boolean
 }
@@ -180,6 +183,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   thoughtTranslationModel: 'gemini-2.0-flash-lite',
   deeplApiKey: '',
   geminiEnableFunctionCalling: true,
+  enabledFunctionTools: [...defaultEnabledFunctionToolNames],
   functionCallingMode: 'auto' as const,
   geminiEnableGrounding: false,
 

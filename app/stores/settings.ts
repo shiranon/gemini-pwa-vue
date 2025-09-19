@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
+import { useFunctionCalling } from '~/composables/useFunctionCalling'
 import { loadSettings as loadSettingsFromDB, saveSettings as saveSettingsToDB } from '~/lib/database'
 import type { AppSettings } from '~/types/settings'
 import type { GeminiApiSettings } from '~/types/chat'
@@ -7,11 +8,34 @@ import { DEFAULT_SETTINGS } from '~/types/settings'
 import { clamp } from '~/utils/calc'
 import { applyTheme, getThemePreset } from '~/utils/theme'
 
+const cloneEnabledFunctionTools = (toolNames?: string[]) => {
+  const source = Array.isArray(toolNames) ? toolNames : DEFAULT_SETTINGS.enabledFunctionTools
+  const seen = new Set<string>()
+  const result: string[] = []
+  for (const name of source) {
+    if (typeof name !== 'string' || name.length === 0) continue
+    if (seen.has(name)) continue
+    seen.add(name)
+    result.push(name)
+  }
+  return result
+}
+
+const createSettingsState = (base: Partial<AppSettings> = {}): AppSettings => {
+  const merged = { ...DEFAULT_SETTINGS, ...base } as AppSettings
+  return {
+    ...merged,
+    enabledFunctionTools: cloneEnabledFunctionTools(merged.enabledFunctionTools),
+  }
+}
+
 export const useSettingsStore = defineStore('settings', () => {
-  const settings = ref<AppSettings>({ ...DEFAULT_SETTINGS })
+  const settings = ref<AppSettings>(createSettingsState())
   const isLoading = ref(false)
   const lastSavedAt = ref<number | null>(null)
   const isDirty = ref(false)
+
+  const { setFunctionEnablement } = useFunctionCalling()
 
   const apiConfig = computed(() => ({
     apiKey: settings.value.apiKey,
@@ -44,6 +68,7 @@ export const useSettingsStore = defineStore('settings', () => {
       ? {
           enabled: true,
           mode: settings.value.functionCallingMode,
+          ...(settings.value.functionCallingMode === 'any' && settings.value.enabledFunctionTools.length > 0 ? { allowedFunctionNames: [...settings.value.enabledFunctionTools] } : {}),
         }
       : undefined,
     // ダミープロンプト設定（送信時のみ適用）
@@ -174,6 +199,14 @@ export const useSettingsStore = defineStore('settings', () => {
     )
   }
 
+  watch(
+    () => settings.value.enabledFunctionTools,
+    (enabledNames) => {
+      setFunctionEnablement(cloneEnabledFunctionTools(enabledNames))
+    },
+    { immediate: true }
+  )
+
   const isValidApiKey = computed(() => {
     return settings.value.apiKey.length > 0
   })
@@ -188,11 +221,18 @@ export const useSettingsStore = defineStore('settings', () => {
 
   const updateSettings = (newSettings: Partial<AppSettings>) => {
     Object.assign(settings.value, newSettings)
+    if (Array.isArray(newSettings.enabledFunctionTools)) {
+      settings.value.enabledFunctionTools = cloneEnabledFunctionTools(newSettings.enabledFunctionTools)
+    }
     isDirty.value = true
   }
 
   const updateSetting = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
-    settings.value[key] = value
+    if (key === 'enabledFunctionTools' && Array.isArray(value)) {
+      settings.value[key] = cloneEnabledFunctionTools(value) as AppSettings[K]
+    } else {
+      settings.value[key] = value
+    }
     isDirty.value = true
   }
 
@@ -274,7 +314,7 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   const resetToDefaults = () => {
-    settings.value = { ...DEFAULT_SETTINGS }
+    settings.value = createSettingsState()
     isDirty.value = true
   }
 
@@ -299,12 +339,15 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   const importSettings = (importedSettings: Partial<AppSettings>) => {
-    settings.value = { ...settings.value, ...importedSettings }
+    settings.value = createSettingsState({ ...settings.value, ...importedSettings })
     isDirty.value = true
   }
 
   const exportSettings = (): AppSettings => {
-    return { ...settings.value }
+    return {
+      ...settings.value,
+      enabledFunctionTools: cloneEnabledFunctionTools(settings.value.enabledFunctionTools),
+    }
   }
 
   const loadSettings = async () => {
@@ -314,18 +357,18 @@ export const useSettingsStore = defineStore('settings', () => {
 
       if (result.success && result.data) {
         const migrated = migrateLegacyThemeSettings(result.data)
-        settings.value = { ...DEFAULT_SETTINGS, ...migrated }
+        settings.value = createSettingsState(migrated)
         isDirty.value = false
         console.log('IndexedDB から設定を読み込みました')
       } else {
         // IndexedDBに設定がない場合はデフォルト設定を使用
-        settings.value = { ...DEFAULT_SETTINGS }
+        settings.value = createSettingsState()
         isDirty.value = false
         console.log('デフォルト設定を使用します')
       }
     } catch (error) {
       console.error('Settings load error:', error)
-      settings.value = { ...DEFAULT_SETTINGS }
+      settings.value = createSettingsState()
       isDirty.value = false
     } finally {
       isLoading.value = false
