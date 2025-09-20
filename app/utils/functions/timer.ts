@@ -10,6 +10,34 @@ const timers = new Map<string, { endTime: number; duration: number }>()
 
 /**
  * タイマーを管理する関数
+ *
+ * Gemini AIのFunction Calling機能を通じて、タイマーの管理を行います。
+ * タイマーの開始、状態確認、停止機能を提供します。アプリケーション内の
+ * メモリ（Map）を使用してタイマー情報を保持し、複数のタイマーを
+ * 同時に管理できます。
+ *
+ * @async
+ * @function manageTimer
+ * @param {FunctionCallArgs} args - Function Callingの引数
+ * @param {string} args.action - 実行するアクション（必須）
+ *   - "start": タイマーを開始
+ *   - "check": タイマーの状態を確認
+ *   - "stop": タイマーを停止
+ * @param {string} args.timerName - タイマーを識別するための一意の名前（必須）
+ * @param {number} [args.durationMinutes] - タイマーの期間（分単位）
+ *   actionが"start"の場合は必須。0より大きい値である必要があります
+ * @param {FunctionExecutionContext} context - Function Callingの実行コンテキスト
+ * @returns {Promise<object>} 操作結果を含むオブジェクト
+ *   - `action`: 実行されたアクション
+ *   - `timerName`: タイマー名
+ *   - `status`: タイマーの状態（"開始しました", "実行中", "終了", "停止しました"）
+ *   - `remainingTime`: 残り時間（分単位、checkアクション時）
+ *   - `duration`: タイマーの期間（分単位、start・checkアクション時）
+ *
+ * @throws {Error} 必須引数が不足している場合
+ * @throws {Error} 無効なアクションが指定された場合
+ * @throws {Error} タイマーが見つからない場合（check・stopアクション時）
+ * @throws {Error} 無効な期間が指定された場合（startアクション時）
  */
 export async function manageTimer(
   args: FunctionCallArgs,
@@ -24,11 +52,11 @@ export async function manageTimer(
   console.log(`[Function Calling] manageTimerが呼び出されました。コンテキスト:`, context)
 
   const action = args.action as string
-  const timerName = args.timer_name as string
-  const durationMinutes = args.duration_minutes as number
+  const timerName = args.timerName as string
+  const durationMinutes = args.durationMinutes as number
 
   if (!timerName) {
-    const errorMsg = 'タイマー名(timer_name)は必須です。'
+    const errorMsg = 'タイマー名(timerName)は必須です。'
     console.error(`[Function Calling] manageTimer: ${errorMsg}`)
     throw new Error(errorMsg)
   }
@@ -37,7 +65,7 @@ export async function manageTimer(
     switch (action) {
       case 'start': {
         if (typeof durationMinutes !== 'number' || durationMinutes <= 0) {
-          throw new Error('タイマーを開始するには、0より大きい分数(duration_minutes)が必要です。')
+          throw new Error('タイマーを開始するには、0より大きい分数(durationMinutes)が必要です。')
         }
         const endTime = Date.now() + durationMinutes * 60 * 1000
         timers.set(timerName, { endTime, duration: durationMinutes })
@@ -91,7 +119,20 @@ export async function manageTimer(
 }
 
 /**
- * manageTimer関数の宣言
+ * manageTimer関数のGemini AI Function Calling宣言
+ *
+ * Gemini AIのFunction Calling機能で使用するための関数宣言オブジェクトです。
+ * この宣言により、Gemini AIがmanageTimer関数を認識し、
+ * 適切なタイミングで呼び出すことができます。
+ *
+ * @constant {FunctionDeclaration} manageTimerDeclaration
+ * @property {string} name - 関数名（"manageTimer"）
+ * @property {string} description - 関数の説明文（Gemini AIが理解するための日本語説明）
+ * @property {object} parameters - 関数のパラメータ定義
+ * @property {Type} parameters.type - パラメータの型（OBJECT）
+ * @property {object} parameters.properties - パラメータのプロパティ定義
+ * @property {string[]} parameters.required - 必須パラメータの配列
+ *
  */
 export const manageTimerDeclaration: FunctionDeclaration = {
   name: 'manageTimer',
@@ -104,15 +145,15 @@ export const manageTimerDeclaration: FunctionDeclaration = {
         description: '実行するアクション。「start」でタイマー開始、「check」で状態確認、「stop」で停止',
         enum: ['start', 'check', 'stop'],
       },
-      timer_name: {
+      timerName: {
         type: Type.STRING,
         description: 'タイマーを識別するための一意の名前',
       },
-      duration_minutes: {
+      durationMinutes: {
         type: Type.NUMBER,
         description: 'タイマーの期間（分単位）。startアクションで必須',
       },
     },
-    required: ['action', 'timer_name'],
+    required: ['action', 'timerName'],
   },
 }

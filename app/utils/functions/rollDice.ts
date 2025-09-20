@@ -7,9 +7,33 @@ import type { FunctionCallArgs, FunctionDeclaration, FunctionExecutionContext } 
 
 /**
  * ダイスロールを実行する関数
- * @param args 引数
- * @param context コンテキスト
- * @returns ダイスロールの結果
+ *
+ * Gemini AIのFunction Calling機能を通じて、ダイスロールを実行します。
+ * 指定したダイス式に基づいて乱数を生成し、結果を返します。
+ * 複数のダイス、補正値、合計値の計算に対応しています。
+ *
+ * @async
+ * @function rollDice
+ * @param {FunctionCallArgs} args - Function Callingの引数
+ * @param {string} args.expression - ダイスロールの式（必須）
+ *   形式: "(個数)d(面数)[+(補正値)]"
+ *   例: "1d6", "2d10+5", "3d20-2"
+ *   - 個数: 1-100個まで
+ *   - 面数: 1-1000面まで
+ *   - 補正値: -10000から+10000まで
+ * @param {FunctionExecutionContext} context - Function Callingの実行コンテキスト
+ * @returns {Promise<object>} ダイスロールの結果を含むオブジェクト
+ *   - `expression`: 入力されたダイス式
+ *   - `rolls`: 各ダイスの出目の配列
+ *   - `sum`: ダイスの出目の合計（補正値除く）
+ *   - `modifier`: 補正値の文字列表現（"なし" または "+5", "-2" など）
+ *   - `total`: 最終的な合計値（ダイスの合計 + 補正値）
+ *
+ * @throws {Error} ダイス式が指定されていない場合
+ * @throws {Error} 無効なダイス形式が指定された場合
+ * @throws {Error} ダイスの個数が範囲外の場合（1-100個）
+ * @throws {Error} ダイスの面数が範囲外の場合（1-1000面）
+ * @throws {Error} 補正値が範囲外の場合（-10000から+10000）
  */
 export async function rollDice(
   args: FunctionCallArgs,
@@ -30,7 +54,7 @@ export async function rollDice(
     throw new Error(errorMsg)
   }
 
-  const diceRegex = /^(?<count>\d+)d(?<sides>\d+)(?:(?<modifier_op>[+-])(?<modifier_val>\d+))?$/i
+  const diceRegex = /^(?<count>\d+)d(?<sides>\d+)(?:(?<modifierOp>[+-])(?<modifierVal>\d+))?$/i
   const match = expression.trim().match(diceRegex)
 
   if (!match) {
@@ -39,10 +63,10 @@ export async function rollDice(
     throw new Error(errorMsg)
   }
 
-  const { count, sides, modifier_op, modifier_val } = match.groups!
+  const { count, sides, modifierOp, modifierVal } = match.groups!
   const numCount = Number.parseInt(count!, 10)
   const numSides = Number.parseInt(sides!, 10)
-  const numModifier = modifier_val ? Number.parseInt(modifier_val, 10) : 0
+  const numModifier = modifierVal ? Number.parseInt(modifierVal, 10) : 0
 
   if (numCount < 1 || numCount > 100) {
     throw new Error('ダイスの個数は1個から100個までです。')
@@ -64,9 +88,9 @@ export async function rollDice(
     }
 
     let total = sum
-    if (modifier_op === '+') {
+    if (modifierOp === '+') {
       total += numModifier
-    } else if (modifier_op === '-') {
+    } else if (modifierOp === '-') {
       total -= numModifier
     }
 
@@ -74,7 +98,7 @@ export async function rollDice(
       expression: expression,
       rolls: rolls,
       sum: sum,
-      modifier: modifier_op ? `${modifier_op}${numModifier}` : 'なし',
+      modifier: modifierOp ? `${modifierOp}${numModifier}` : 'なし',
       total: total,
     }
 
@@ -87,7 +111,20 @@ export async function rollDice(
 }
 
 /**
- * rollDice関数の宣言
+ * rollDice関数のGemini AI Function Calling宣言
+ *
+ * Gemini AIのFunction Calling機能で使用するための関数宣言オブジェクトです。
+ * この宣言により、Gemini AIがrollDice関数を認識し、
+ * 適切なタイミングで呼び出すことができます。
+ *
+ * @constant {FunctionDeclaration} rollDiceDeclaration
+ * @property {string} name - 関数名（"rollDice"）
+ * @property {string} description - 関数の説明文（Gemini AIが理解するための日本語説明）
+ * @property {object} parameters - 関数のパラメータ定義
+ * @property {Type} parameters.type - パラメータの型（OBJECT）
+ * @property {object} parameters.properties - パラメータのプロパティ定義
+ * @property {string[]} parameters.required - 必須パラメータの配列
+ *
  */
 export const rollDiceDeclaration: FunctionDeclaration = {
   name: 'rollDice',

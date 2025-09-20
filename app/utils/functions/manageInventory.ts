@@ -7,6 +7,37 @@ import type { FunctionCallArgs, FunctionDeclaration, FunctionExecutionContext } 
 
 /**
  * キャラクターの所持品を管理する関数
+ *
+ * Gemini AIのFunction Calling機能を通じて、キャラクターのインベントリを
+ * 管理します。アイテムの追加、削除、確認機能を提供します。永続メモリを
+ * 使用してセッション間でデータを保持し、各キャラクターの所持品を
+ * 個別に管理できます。
+ *
+ * @async
+ * @function manageInventory
+ * @param {FunctionCallArgs} args - Function Callingの引数
+ * @param {string} args.characterName - 操作対象のキャラクター名（必須）
+ * @param {string} args.action - 実行するアクション（必須）
+ *   - "add": アイテムを指定した個数追加
+ *   - "remove": アイテムを指定した個数削除（所持数が不足の場合は可能な分だけ削除）
+ *   - "check": アイテムの現在の所持数を確認
+ * @param {string} args.itemName - 操作対象のアイテム名（必須）
+ * @param {number} [args.quantity] - 追加・削除する個数（デフォルト: 1）
+ *   actionが"add", "remove"の場合は1以上の数値である必要があります
+ * @param {FunctionExecutionContext} context - Function Callingの実行コンテキスト
+ * @returns {Promise<object>} 操作結果を含むオブジェクト
+ *   - `characterName`: 操作対象のキャラクター名
+ *   - `action`: 実行されたアクション
+ *   - `itemName`: 操作対象のアイテム名
+ *   - `quantity`: 指定した個数（add、removeアクション時）
+ *   - `currentQuantity`: 変更前の所持数（add、removeアクション時）
+ *   - `newQuantity`: 変更後の所持数（add、removeアクション時）
+ *   - `removedQuantity`: 実際に削除された個数（removeアクション時）
+ *   - `message`: 操作結果の説明メッセージ
+ *
+ * @throws {Error} 必須引数が不足している場合
+ * @throws {Error} 無効なアクションが指定された場合
+ * @throws {Error} 無効な個数が指定された場合（add、removeアクション時）
  */
 export async function manageInventory(
   args: FunctionCallArgs,
@@ -23,13 +54,13 @@ export async function manageInventory(
 }> {
   console.log(`[Function Calling] manageInventoryが呼び出されました。コンテキスト:`, context)
 
-  const characterName = args.character_name as string
+  const characterName = args.characterName as string
   const action = args.action as string
-  const itemName = args.item_name as string
+  const itemName = args.itemName as string
   const quantity = (args.quantity as number) || 1
 
   if (!characterName || !action || !itemName) {
-    const errorMsg = "引数 'character_name', 'action', 'item_name' は必須です。"
+    const errorMsg = "引数 'characterName', 'action', 'itemName' は必須です。"
     console.error(`[Function Calling] manageInventory: ${errorMsg}`)
     throw new Error(errorMsg)
   }
@@ -137,7 +168,20 @@ export async function manageInventory(
 }
 
 /**
- * manageInventory関数の宣言
+ * manageInventory関数のGemini AI Function Calling宣言
+ *
+ * Gemini AIのFunction Calling機能で使用するための関数宣言オブジェクトです。
+ * この宣言により、Gemini AIがmanageInventory関数を認識し、
+ * 適切なタイミングで呼び出すことができます。
+ *
+ * @constant {FunctionDeclaration} manageInventoryDeclaration
+ * @property {string} name - 関数名（"manageInventory"）
+ * @property {string} description - 関数の説明文（Gemini AIが理解するための日本語説明）
+ * @property {object} parameters - 関数のパラメータ定義
+ * @property {Type} parameters.type - パラメータの型（OBJECT）
+ * @property {object} parameters.properties - パラメータのプロパティ定義
+ * @property {string[]} parameters.required - 必須パラメータの配列
+ *
  */
 export const manageInventoryDeclaration: FunctionDeclaration = {
   name: 'manageInventory',
@@ -145,7 +189,7 @@ export const manageInventoryDeclaration: FunctionDeclaration = {
   parameters: {
     type: Type.OBJECT,
     properties: {
-      character_name: {
+      characterName: {
         type: Type.STRING,
         description: '操作対象のキャラクター名',
       },
@@ -154,7 +198,7 @@ export const manageInventoryDeclaration: FunctionDeclaration = {
         description: '実行するアクション。「add」で追加、「remove」で削除、「check」で確認',
         enum: ['add', 'remove', 'check'],
       },
-      item_name: {
+      itemName: {
         type: Type.STRING,
         description: '操作対象のアイテム名',
       },
@@ -163,6 +207,6 @@ export const manageInventoryDeclaration: FunctionDeclaration = {
         description: 'add、removeアクションで使用する個数（デフォルト: 1）',
       },
     },
-    required: ['character_name', 'action', 'item_name'],
+    required: ['characterName', 'action', 'itemName'],
   },
 }

@@ -7,6 +7,37 @@ import type { FunctionCallArgs, FunctionDeclaration, FunctionExecutionContext } 
 
 /**
  * キャラクターのステータス（HP, MPなど）を管理する関数
+ *
+ * Gemini AIのFunction Calling機能を通じて、キャラクターのステータス値を
+ * 管理します。HP、MP、攻撃力、防御力などの数値ステータスの設定、増減、
+ * 取得操作を提供します。永続メモリを使用してセッション間でデータを保持します。
+ *
+ * @async
+ * @function manageCharacterStatus
+ * @param {FunctionCallArgs} args - Function Callingの引数
+ * @param {string} args.characterName - 操作対象のキャラクター名（必須）
+ * @param {string} args.action - 実行するアクション（必須）
+ *   - "set": ステータス値を指定した値に設定
+ *   - "increase": ステータス値を指定した値だけ増加
+ *   - "decrease": ステータス値を指定した値だけ減少
+ *   - "get": 現在のステータス値を取得
+ * @param {string} args.statusKey - 操作対象のステータス名（必須）
+ *   例: "HP", "MP", "ATK", "DEF", "SPD", "LUK" など
+ * @param {number} [args.value] - set、increase、decreaseアクションで使用する数値
+ *   actionが"set", "increase", "decrease"の場合は必須
+ * @param {FunctionExecutionContext} context - Function Callingの実行コンテキスト
+ * @returns {Promise<object>} 操作結果を含むオブジェクト
+ *   - `characterName`: 操作対象のキャラクター名
+ *   - `statusKey`: 操作対象のステータス名
+ *   - `action`: 実行されたアクション
+ *   - `value`: 取得した値（getアクション時）
+ *   - `oldValue`: 変更前の値（set、increase、decreaseアクション時）
+ *   - `newValue`: 変更後の値（set、increase、decreaseアクション時）
+ *   - `message`: 操作結果の説明メッセージ
+ *
+ * @throws {Error} 必須引数が不足している場合
+ * @throws {Error} 無効なアクションが指定された場合
+ * @throws {Error} 数値型のvalueが必要なアクションでvalueが数値でない場合
  */
 export async function manageCharacterStatus(
   args: FunctionCallArgs,
@@ -123,7 +154,20 @@ export async function manageCharacterStatus(
 }
 
 /**
- * manageCharacterStatus関数の宣言
+ * manageCharacterStatus関数のGemini AI Function Calling宣言
+ *
+ * Gemini AIのFunction Calling機能で使用するための関数宣言オブジェクトです。
+ * この宣言により、Gemini AIがmanageCharacterStatus関数を認識し、
+ * 適切なタイミングで呼び出すことができます。
+ *
+ * @constant {FunctionDeclaration} manageCharacterStatusDeclaration
+ * @property {string} name - 関数名（"manageCharacterStatus"）
+ * @property {string} description - 関数の説明文（Gemini AIが理解するための日本語説明）
+ * @property {object} parameters - 関数のパラメータ定義
+ * @property {Type} parameters.type - パラメータの型（OBJECT）
+ * @property {object} parameters.properties - パラメータのプロパティ定義
+ * @property {string[]} parameters.required - 必須パラメータの配列
+ *
  */
 export const manageCharacterStatusDeclaration: FunctionDeclaration = {
   name: 'manageCharacterStatus',
