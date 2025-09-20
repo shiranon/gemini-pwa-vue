@@ -34,3 +34,6 @@ test-results
 
 # Local development
 CLAUDE.local.md
+
+# bin
+bin/
