@@ -86,7 +86,7 @@ export const exportFullData = async (): Promise<FullBackupData> => {
   const backupData: FullBackupData = {
     version: '1.0.1',
     exportedAt: Date.now(),
-    application: 'Gemini TRPG Assistant',
+    application: 'Gemini Pwa Assistant',
     data: {
       chats,
       settings: settingsStore.exportSettings(),
@@ -231,7 +231,7 @@ export const loadBackupFromFile = (file: File): Promise<FullBackupData> => {
 export const downloadBackup = async (filename?: string) => {
   try {
     const backupData = await exportFullData()
-    downloadJson(backupData, filename || `gemini-trpg-backup-${new Date().toISOString().slice(0, 10)}.json`)
+    downloadJson(backupData, filename || `gemini-pwa-backup-${new Date().toISOString().slice(0, 10)}.json`)
   } catch (err) {
     throw new Error('バックアップのダウンロードに失敗しました: ' + (err instanceof Error ? err.message : String(err)))
   }

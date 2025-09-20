@@ -31,7 +31,7 @@ export const useNavigation = () => {
       case 'data':
         return 'データ管理'
       default:
-        return 'Gemini TRPG Assistant'
+        return 'Gemini Pwa Assistant'
     }
   })
 

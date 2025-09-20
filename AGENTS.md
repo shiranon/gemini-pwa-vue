@@ -1,28 +1,22 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-Core Nuxt source files live in `app/`. Define routes in `app/pages/`, keep UI pieces in PascalCase under `app/components/`, share logic through `app/composables/`, and register Pinia stores in `app/stores/` (e.g., `app/stores/thing.ts` exporting `useThingStore`). Place app-wide helpers in `app/utils/`, PWA config in `app/pwa-assets.config.ts`, and service worker code in `app/service-worker/`. Server middleware and API handlers stay in `server/`, static assets in `public/`, and mirror every significant module with a matching spec in `tests/` (such as `tests/composables/useFeature.spec.ts`).
+Core Nuxt code lives in `app/`. Define routes in `app/pages/`, keep shared UI in PascalCase components under `app/components/`, and colocate business logic in `app/composables/` and `app/stores/` (e.g., `app/stores/thing.ts` exporting `useThingStore`). App-wide helpers belong in `app/utils/`, PWA tuning in `app/pwa-assets.config.ts`, and service worker code under `app/service-worker/`. Server middleware and API endpoints reside in `server/`, while static assets go in `public/`. Mirror each significant module with a partner spec under `tests/` (for example, `tests/composables/useFeature.spec.ts`).
 
 ## Build, Test, and Development Commands
-- `bun install` installs dependencies.
-- `bun dev` starts Nuxt at http://localhost:8888.
-- `bun run build` compiles the production bundle into `.output/`.
-- `bun run preview` serves the built bundle at http://localhost:8880.
-- `bun run generate` emits a static build when needed.
-- `bun run lint` and `bun run typecheck` enforce ESLint 9 + Nuxt type safety.
-- `bun test` executes the Vitest suite.
+Run `bun install` once to lock dependencies. Use `bun dev` to launch Nuxt at http://localhost:8888. `bun run build` outputs the production bundle to `.output/`; preview it with `bun run preview`. Generate a static bundle through `bun run generate`. Enforce quality gates with `bun run lint`, `bun run typecheck`, and execute the Vitest suite via `bun test` before handoff.
 
 ## Coding Style & Naming Conventions
-Write TypeScript with 2-space indentation and `<script setup lang="ts">` in Vue SFCs. Components stay PascalCase (`AppHeader.vue`), composables use `useThing.ts`, stores expose `useThingStore`, and utilities export lowerCamelCase functions. Tailwind CSS v4 classes should stay atomic and descriptive. ESLint and Prettier handle formatting—only disable a rule with strong justification.
+Write TypeScript with 2-space indentation. Vue SFCs should use `<script setup lang="ts">`. Components follow PascalCase (`AppHeader.vue`), composables use `useThing.ts`, Pinia stores expose `useThingStore`, and utilities export lowerCamelCase helpers. Tailwind CSS v4 classes stay atomic and descriptive. Respect ESLint 9 and Prettier defaults; disable rules only with explicit justification.
 
 ## Testing Guidelines
-Use Vitest with `@nuxt/test-utils`. Keep specs colocated under `tests/**` with `*.spec.ts` suffixes and mirror the source path. Prioritize coverage for critical composables, stores, and utilities; add UI snapshots only when components are stable. Run `bun test` alongside linting and type checks before submitting changes.
+Use Vitest with `@nuxt/test-utils`. Keep specs under `tests/**` with matching names, e.g., `tests/components/AppHeader.spec.ts`. Cover critical composables, stores, and utilities; add component snapshots once stabilized. Run `bun test` locally, and pair it with linting and type checks before submitting changes.
 
 ## Commit & Pull Request Guidelines
-Follow Conventional Commits (`feat:`, `fix:`, `refactor:`). PRs need a concise summary, linked issues, verification steps, and screenshots for UI work. Update `README.md` or `.env-sample` whenever commands or environment variables change.
+Adopt Conventional Commits (`feat:`, `fix:`, `refactor:`). Titles should describe intent; body text links issues and outlines scope. Pull requests need a concise summary, verification steps, and screenshots for UI updates. Update `README.md` or `.env-sample` whenever commands, configuration, or environment variables change.
 
 ## Security & Configuration Tips
-Keep secrets in `.env`, expose client-safe values via `NUXT_PUBLIC_*`, and declare them in `runtimeConfig`. Verify PWA assets stay in sync through `app/pwa-assets.config.ts` and audit service worker modifications carefully.
+Keep secrets in `.env` and expose client-safe values through `NUXT_PUBLIC_*`, mirroring them in `runtimeConfig`. When touching the service worker or PWA assets, update `app/pwa-assets.config.ts` alongside any bundle changes and review caching impacts.
 
 ## Agent-Specific Instructions
-Keep diffs minimal and targeted. Always run `bun lint --fix`, `bun run typecheck`, and relevant tests before handoff. Prefer additive changes over sweeping refactors and confirm unexpected file changes with the user.
+Keep diffs minimal, favor additive updates, and leave unrelated user changes untouched. Always run `bun run lint --fix`, `bun run typecheck`, and relevant tests before handoff. Stop and confirm with the user if unexpected modifications appear outside your changes.

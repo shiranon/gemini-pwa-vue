@@ -3,33 +3,44 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
-This is a Nuxt 3 Progressive Web App for Gemini AI interactions, designed for TRPG (tabletop role-playing game) use cases. The project has been refactored from an older JavaScript structure ([Gemini PWA Client Mk-II](https://github.com/kinkan04/Gemini-PWA-Mk-II)) to a modern Vue 3/Nuxt 3 TypeScript setup with PWA capabilities.
+A Nuxt 3 Progressive Web App for Gemini AI chat interactions, specifically designed for TRPG (tabletop role-playing game) scenarios. This is a complete Vue.js rewrite of the original [Gemini PWA Client Mk-II](https://github.com/kinkan04/Gemini-PWA-Mk-II), featuring modern TypeScript architecture and enhanced PWA capabilities.
 
-**Demo**: [gemini-pwa-vue.vercel.app](https://gemini-pwa-vue.vercel.app)
+**Live Demo**: [gemini-pwa-vue.vercel.app](https://gemini-pwa-vue.vercel.app)
 
 ## Development Commands
 
 ### Essential Commands
 - `bun install` - Install dependencies
 - `bun run dev` - Start development server on http://localhost:8888
-- `bun run build` - Build for production 
+- `bun run build` - Build for production
 - `bun run typecheck` - Run TypeScript type checking
 - `bun run lint` - Run ESLint
 - `bun lint --fix` - Auto-fix ESLint issues
+- `bun run test` - Run Vitest tests with TZ=Asia/Tokyo
 - `bun run generate` - Generate static site
-- `bun run preview` - Preview production build
-- `bun run generate-pwa-assets` - Generate PWA assets from icon.png
+- `bun run preview` - Preview production build on http://localhost:8880
+- `bun run generate-pwa-assets` - Generate PWA assets from public/icon.png
 
 ### Package Manager
-This project uses **Bun** as the package manager. Always use `bun` commands instead of npm/yarn/pnpm.
+**Bun** is the required package manager. Always use `bun` commands instead of npm/yarn/pnpm.
 
-## Architecture and Structure
+## Architecture Overview
+
+### Core Technologies
+- **Nuxt 3** - Vue.js meta-framework configured as SPA (`ssr: false`)
+- **Vue 3** - Composition API with `<script setup lang="ts">` syntax
+- **TypeScript** - Strict typing throughout
+- **TailwindCSS v4** - Utility-first CSS (@apply directive prohibited)
+- **Pinia** - State management with persistence
+- **IndexedDB/Dexie** - Persistent data storage for chat history
+- **PWA/Workbox** - Service worker with offline capabilities
+- **Vitest** - Unit testing framework
 
 ### Directory Structure
 ```
 app/                     # Nuxt 3 app directory (main source)
 ├── assets/css/         # Global CSS (TailwindCSS imports)
-├── components/         # Vue components (atomic design structure)
+├── components/         # Vue components (atomic design)
 │   ├── molecules/      # Component combinations
 │   │   ├── page-chat/  # Chat interface molecules
 │   │   ├── page-data/  # Data management molecules
@@ -37,7 +48,7 @@ app/                     # Nuxt 3 app directory (main source)
 │   │   ├── page-setting/ # Settings page molecules
 │   │   ├── layout/     # Layout molecules
 │   │   ├── dialogs/    # Dialog molecules
-│   │   └── *           # Shared/legacy molecules (AppLogo, FileUpload, etc.)
+│   │   └── *           # Shared molecules
 │   ├── organisms/      # Complex components
 │   │   ├── page-chat/  # Chat page organisms
 │   │   ├── page-data/  # Data management organisms
@@ -45,213 +56,239 @@ app/                     # Nuxt 3 app directory (main source)
 │   │   ├── page-setting/ # Settings page organisms
 │   │   └── layout/     # Layout organisms
 │   └── ui/             # shadcn-vue UI components (atoms)
-├── composables/        # Vue composables for API integration
+├── composables/        # Vue composables
 ├── layouts/            # Vue layouts
+├── lib/                # Core utilities and database
 ├── pages/              # Vue pages/routes
 ├── service-worker/     # PWA service worker
-├── stores/             # Pinia store modules
+├── stores/             # Pinia stores
 ├── types/              # TypeScript type definitions
-├── utils/              # Utility functions (includes database layer)
+├── utils/              # Utility functions
+│   └── functions/      # Function calling utilities
 └── app.vue             # Root Vue component
+
+tests/                  # Test files
+├── lib/                # Library tests
+└── utils/functions/    # Function utilities tests
 
 public/                 # Static assets
 server/                 # Server-side code
 ```
 
-### Key Technologies
-- **Nuxt 3** - Vue.js framework with SSR/SSG
-- **Vue 3** with Composition API and `<script setup>` syntax
-- **TypeScript** - Strict typing throughout
-- **TailwindCSS v4** - Utility-first CSS framework
-- **Pinia** - State management with persistence
-- **PWA** - Progressive Web App with Workbox service worker
-- **Vite** - Build tool and dev server
+## Core Features & Architecture
 
-### State Management & Data Layer
-- **Pinia Stores**: Located in `app/stores/` directory
-  - Configured with persistence via `pinia-plugin-persistedstate`
-  - Store modules follow Pinia composition API patterns
-  - Used for lightweight settings and UI state (localStorage)
-- **IndexedDB Database**: Sophisticated data layer using DexieJS
-  - Database class defined in `app/utils/database.ts`
-  - Handles chat history, messages, and file attachments
-  - Composables in `app/composables/` provide database operations
-- **Composables Pattern**: Vue composables for API integrations
-  - Prefix naming convention with `use` (e.g., `useSettings`, `useDatabase`)
-  - Auto-imported via Nuxt's composables system
+### State Management
+**Three-tier data architecture**:
+1. **Pinia Stores** (`app/stores/`)
+   - `chat.ts` - Current chat session state
+   - `gemini.ts` - Gemini API configuration
+   - `settings.ts` - Application settings
+   - Persistence via `pinia-plugin-persistedstate`
 
-### PWA Configuration
-- Custom service worker in `app/service-worker/sw.ts`
-- Uses `injectManifest` strategy for full SW control
-- PWA assets generated via `@vite-pwa/assets-generator`
-- Install prompts and update notifications in default layout
+2. **IndexedDB Database** (`app/lib/database.ts`)
+   - Chat history persistence
+   - Message and file attachment storage
+   - Settings backup
+   - Uses Dexie.js for type-safe access
+
+3. **Composables** (`app/composables/`)
+   - Bridge between stores and components
+   - API integrations and business logic
+
+### Key Composables
+
+#### API Integration
+- **`useGeminiApi`** - Gemini AI API integration
+  - `generateContent()` - Non-streaming generation
+  - `generateContentStream()` - Streaming with async generator
+  - `validateApiKey()` - API key validation
+  - `getAvailableModels()` - Fetch available models
+
+#### Function Calling System
+- **`useFunctionCalling`** - TRPG function execution framework
+  - Dynamic function registration system
+  - Execution context management
+  - Function enablement controls
+  - Execution logging
+
+#### Data Management
+- **`useDatabase`** - IndexedDB operations wrapper
+- **`useDataManagement`** - Import/export functionality
+- **`useHistoryManagement`** - Chat history operations
+
+#### Feature Composables
+- **`useTranslator`** - DeepL/Gemini translation
+- **`useProofreader`** - Text proofreading
+- **`useFontSettings`** - Font management
+- **`useSettings`** - Settings management
+
+### Function Calling Tools (`app/utils/functions/`)
+TRPG-specific utilities for game mechanics:
+- `rollDice` - Dice rolling mechanics
+- `manageInventory` - Inventory management
+- `manageCharacterStatus` - Character stats
+- `manageRelationship` - Relationship tracking
+- `manageGameDate` - Game timeline
+- `manageScene` - Scene management
+- `managePersistentMemory` - Memory persistence
+- `manageFlags` - Game flags
+- `manageStyleProfile` - Style profiles
+
+### Data Flow Patterns
+
+1. **Component → Composable → Store/Database**
+   ```
+   Component calls composable method
+   → Composable updates store/database
+   → Store triggers reactivity
+   → Component updates via computed properties
+   ```
+
+2. **Gemini API Flow**
+   ```
+   User input → ChatInterface component
+   → useGeminiApi.generateContentStream()
+   → Stream chunks to UI
+   → Save to database via useDatabase
+   ```
+
+3. **Function Calling Flow**
+   ```
+   Gemini requests function → useFunctionCalling.executeFunction()
+   → Function handler executes with context
+   → Result returned to Gemini
+   → Execution logged
+   ```
+
+## PWA Configuration
+
+### Service Worker
+- Custom service worker at `app/service-worker/sw.ts`
+- `injectManifest` strategy for full control
+- Workbox for caching strategies
+- Auto-reload during development
+- Offline support with precaching
+
+### PWA Features
+- Install prompt handling in default layout
+- Update notifications
+- Background sync
+- Offline functionality
+
+## Testing
+
+### Framework
+- **Vitest** for unit testing
+- Test files in `tests/` directory
+- `.spec.ts` file extension
+- Timezone: `Asia/Tokyo` for consistency
+
+### Test Structure
+```
+tests/
+├── lib/
+│   └── history.spec.ts
+└── utils/functions/
+    ├── rollDice.spec.ts
+    ├── manageInventory.spec.ts
+    └── [other function tests]
+```
 
 ## Code Standards
 
-### ESLint Configuration
-- Uses `@nuxt/eslint-config` with custom rules
-- Prettier integration with 200-char print width
-- Console logs are allowed (`no-console: off`)
-- Ignores `old/**/*` directory
-
-### Prettier Configuration
-- No semicolons (`semi: false`)
-- Single quotes (`singleQuote: true`)
-- 2-space indentation
-- Single attribute per line in Vue templates
-- TailwindCSS class sorting enabled
+### Component Patterns
+- **Atomic Design** structure (atoms/molecules/organisms)
+- **shadcn-vue** as default UI library
+- **Single File Components** with `<script setup lang="ts">`
+- **v-model** based control flow
 
 ### TypeScript
-- Strict TypeScript throughout
-- Type checking runs in pre-commit hooks
-- Excludes service worker from main tsconfig
+- Strict mode enabled
+- Type definitions in `app/types/`
+- All composables and stores fully typed
+- Service worker excluded from main tsconfig
 
-## Development Workflow
+### Styling
+- **TailwindCSS v4** utilities only
+- **NO @apply directive** - prepare for v4 removal
+- Component-scoped styles avoided
+- Utility classes in templates
 
 ### Git Hooks (Lefthook)
-Pre-commit hooks run automatically:
-1. TypeScript type checking
-2. ESLint linting  
-3. Production build verification
+Pre-commit hooks run in parallel:
+1. TypeScript type checking (`bun typecheck`)
+2. ESLint linting (`bun lint`)
+3. Unit tests (`TZ=Asia/Tokyo bun test`)
 
-### File Conventions & Patterns  
-- Vue components use `<script setup lang="ts">` syntax
-- Store modules in TypeScript with Pinia composition API
-- Service worker uses Workbox for caching strategies
-- CSS uses TailwindCSS utilities exclusively
-- All imports use absolute paths with `~/` prefix
-- Type definitions centralized in `app/types/` directory
+## Icon Management
 
-### PWA Development
-- Service worker auto-reloads during development
-- PWA install prompts handled in default layout
-- Offline functionality via Workbox precaching
-- Custom navigation routing for SPA behavior
+### Primary: Lucide Icons
+- Via shadcn-vue components
+- Imported from `lucide-vue-next`
+- Used by UI components
 
-## Important Notes
+### Alternative: Iconify
+- Use `@iconify/vue` component
+- Material Symbols icon set
+- Format: `<Icon icon="material-symbols:name" />`
+- Browse: https://icon-sets.iconify.design/material-symbols/
+
+## API Integrations
+
+### Gemini AI (`@google/genai`)
+- Content generation (streaming/non-streaming)
+- Model management
+- System instructions
+- Thought process extraction
+- Function calling support
+
+### DeepL Translation (Optional)
+- Thought process translation
+- Requires DeepL API key
+- Alternative to Gemini translation
+
+### Font Management
+- Google Fonts presets
+- System font detection
+- Custom font upload
+- Real-time preview
+
+## Build & Deployment
 
 ### Build Process
-The project uses Nuxt 3's build system with PWA manifest injection. The service worker is built separately and injected with precache manifest.
+- Nuxt 3 with Vite bundler
+- PWA manifest injection
+- Service worker compilation
+- Static site generation support
 
-**Important**: This is configured as a Single Page Application (SPA) with `ssr: false` for optimal PWA performance.
+### Configuration Files
+- `nuxt.config.ts` - Nuxt configuration
+- `tailwind.config.js` - TailwindCSS setup
+- `components.json` - shadcn-vue configuration
+- `lefthook.yml` - Git hooks
+- `pwa-assets.config.ts` - PWA asset generation
 
-### Environment Configuration
-- Development tools enabled only in development environment
-- Runtime config available via `useRuntimeConfig()`
-- PWA dev options disabled by default for production-like testing
+### Environment
+- SPA mode (`ssr: false`)
+- Development port: 8888
+- Preview port: 8880
+- Runtime config via `useRuntimeConfig()`
 
-## Refactoring Standards
-
-### TailwindCSS v4 Compliance
-- **@apply directive is PROHIBITED** - Use utility classes directly in HTML/Vue templates
-- Prepare for v4 where @apply will be removed
-- All styling must use utility classes exclusively
-
-### Icon Management
-**Primary**: Lucide icons via shadcn-vue components
-- Configured in `components.json`
-- Used by shadcn-vue UI components
-- Imported from `lucide-vue-next` package
-
-**Alternative**: Iconify with Material Symbols
-- Use Iconify Vue component (`@iconify/vue`) for additional icons
-- Material Symbols by Google as supplementary icon set
-- Format: `<Icon icon="material-symbols:name" />`
-- Build-time bundling for offline support via CDN
-- Only `@iconify/vue` package is required - icons load automatically
-
-#### Iconify Vue Usage Reference
-```vue
-<script setup>
-import { Icon } from '@iconify/vue'
-</script>
-
-<template>
-  <!-- Basic usage -->
-  <Icon icon="material-symbols:home" />
-  
-  <!-- With size and color -->
-  <Icon icon="material-symbols:settings" width="24" height="24" color="#666" />
-  
-  <!-- With styling -->
-  <Icon icon="material-symbols:menu" class="text-blue-500 w-6 h-6" />
-  
-  <!-- SSR safe (for Nuxt) -->
-  <Icon icon="material-symbols:loading" :ssr="true" />
-</template>
-```
-
-#### Icon Name Format
-- Structure: `icon-set:icon-name`
-- Material Symbols: `material-symbols:name`
-- Examples: `material-symbols:home`, `material-symbols:settings-outline-rounded`
-- Browse icons: https://icon-sets.iconify.design/material-symbols/
-
-### Atomic Design Component Structure
-- **Molecules**: Page-specific organization
-  - `molecules/page-chat/`: Chat interface molecules (MessageBubble, ImageModal parts, etc.)
-  - `molecules/page-data/`: Data management molecules (DropZone, ImportOptions, etc.)
-  - `molecules/page-history/`: History page molecules (HistoryFilters, HistoryStats, etc.)
-  - `molecules/page-setting/`: Settings page molecules (SettingSection, SettingItem, etc.)
-  - `molecules/layout/`: Layout molecules (AppHeader, PWANotification)
-  - `molecules/dialogs/`: Dialog components (AlertDialog, ConfirmDialog, etc.)
-  - `molecules/*`: Shared/legacy molecules (AppLogo, FileUpload, DesktopNavigation, MobileNavigation)
-- **Organisms**: Page-specific organization
-  - `organisms/page-chat/`: Chat page organisms (ChatInterface, ImageModal)
-  - `organisms/page-data/`: Data management organisms (ImportSection, ExportSection, etc.)
-  - `organisms/page-history/`: History page organisms (HistoryContent, HistoryItem, etc.)
-  - `organisms/page-setting/`: Settings page organisms (ApiSettingsSection, UiSettingsSection, etc.)
-  - `organisms/layout/`: Layout organisms (DefaultLayout)
-- **UI (Atoms)**: shadcn-vue components (Button, Input, Dialog, etc.)
-
-### Component Replacement Standards
-
-- **shadcn-vue is the default standard** - No need for "WithShadcn" or similar suffixes
-- **Safe replacement workflow:**
-  1. Rename old component to `ComponentName_old.vue`
-  2. Implement new shadcn-vue standard component as `ComponentName.vue`
-  3. Test and verify new component works correctly
-  4. Delete the `_old` file after successful migration
-- **Always follow shadcn-vue recommended patterns** - v-model based control, proper separation of concerns
-
-## Gemini API Integration
-
-### @google/genai Library
-This project uses the official `@google/genai` library for Gemini API integration:
-
-- **Primary Interface**: `useGeminiApi()` composable in `app/composables/useGeminiApi.ts`
-- **Methods**:
-  - `generateContent()` - Non-streaming content generation
-  - `generateContentStream()` - Streaming content generation with async generator
-  - `validateApiKey()` - API key validation
-  - `getAvailableModels()` - Available model listing
-  - `createGeminiClient()` - Client instance creation
-
-### Usage Examples
-```typescript
-const { generateContent, generateContentStream } = useGeminiApi()
-
-// Non-streaming
-const response = await generateContent(messages, config, systemInstruction, settings)
-
-// Streaming
-for await (const chunk of generateContentStream(messages, config, systemInstruction, settings)) {
-  console.log(chunk.contentText)
-}
-```
-
-### Additional Features
-- **DeepL Translation**: Optional thought process translation using DeepL API (requires DeepL API key)
-- **Font Management**: Preset fonts (Google Fonts), system fonts, and custom font upload support
-- **Official Model Fetching**: Retrieves available Gemini models directly from Google's API
-
-### Quality Gates (MANDATORY)
-After every code change, run:
+## Quality Gates (MANDATORY)
+After code changes, always run:
 ```bash
 bun lint --fix    # Auto-fix linting issues
 bun typecheck     # Verify TypeScript types
-bun run build         # Confirm production build
+bun test          # Run unit tests
+bun run build     # Confirm production build
 ```
 
-### local development
-Read `CLAUDE.local.md` file
+## Component Migration Pattern
+When replacing components with shadcn-vue:
+1. Rename old component to `ComponentName_old.vue`
+2. Implement new component as `ComponentName.vue`
+3. Test thoroughly
+4. Delete `_old` file after verification
+
+## Local Development Configuration
+Read `CLAUDE.local.md` for user-specific configuration and preferences.
