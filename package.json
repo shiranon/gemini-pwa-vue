@@ -10,7 +10,7 @@
     "generate": "nuxt generate",
     "preview": "nuxt preview --port 8880",
     "postinstall": "nuxt prepare --port 8888",
-    "test": "vitest",
+    "test": "TZ=Asia/Tokyo vitest",
     "generate-pwa-assets": "pwa-assets-generator --preset minimal-2023 public/icon.png"
   },
   "dependencies": {

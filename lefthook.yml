@@ -5,3 +5,5 @@ pre-commit:
       glob: "*.{vue,ts}"
     - run: bun typecheck
       glob: "*.{vue,ts}"
+    - run: TZ=Asia/Tokyo bun test
+      glob: "*.{vue,ts}"

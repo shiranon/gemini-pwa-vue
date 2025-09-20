@@ -234,7 +234,19 @@ describe('getCurrentDateTime', () => {
       const args: FunctionCallArgs = {}
 
       const result = await getCurrentDateTime(args, mockContext)
+
+      // 日本時間での現在時刻を取得
       const now = new Date()
+      const japanTime = new Intl.DateTimeFormat('ja-JP', {
+        timeZone: 'Asia/Tokyo',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).formatToParts(now)
+
+      const currentYear = Number.parseInt(japanTime.find((p) => p.type === 'year')?.value || '0', 10)
+      const currentMonth = Number.parseInt(japanTime.find((p) => p.type === 'month')?.value || '0', 10)
+      const currentDay = Number.parseInt(japanTime.find((p) => p.type === 'day')?.value || '0', 10)
 
       // 日付の部分を抽出
       const dateMatch = result.date.match(/^(\d{4})年(\d{2})月(\d{2})日$/)
@@ -245,10 +257,10 @@ describe('getCurrentDateTime', () => {
         const resultMonth = Number.parseInt(dateMatch[2] || '0', 10)
         const resultDay = Number.parseInt(dateMatch[3] || '0', 10)
 
-        // 現在時刻と比較（秒単位の差は許容）
-        expect(resultYear).toBe(now.getFullYear())
-        expect(resultMonth).toBe(now.getMonth() + 1) // getMonth()は0ベース
-        expect(resultDay).toBe(now.getDate())
+        // 日本時間での現在時刻と比較
+        expect(resultYear).toBe(currentYear)
+        expect(resultMonth).toBe(currentMonth)
+        expect(resultDay).toBe(currentDay)
       }
     })
 
@@ -256,13 +268,15 @@ describe('getCurrentDateTime', () => {
       const args: FunctionCallArgs = {}
 
       const result = await getCurrentDateTime(args, mockContext)
+
+      // 日本時間での現在時刻を取得
       const now = new Date()
+      const japanWeekday = new Intl.DateTimeFormat('ja-JP', {
+        timeZone: 'Asia/Tokyo',
+        weekday: 'long',
+      }).format(now)
 
-      // 日本時間での曜日を計算
-      const japaneseWeekdays = ['日曜日', '月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日']
-      const expectedWeekday = japaneseWeekdays[now.getDay()]
-
-      expect(result.weekday).toBe(expectedWeekday)
+      expect(result.weekday).toBe(japanWeekday)
     })
   })
 })
