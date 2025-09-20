@@ -49,6 +49,7 @@ export interface FunctionCallResult {
   result: unknown
   error?: string
   executionTime?: number
+  context?: FunctionExecutionContext
 }
 
 /**
@@ -58,6 +59,41 @@ export interface FunctionExecutionContext {
   messageId?: string
   timestamp: number
   userId?: string
+  persistentMemory?: Record<string, unknown>
+}
+
+/**
+ * Function Calling用のツールメタデータ
+ */
+export interface FunctionToolMeta {
+  displayName: string
+  id?: string
+  description?: string
+  category?: string
+  tags?: string[]
+  defaultEnabled?: boolean
+  docsUrl?: string
+  argsHint?: string
+  contextHint?: string
+}
+
+/**
+ * Function Callingに渡す引数整形・検証関数の型
+ */
+export type FunctionArgsPreparer = (rawArgs: FunctionCallArgs) => FunctionCallArgs
+export type FunctionArgsValidator = (args: FunctionCallArgs) => void
+export type FunctionExecutionContextEnhancer = (context: FunctionExecutionContext) => FunctionExecutionContext
+
+/**
+ * Function Callingレジストリ用のツール定義
+ */
+export interface FunctionToolDefinition {
+  declaration: FunctionDeclaration
+  handler: FunctionHandler
+  meta?: FunctionToolMeta
+  prepareArgs?: FunctionArgsPreparer
+  validateArgs?: FunctionArgsValidator
+  enhanceExecutionContext?: FunctionExecutionContextEnhancer
 }
 
 /**
@@ -72,8 +108,10 @@ export interface FunctionRegistryEntry {
   declaration: FunctionDeclaration
   handler: FunctionHandler
   enabled: boolean
-  category?: string
-  tags?: string[]
+  meta?: FunctionToolMeta
+  prepareArgs?: FunctionArgsPreparer
+  validateArgs?: FunctionArgsValidator
+  enhanceExecutionContext?: FunctionExecutionContextEnhancer
 }
 
 /**

@@ -15,6 +15,7 @@ import {
 } from '@google/genai'
 import { useFunctionCalling } from '~/composables/useFunctionCalling'
 import { generateMessageId } from '~/lib/ids'
+import { useChatStore } from '~/stores/chat'
 import type { GeminiApiSettings, GeminiMessage } from '~/types/chat'
 import type { FunctionCall, FunctionCallResult } from '~/types/function-calling'
 
@@ -86,6 +87,7 @@ export type CombinedResponse = ResponseLike & {
 
 export const useGeminiApi = () => {
   const { getEnabledFunctionDeclarations, executeFunction } = useFunctionCalling()
+  const chatStore = useChatStore()
   const createGeminiClient = (apiKey: string) => {
     return new GoogleGenAI({ apiKey })
   }
@@ -105,7 +107,7 @@ export const useGeminiApi = () => {
   /**
    * Function Calling用のツール設定を構築する
    */
-  const buildToolConfig = (settings: GeminiApiSettings): { tools?: Tool[]; toolConfig?: ToolConfig } => {
+  const buildToolConfig = (settings: GeminiApiSettings, overrideMode?: 'auto' | 'any' | 'none'): { tools?: Tool[]; toolConfig?: ToolConfig } => {
     console.log('[関数呼び出し] 設定:', settings.functionCalling)
 
     const tools: Tool[] = []
@@ -114,9 +116,30 @@ export const useGeminiApi = () => {
     if (settings.functionCalling?.enabled) {
       const enabledFunctions = getEnabledFunctionDeclarations()
       console.log('[関数呼び出し] 有効な関数:', enabledFunctions)
-      if (enabledFunctions.length > 0) {
+
+      let functionDeclarations = enabledFunctions
+      if (settings.functionCalling.allowedFunctionNames?.length) {
+        const allowedSet = new Set(settings.functionCalling.allowedFunctionNames)
+        const availableNames = new Set(enabledFunctions.map((declaration) => declaration.name).filter((name): name is string => typeof name === 'string'))
+        const missingNames = settings.functionCalling.allowedFunctionNames.filter((name) => !availableNames.has(name))
+        if (missingNames.length > 0) {
+          console.warn('[関数呼び出し] allowedFunctionNamesに未登録の関数があります:', missingNames)
+        }
+
+        functionDeclarations = enabledFunctions.filter((declaration) => declaration.name && allowedSet.has(declaration.name))
+
+        if (functionDeclarations.length !== enabledFunctions.length) {
+          console.log('[関数呼び出し] allowedFunctionNamesで関数をフィルタリングしました', {
+            before: enabledFunctions.length,
+            after: functionDeclarations.length,
+            allowedFunctionNames: settings.functionCalling.allowedFunctionNames,
+          })
+        }
+      }
+
+      if (functionDeclarations.length > 0) {
         tools.push({
-          functionDeclarations: enabledFunctions as FunctionDeclaration[],
+          functionDeclarations: functionDeclarations as FunctionDeclaration[],
         })
       }
     } else {
@@ -141,15 +164,26 @@ export const useGeminiApi = () => {
         none: FunctionCallingConfigMode.NONE,
       }
 
+      // overrideModeが指定されている場合はそれを使用、そうでなければ設定値を使用
+      const effectiveMode = overrideMode ?? settings.functionCalling.mode
+
       toolConfig = {
         functionCallingConfig: {
-          mode: modeMap[settings.functionCalling.mode],
-          ...(settings.functionCalling.allowedFunctionNames && {
-            allowedFunctionNames: settings.functionCalling.allowedFunctionNames,
-          }),
+          mode: modeMap[effectiveMode],
+          // allowedFunctionNamesはANYモードでのみ指定可能
+          ...(effectiveMode === 'any' &&
+            settings.functionCalling.allowedFunctionNames && {
+              allowedFunctionNames: settings.functionCalling.allowedFunctionNames,
+            }),
         },
       }
-      console.log('[関数呼び出し] ツール設定:', { tools, toolConfig })
+      console.log('[関数呼び出し] ツール設定:', {
+        tools,
+        toolConfig,
+        originalMode: settings.functionCalling.mode,
+        effectiveMode,
+        overrideMode,
+      })
     }
 
     return { tools, ...(toolConfig && { toolConfig }) }
@@ -159,37 +193,67 @@ export const useGeminiApi = () => {
    * Function Calling を検出・実行する
    */
   const handleFunctionCalls = async (response: ResponseLike, messageId?: string): Promise<{ functionCalls: FunctionCall[]; functionResults: FunctionCallResult[] }> => {
+    console.log('[非ストリーミング] Function Calling処理開始:', { messageId })
     const functionCalls: FunctionCall[] = []
     const functionResults: FunctionCallResult[] = []
 
     if (response.candidates?.[0]?.content?.parts) {
-      for (const part of response.candidates[0].content.parts) {
-        if (isFunctionCallPart(part)) {
-          const args = part.functionCall.args && typeof part.functionCall.args === 'object' ? (part.functionCall.args as Record<string, unknown>) : {}
+      console.log('[非ストリーミング] レスポンスパーツ数:', response.candidates[0].content.parts.length)
+      for (let i = 0; i < response.candidates[0].content.parts.length; i++) {
+        const part = response.candidates[0].content.parts[i]
+        console.log(`[非ストリーミング] パーツ ${i + 1}:`, { isFunctionCall: part ? isFunctionCallPart(part) : false, part })
+
+        if (part && isFunctionCallPart(part)) {
+          const args = part?.functionCall?.args && typeof part.functionCall.args === 'object' ? (part.functionCall.args as Record<string, unknown>) : {}
           const functionCall: FunctionCall = {
-            name: part.functionCall.name,
+            name: part?.functionCall?.name || 'unknown',
             args,
           }
+          console.log(`[非ストリーミング] Function Call検出 ${functionCalls.length + 1}:`, functionCall)
           functionCalls.push(functionCall)
 
           try {
+            console.log(`[非ストリーミング] 関数実行開始 ${functionResults.length + 1}:`, functionCall.name)
             const result = await executeFunction(functionCall, {
               messageId,
               timestamp: Date.now(),
+              persistentMemory: chatStore.currentSession?.persistentMemory || {},
             })
+            console.log(`[非ストリーミング] 関数実行完了 ${functionResults.length + 1}:`, functionCall.name, result)
             functionResults.push(result)
+            console.log(`[非ストリーミング] Function Result追加後:`, {
+              calls: functionCalls.length,
+              results: functionResults.length,
+            })
+
+            // persistentMemoryを更新
+            if (result.context?.persistentMemory && chatStore.currentSession) {
+              chatStore.currentSession.persistentMemory = result.context.persistentMemory as typeof chatStore.currentSession.persistentMemory
+            }
           } catch (error) {
-            console.error('関数の実行に失敗:', error)
-            functionResults.push({
+            console.error(`[非ストリーミング] 関数の実行に失敗 ${functionResults.length + 1}:`, functionCall.name, error)
+            const errorResult = {
               name: functionCall.name,
               args: functionCall.args,
               result: null,
               error: error instanceof Error ? error.message : String(error),
+            }
+            functionResults.push(errorResult)
+            console.log(`[非ストリーミング] エラー結果追加後:`, {
+              calls: functionCalls.length,
+              results: functionResults.length,
             })
           }
         }
       }
     }
+
+    console.log('[非ストリーミング] Function Calling処理完了:', {
+      functionCallsCount: functionCalls.length,
+      functionResultsCount: functionResults.length,
+      functionCalls: functionCalls.map((fc) => ({ name: fc.name, args: fc.args })),
+      functionResults: functionResults.map((fr) => ({ name: fr.name, hasResult: !!fr.result, hasError: !!fr.error })),
+    })
 
     return { functionCalls, functionResults }
   }
@@ -256,38 +320,98 @@ export const useGeminiApi = () => {
         functionResults = fcResult.functionResults
 
         if (functionCalls.length > 0) {
-          console.log('[関数呼び出し] 関数呼び出しを検出:', functionCalls)
+          console.log('[非ストリーミング] 関数呼び出しを検出:', {
+            functionCallsCount: functionCalls.length,
+            functionResultsCount: functionResults.length,
+            functionCalls: functionCalls.map((fc) => ({ name: fc.name, args: fc.args })),
+            functionResults: functionResults.map((fr) => ({ name: fr.name, hasResult: !!fr.result, hasError: !!fr.error })),
+          })
 
           // Function Callがある場合、結果をAPIに送り返して最終回答を取得
           // 1. アシスタントのFunction Callレスポンスを追加
           const respLike = result
           if (respLike.candidates?.[0]?.content?.parts) {
             const parts = respLike.candidates![0]!.content!.parts as Part[]
-            currentContents.push({ role: 'model', parts })
+            console.log(
+              '[非ストリーミング] レスポンスパーツ詳細:',
+              parts.map((part, index) => ({
+                index,
+                isFunctionCall: isFunctionCallPart(part),
+                hasText: 'text' in part,
+                functionCallName: isFunctionCallPart(part) ? part.functionCall?.name : undefined,
+              }))
+            )
+
+            // Function Callパーツのみを抽出（テキストパーツは除外）
+            const functionCallParts = parts.filter((part) => isFunctionCallPart(part))
+            console.log(
+              '[非ストリーミング] 抽出されたFunction Callパーツ:',
+              functionCallParts.length,
+              functionCallParts.map((p) => p.functionCall?.name)
+            )
+
+            // Function Callパーツの追加をスキップ（既にcurrentContentsに含まれているため）
+            console.log('[非ストリーミング] Function Callパーツの追加をスキップ（既存のパーツを使用）')
           }
 
           // 2. Function Call結果を追加
-          for (const funcResult of functionResults) {
+          console.log('[非ストリーミング] Function Response作成開始:', {
+            resultsCount: functionResults.length,
+            results: functionResults.map((fr) => ({ name: fr.name, hasResult: !!fr.result, hasError: !!fr.error })),
+          })
+
+          for (let i = 0; i < functionResults.length; i++) {
+            const funcResult = functionResults[i]
+            if (!funcResult) continue
+            console.log(`[非ストリーミング] Function Response ${i + 1}/${functionResults.length}:`, funcResult.name, funcResult)
+
             const payload: Record<string, unknown> =
               funcResult && funcResult.result && typeof funcResult.result === 'object'
                 ? (funcResult.result as Record<string, unknown>)
                 : funcResult.error
                   ? { error: funcResult.error }
                   : ({} as Record<string, unknown>)
+
+            console.log(`[非ストリーミング] Function Response ${i + 1} payload:`, payload)
             const part = createPartFromFunctionResponse(generateMessageId(), funcResult.name, payload)
             currentContents.push({ role: 'function', parts: [part] })
+            console.log(`[非ストリーミング] Function Response ${i + 1} 追加完了`)
           }
 
           // 3. Function Call結果を含めて再度API呼び出し
-          console.log('[関数呼び出し] 関数結果をAPIへ送信')
+          console.log('[非ストリーミング] Gemini API送信前の最終状態:', {
+            currentContentsLength: currentContents.length,
+            functionCallParts: currentContents.filter((c) => c.role === 'model').length,
+            functionResponseParts: currentContents.filter((c) => c.role === 'function').length,
+            currentContents: currentContents.map((c) => ({ role: c.role, partsCount: c.parts?.length || 0 })),
+          })
+
+          // 各パーツの詳細内容をログ出力
+          currentContents.forEach((content, index) => {
+            if (content.role === 'model' && content.parts) {
+              console.log(
+                `[非ストリーミング] パーツ ${index} (model):`,
+                content.parts.map((part, partIndex) => ({
+                  partIndex,
+                  isFunctionCall: isFunctionCallPart(part),
+                  hasText: 'text' in part,
+                  functionCallName: isFunctionCallPart(part) ? part.functionCall?.name : undefined,
+                }))
+              )
+            }
+          })
+
+          // Function Call結果送信時はAUTOモードを使用（ANYモードから切り替え）
+          const resultToolConfig = buildToolConfig(settings, 'auto')
+
           const finalResult = await genAI.models.generateContent({
             model: settings.model,
             contents: currentContents,
             config: {
               ...(generationConfig as Record<string, unknown>),
               ...(systemInstruction && { systemInstruction }),
-              ...(toolConfig.tools && { tools: toolConfig.tools }),
-              ...(toolConfig.toolConfig && { toolConfig: toolConfig.toolConfig }),
+              ...(resultToolConfig.tools && { tools: resultToolConfig.tools }),
+              ...(resultToolConfig.toolConfig && { toolConfig: resultToolConfig.toolConfig }),
               safetySettings: buildSafetySettings(),
             },
           })
@@ -400,24 +524,52 @@ export const useGeminiApi = () => {
 
         // Function Call を実行
         if (functionCalls.length > 0 && settings.functionCalling?.enabled) {
+          console.log('[ストリーミング] Function Call検出:', {
+            newFunctionCalls: functionCalls,
+            currentAccumulatedCalls: accumulatedFunctionCalls.length,
+            currentAccumulatedResults: accumulatedFunctionResults.length,
+          })
+
+          // Function Callを先に追加
+          accumulatedFunctionCalls = [...accumulatedFunctionCalls, ...functionCalls]
+          console.log('[ストリーミング] Function Call追加後:', {
+            totalCalls: accumulatedFunctionCalls.length,
+            totalResults: accumulatedFunctionResults.length,
+          })
           for (const functionCall of functionCalls) {
+            console.log('[ストリーミング] 関数実行開始:', functionCall.name, functionCall.args)
             try {
               const result = await executeFunction(functionCall, {
                 messageId: generateMessageId(),
                 timestamp: Date.now(),
+                persistentMemory: chatStore.currentSession?.persistentMemory || {},
               })
+              console.log('[ストリーミング] 関数実行完了:', functionCall.name, result)
               accumulatedFunctionResults.push(result)
+              console.log('[ストリーミング] Function Result追加後:', {
+                totalCalls: accumulatedFunctionCalls.length,
+                totalResults: accumulatedFunctionResults.length,
+              })
+
+              // persistentMemoryを更新
+              if (result.context?.persistentMemory && chatStore.currentSession) {
+                chatStore.currentSession.persistentMemory = result.context.persistentMemory as typeof chatStore.currentSession.persistentMemory
+              }
             } catch (error) {
-              console.error('[ストリーミング] 関数の実行に失敗:', error)
-              accumulatedFunctionResults.push({
+              console.error('[ストリーミング] 関数の実行に失敗:', functionCall.name, error)
+              const errorResult = {
                 name: functionCall.name,
                 args: functionCall.args,
                 result: null,
                 error: error instanceof Error ? error.message : String(error),
+              }
+              accumulatedFunctionResults.push(errorResult)
+              console.log('[ストリーミング] エラー結果追加後:', {
+                totalCalls: accumulatedFunctionCalls.length,
+                totalResults: accumulatedFunctionResults.length,
               })
             }
           }
-          accumulatedFunctionCalls = [...accumulatedFunctionCalls, ...functionCalls]
         }
 
         if (contentText || thoughts || functionCalls.length > 0 || accumulatedFunctionCalls.length > 0) {
@@ -433,37 +585,71 @@ export const useGeminiApi = () => {
 
       // Function Callがある場合、結果をAPIに送り返して最終回答をストリーミング
       if (accumulatedFunctionCalls.length > 0 && settings.functionCalling?.enabled) {
-        console.log('[ストリーミング関数呼び出し] 関数結果をAPIへ送信')
+        console.log('[ストリーミング関数呼び出し] 関数結果をAPIへ送信', {
+          functionCallsCount: accumulatedFunctionCalls.length,
+          functionResultsCount: accumulatedFunctionResults.length,
+          functionCalls: accumulatedFunctionCalls.map((fc) => ({ name: fc.name, args: fc.args })),
+          functionResults: accumulatedFunctionResults.map((fr) => ({ name: fr.name, hasResult: !!fr.result, hasError: !!fr.error })),
+        })
 
-        // 1. アシスタントのFunction Callレスポンスを追加
-        if (firstResponseParts.length > 0) {
-          currentContents.push({
-            role: 'model',
-            parts: firstResponseParts as Part[],
+        // Function CallとFunction Responseの数が一致しているかチェック
+        if (accumulatedFunctionCalls.length !== accumulatedFunctionResults.length) {
+          console.error('[ストリーミング関数呼び出し] Function CallとFunction Responseの数が一致しません', {
+            calls: accumulatedFunctionCalls.length,
+            results: accumulatedFunctionResults.length,
           })
+          throw new Error(`Function CallとFunction Responseの数が一致しません: ${accumulatedFunctionCalls.length} calls, ${accumulatedFunctionResults.length} results`)
         }
 
+        // 1. アシスタントのFunction Callレスポンスを追加
+        // Function Callパーツの追加をスキップ（既にcurrentContentsに含まれているため）
+        console.log('[ストリーミング] Function Callパーツの追加をスキップ（既存のパーツを使用）', {
+          firstResponsePartsLength: firstResponseParts.length,
+        })
+
         // 2. Function Call結果を追加
-        for (const funcResult of accumulatedFunctionResults) {
+        console.log('[ストリーミング] Function Response作成開始:', {
+          resultsCount: accumulatedFunctionResults.length,
+          results: accumulatedFunctionResults.map((fr) => ({ name: fr.name, hasResult: !!fr.result, hasError: !!fr.error })),
+        })
+
+        for (let i = 0; i < accumulatedFunctionResults.length; i++) {
+          const funcResult = accumulatedFunctionResults[i]
+          if (!funcResult) continue
+          console.log(`[ストリーミング] Function Response ${i + 1}/${accumulatedFunctionResults.length}:`, funcResult.name, funcResult)
+
           const payload: Record<string, unknown> =
             funcResult && funcResult.result && typeof funcResult.result === 'object'
               ? (funcResult.result as Record<string, unknown>)
               : funcResult.error
                 ? { error: funcResult.error }
                 : ({} as Record<string, unknown>)
+
+          console.log(`[ストリーミング] Function Response ${i + 1} payload:`, payload)
           const part = createPartFromFunctionResponse(generateMessageId(), funcResult.name, payload)
           currentContents.push({ role: 'function', parts: [part] })
+          console.log(`[ストリーミング] Function Response ${i + 1} 追加完了`)
         }
 
         // 3. Function Call結果を含めて再度ストリーミング
+        console.log('[ストリーミング] Gemini API送信前の最終状態:', {
+          currentContentsLength: currentContents.length,
+          functionCallParts: currentContents.filter((c) => c.role === 'model').length,
+          functionResponseParts: currentContents.filter((c) => c.role === 'function').length,
+          currentContents: currentContents.map((c) => ({ role: c.role, partsCount: c.parts?.length || 0 })),
+        })
+
+        // Function Call結果送信時はAUTOモードを使用（ANYモードから切り替え）
+        const resultToolConfig = buildToolConfig(settings, 'auto')
+
         const finalResult = await genAI.models.generateContentStream({
           model: settings.model,
           contents: currentContents,
           config: {
             ...(generationConfig as Record<string, unknown>),
             ...(systemInstruction && { systemInstruction }),
-            ...(toolConfig.tools && { tools: toolConfig.tools }),
-            ...(toolConfig.toolConfig && { toolConfig: toolConfig.toolConfig }),
+            ...(resultToolConfig.tools && { tools: resultToolConfig.tools }),
+            ...(resultToolConfig.toolConfig && { toolConfig: resultToolConfig.toolConfig }),
             safetySettings: buildSafetySettings(),
           },
         })

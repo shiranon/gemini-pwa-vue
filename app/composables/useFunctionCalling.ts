@@ -3,37 +3,89 @@
  */
 
 import { reactive, readonly, ref } from 'vue'
-import type { FunctionCall, FunctionCallResult, FunctionDeclaration, FunctionExecutionContext, FunctionExecutionLog, FunctionHandler, FunctionRegistryEntry } from '~/types/function-calling'
+import type {
+  FunctionArgsPreparer,
+  FunctionArgsValidator,
+  FunctionCall,
+  FunctionCallArgs,
+  FunctionCallResult,
+  FunctionDeclaration,
+  FunctionExecutionContext,
+  FunctionExecutionContextEnhancer,
+  FunctionExecutionLog,
+  FunctionHandler,
+  FunctionRegistryEntry,
+  FunctionToolDefinition,
+  FunctionToolMeta,
+} from '~/types/function-calling'
 
-import { getCurrentDateTime, getCurrentDateTimeDeclaration } from '~/utils/functions/datetime'
+import { functionToolDefinitions } from '~/utils/registry'
 
 const functionRegistry = reactive<Map<string, FunctionRegistryEntry>>(new Map())
 
 const executionLogs = ref<FunctionExecutionLog[]>([])
 
-export const useFunctionCalling = () => {
-  const registerFunction = (
-    declaration: FunctionDeclaration,
-    handler: FunctionHandler,
-    options: {
-      enabled?: boolean
-      category?: string
-      tags?: string[]
-    } = {}
-  ) => {
-    const entry: FunctionRegistryEntry = {
-      declaration,
-      handler,
-      enabled: options.enabled ?? true,
-      category: options.category,
-      tags: options.tags,
-    }
+interface RegisterFunctionOptions {
+  enabled?: boolean
+  meta?: FunctionToolMeta
+  category?: string
+  tags?: string[]
+  prepareArgs?: FunctionArgsPreparer
+  validateArgs?: FunctionArgsValidator
+  enhanceExecutionContext?: FunctionExecutionContextEnhancer
+}
 
+export const useFunctionCalling = () => {
+  const registerFunction = (declaration: FunctionDeclaration, handler: FunctionHandler, options: RegisterFunctionOptions = {}) => {
     if (!declaration.name) {
       throw new Error('Function declaration must have a name')
     }
-    functionRegistry.set(declaration.name, entry)
-    console.log(`[Function Calling] 関数が登録されました: ${declaration.name}`)
+
+    const name = declaration.name
+    const existingEntry = functionRegistry.get(name)
+
+    const meta: FunctionToolMeta = {
+      ...(options.meta ? { ...options.meta } : {}),
+      id: options.meta?.id ?? name,
+      displayName: options.meta?.displayName ?? name,
+      description: options.meta?.description ?? declaration.description,
+      category: options.meta?.category ?? options.category,
+      tags: options.meta?.tags ?? options.tags,
+      defaultEnabled: options.meta?.defaultEnabled,
+      docsUrl: options.meta?.docsUrl,
+      argsHint: options.meta?.argsHint,
+      contextHint: options.meta?.contextHint,
+    }
+
+    const resolvedEnabled = options.enabled ?? existingEntry?.enabled ?? meta.defaultEnabled ?? true
+
+    const entry: FunctionRegistryEntry = {
+      declaration,
+      handler,
+      enabled: resolvedEnabled,
+      meta,
+      prepareArgs: options.prepareArgs,
+      validateArgs: options.validateArgs,
+      enhanceExecutionContext: options.enhanceExecutionContext,
+    }
+
+    functionRegistry.set(name, entry)
+
+    console.log(`[Function Calling] 関数が${existingEntry ? '更新' : '登録'}されました: ${name}`)
+  }
+
+  const registerFunctionDefinition = (definition: FunctionToolDefinition, overrides: { enabled?: boolean } = {}) => {
+    const name = definition.declaration.name
+    if (!name) {
+      throw new Error('Function definition must have a name')
+    }
+    registerFunction(definition.declaration, definition.handler, {
+      enabled: overrides.enabled ?? definition.meta?.defaultEnabled,
+      meta: definition.meta,
+      prepareArgs: definition.prepareArgs,
+      validateArgs: definition.validateArgs,
+      enhanceExecutionContext: definition.enhanceExecutionContext,
+    })
   }
 
   /**
@@ -58,15 +110,49 @@ export const useFunctionCalling = () => {
     }
   }
 
+  /**
+   * 指定された関数名リストで有効化状態を一括更新する
+   */
+  const setFunctionEnablement = (enabledFunctionNames: readonly string[]) => {
+    const enabledSet = new Set(enabledFunctionNames)
+    enabledSet.forEach((name) => {
+      if (!functionRegistry.has(name)) {
+        console.warn(`[Function Calling] 有効化対象の関数が見つかりません: ${name}`)
+      }
+    })
+    functionRegistry.forEach((entry, name) => {
+      const nextEnabled = enabledSet.has(name)
+      if (entry.enabled !== nextEnabled) {
+        entry.enabled = nextEnabled
+        console.log(`[Function Calling] 関数が${nextEnabled ? '有効' : '無効'}になりました: ${name}`)
+      }
+    })
+  }
+
   const getEnabledFunctionDeclarations = (): FunctionDeclaration[] => {
     return Array.from(functionRegistry.values())
       .filter((entry) => entry.enabled)
       .map((entry) => entry.declaration)
   }
 
+  const getEnabledFunctionNames = (): string[] => {
+    return Array.from(functionRegistry.entries())
+      .filter(([, entry]) => entry.enabled)
+      .map(([name]) => name)
+  }
+
+  const getFunctionRegistryEntries = () => {
+    return Array.from(functionRegistry.entries()).map(([name, entry]) => ({
+      name,
+      entry,
+    }))
+  }
+
   const executeFunction = async (functionCall: FunctionCall, context: FunctionExecutionContext): Promise<FunctionCallResult> => {
     const startTime = Date.now()
     const logId = `${functionCall.name}_${startTime}`
+    let effectiveArgs: FunctionCallArgs = functionCall.args
+    let effectiveContext: FunctionExecutionContext = context
 
     try {
       console.log(`[Function Calling] 関数実行開始: ${functionCall.name}`, {
@@ -85,26 +171,33 @@ export const useFunctionCalling = () => {
         throw new Error(`関数が無効化されています: ${functionCall.name}`)
       }
 
+      effectiveArgs = entry.prepareArgs ? entry.prepareArgs(functionCall.args) : functionCall.args
+      if (entry.validateArgs) {
+        entry.validateArgs(effectiveArgs)
+      }
+      effectiveContext = entry.enhanceExecutionContext ? entry.enhanceExecutionContext(context) : context
+
       // 関数を実行
-      const result = await entry.handler(functionCall.args, context)
+      const result = await entry.handler(effectiveArgs, effectiveContext)
       const executionTime = Date.now() - startTime
 
       const callResult: FunctionCallResult = {
         name: functionCall.name,
-        args: functionCall.args,
+        args: effectiveArgs,
         result,
         executionTime,
+        context: effectiveContext,
       }
 
       // 実行ログを記録
       const log: FunctionExecutionLog = {
         id: logId,
         functionName: functionCall.name,
-        args: functionCall.args,
+        args: effectiveArgs,
         result,
         timestamp: startTime,
         executionTime,
-        context,
+        context: effectiveContext,
       }
       executionLogs.value.unshift(log)
 
@@ -125,22 +218,23 @@ export const useFunctionCalling = () => {
 
       const callResult: FunctionCallResult = {
         name: functionCall.name,
-        args: functionCall.args,
+        args: effectiveArgs,
         result: null,
         error: errorMessage,
         executionTime,
+        context: effectiveContext,
       }
 
       // エラーログを記録
       const log: FunctionExecutionLog = {
         id: logId,
         functionName: functionCall.name,
-        args: functionCall.args,
+        args: effectiveArgs,
         result: null,
         error: errorMessage,
         timestamp: startTime,
         executionTime,
-        context,
+        context: effectiveContext,
       }
       executionLogs.value.unshift(log)
 
@@ -166,14 +260,23 @@ export const useFunctionCalling = () => {
   /**
    * デフォルト関数を初期化する
    */
-  const initializeDefaultFunctions = () => {
-    // 現在時刻取得関数を登録
-    registerFunction(getCurrentDateTimeDeclaration, getCurrentDateTime, {
-      category: 'datetime',
-      tags: ['time', 'date', 'jst'],
+  const initializeDefaultFunctions = (definitions: FunctionToolDefinition[] = functionToolDefinitions) => {
+    definitions.forEach((definition) => {
+      const name = definition.declaration.name
+      if (!name) {
+        console.warn('[Function Calling] 名前のない関数宣言が検出されました。スキップします。', definition)
+        return
+      }
+      if (functionRegistry.has(name)) {
+        return
+      }
+      registerFunctionDefinition(definition)
     })
 
-    console.log('[Function Calling] デフォルト関数が初期化されました')
+    console.log('[Function Calling] デフォルト関数が初期化されました', {
+      total: functionRegistry.size,
+      enabled: getEnabledFunctionNames(),
+    })
   }
 
   /**
@@ -184,8 +287,8 @@ export const useFunctionCalling = () => {
     const enabledFunctions = Array.from(functionRegistry.values()).filter((entry) => entry.enabled).length
     const categories = new Set(
       Array.from(functionRegistry.values())
-        .map((entry) => entry.category)
-        .filter(Boolean)
+        .map((entry) => entry.meta?.category)
+        .filter((category): category is string => Boolean(category))
     )
 
     return {
@@ -206,9 +309,13 @@ export const useFunctionCalling = () => {
     executionLogs: readonly(executionLogs),
 
     registerFunction,
+    registerFunctionDefinition,
     unregisterFunction,
     toggleFunction,
+    setFunctionEnablement,
     getEnabledFunctionDeclarations,
+    getEnabledFunctionNames,
+    getFunctionRegistryEntries,
 
     executeFunction,
     executeFunctions,

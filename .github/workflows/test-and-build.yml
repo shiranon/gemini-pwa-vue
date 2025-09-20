@@ -1,0 +1,30 @@
+name: build and test
+on: push
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      
+      # Bunのキャッシュを設定
+      - name: Cache Bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.bun/install/cache
+            node_modules
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+      
+      - run: bun install --frozen-lockfile
+      - run: TZ=Asia/Tokyo bun test --silent --no-color
+      - run: bun typecheck
+      - run: NODE_OPTIONS="--no-experimental-fetch" bun run build

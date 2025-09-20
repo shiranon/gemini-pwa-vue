@@ -1,4 +1,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
-  <circle cx="32" cy="32" r="22" fill="#000000"/>
-  <path d="M28 20 H44 V28 H36 V32 H44 V44 H28 Z" fill="#FFFFFF"/>
+  <defs>
+    <linearGradient id="gE" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#33e1ff"/>
+      <stop offset="0.5" stop-color="#6a7bff"/>
+      <stop offset="1" stop-color="#ff82d1"/>
+    </linearGradient>
+    <mask id="mE">
+      <rect x="4" y="4" width="56" height="56" rx="14" fill="white"/>
+      <circle cx="32" cy="32" r="16.5" fill="black"/>
+      <polygon points="40,28 50,28 50,36 42,36" fill="white"/>
+      <circle cx="32" cy="32" r="10.5" fill="white"/>
+    </mask>
+  </defs>
+  <rect x="4" y="4" width="56" height="56" rx="14" fill="#0e0f13"/>
+  <g mask="url(#mE)">
+    <circle cx="28" cy="26" r="18" fill="url(#gE)" opacity="0.8"/>
+    <circle cx="40" cy="42" r="18" fill="url(#gE)" opacity="0.6"/>
+  </g>
 </svg>

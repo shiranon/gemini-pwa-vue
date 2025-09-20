@@ -10,6 +10,7 @@
     "generate": "nuxt generate",
     "preview": "nuxt preview --port 8880",
     "postinstall": "nuxt prepare --port 8888",
+    "test": "vitest",
     "generate-pwa-assets": "pwa-assets-generator --preset minimal-2023 public/icon.png"
   },
   "dependencies": {
@@ -62,6 +63,7 @@
     "prettier-plugin-tailwindcss": "0.6.14",
     "typescript": "5.9.2",
     "vite-plugin-pwa": "1.0.3",
+    "vitest": "3.2.4",
     "vue-tsc": "3.0.6"
   },
   "resolutions": {

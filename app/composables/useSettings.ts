@@ -16,7 +16,12 @@ interface DialogFunctions {
 export function useSettings(dialogs: DialogFunctions) {
   const settingsStore = useSettingsStore()
 
-  const localSettings = ref<AppSettings>({ ...settingsStore.settings })
+  const cloneSettings = (settings: AppSettings): AppSettings => ({
+    ...settings,
+    enabledFunctionTools: [...(settings.enabledFunctionTools ?? [])],
+  })
+
+  const localSettings = ref<AppSettings>(cloneSettings(settingsStore.settings))
   const saving = ref(false)
 
   const isDirty = computed(() => !areSettingsEqual(localSettings.value, settingsStore.settings))
@@ -54,7 +59,7 @@ export function useSettings(dialogs: DialogFunctions) {
       try {
         settingsStore.resetToDefaults()
         await settingsStore.saveSettings()
-        localSettings.value = { ...settingsStore.settings }
+        localSettings.value = cloneSettings(settingsStore.settings)
         dialogs.showAlert('設定をリセットしました')
       } catch (err) {
         dialogs.showAlert('設定のリセットに失敗しました')
@@ -64,11 +69,15 @@ export function useSettings(dialogs: DialogFunctions) {
   }
 
   const syncLocalSettings = () => {
-    localSettings.value = { ...settingsStore.settings }
+    localSettings.value = cloneSettings(settingsStore.settings)
   }
 
   const updateLocalSetting = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
-    localSettings.value = { ...localSettings.value, [key]: value }
+    if (key === 'enabledFunctionTools' && Array.isArray(value)) {
+      localSettings.value = { ...localSettings.value, [key]: [...value] }
+    } else {
+      localSettings.value = { ...localSettings.value, [key]: value }
+    }
   }
 
   watch(
@@ -76,7 +85,7 @@ export function useSettings(dialogs: DialogFunctions) {
     (newSettings) => {
       // 無限ループを避けるため、実際に変更があった場合のみ更新
       if (JSON.stringify(localSettings.value) !== JSON.stringify(newSettings)) {
-        localSettings.value = { ...newSettings }
+        localSettings.value = cloneSettings(newSettings)
       }
     },
     { deep: true }

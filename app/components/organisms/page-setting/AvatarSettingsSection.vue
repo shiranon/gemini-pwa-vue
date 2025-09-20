@@ -37,78 +37,79 @@
         </div>
       </SettingItem>
 
-      <SettingItem
-        label="ユーザーアイコン"
-        standalone
-      >
-        <div class="space-y-2">
-          <div
-            v-if="userAvatarPreview"
-            class="flex items-center gap-4"
-          >
-            <img
-              :src="userAvatarPreview"
-              alt="User avatar"
-              class="h-16 w-16 rounded-full object-cover"
-            />
-            <Button
-              variant="outline"
-              size="sm"
-              @click="clearUserAvatar"
+      <div class="flex justify-around">
+        <SettingItem
+          label="ユーザーアイコン"
+          standalone
+        >
+          <div class="space-y-2">
+            <div
+              v-if="userAvatarPreview"
+              class="flex items-center gap-4"
             >
-              <Icon
-                icon="material-symbols:close"
-                class="mr-1 h-4 w-4"
+              <img
+                :src="userAvatarPreview"
+                alt="User avatar"
+                class="h-16 w-16 rounded-full object-cover"
               />
-              削除
-            </Button>
-          </div>
-          <Input
-            v-else
-            type="file"
-            accept="image/*"
-            @change="onUserAvatarUpload"
-          />
-          <p class="text-muted-foreground text-xs">対応形式: PNG, JPG, GIF, WebP</p>
-        </div>
-      </SettingItem>
-
-      <SettingItem
-        label="アシスタントアイコン"
-        standalone
-      >
-        <div class="space-y-2">
-          <div
-            v-if="assistantAvatarPreview"
-            class="flex items-center gap-4"
-          >
-            <img
-              :src="assistantAvatarPreview"
-              alt="Assistant avatar"
-              class="h-16 w-16 rounded-full object-cover"
+              <Button
+                variant="outline"
+                size="sm"
+                @click="clearUserAvatar"
+              >
+                <Icon
+                  icon="material-symbols:close"
+                  class="mr-1 h-4 w-4"
+                />
+                削除
+              </Button>
+            </div>
+            <Input
+              v-else
+              type="file"
+              accept="image/*"
+              @change="onUserAvatarUpload"
             />
-            <Button
-              variant="outline"
-              size="sm"
-              @click="clearAssistantAvatar"
-            >
-              <Icon
-                icon="material-symbols:close"
-                class="mr-1 h-4 w-4"
-              />
-              削除
-            </Button>
+            <p class="text-muted-foreground text-xs">対応形式: PNG, JPG, GIF, WebP</p>
           </div>
-          <Input
-            v-else
-            type="file"
-            accept="image/*"
-            @change="onAssistantAvatarUpload"
-          />
-          <p class="text-muted-foreground text-xs">対応形式: PNG, JPG, GIF, WebP</p>
-        </div>
-      </SettingItem>
+        </SettingItem>
 
+        <SettingItem
+          label="アシスタントアイコン"
+          standalone
+        >
+          <div class="space-y-2">
+            <div
+              v-if="assistantAvatarPreview"
+              class="flex items-center gap-4"
+            >
+              <img
+                :src="assistantAvatarPreview"
+                alt="Assistant avatar"
+                class="h-16 w-16 rounded-full object-cover"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                @click="clearAssistantAvatar"
+              >
+                <Icon
+                  icon="material-symbols:close"
+                  class="mr-1 h-4 w-4"
+                />
+                削除
+              </Button>
+            </div>
+            <Input
+              v-else
+              type="file"
+              accept="image/*"
+              @change="onAssistantAvatarUpload"
+            />
+            <p class="text-muted-foreground text-xs">対応形式: PNG, JPG, GIF, WebP</p>
+          </div>
+        </SettingItem>
+      </div>
       <SettingItem
         label="プレビュー"
         standalone
