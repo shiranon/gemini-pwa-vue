@@ -3,26 +3,79 @@
   <SettingSection
     title="Function Calling設定"
     description="AI関数呼び出し機能の設定"
+    single-column
   >
     <div class="flex flex-col gap-4">
       <SettingToggle
         :model-value="props.localSettings.geminiEnableFunctionCalling"
         label="Function Calling"
-        description="AI関数呼び出し機能"
+        description="AI関数呼び出し機能 精度が下がるため10個以上のツールを渡す事は推奨しません。"
         @update:model-value="(value: boolean) => updateSetting('geminiEnableFunctionCalling', value)"
       />
 
-      <div class="space-y-3">
+      <div
+        v-if="props.localSettings.geminiEnableFunctionCalling"
+        class="mt-4 space-y-3"
+      >
+        <div class="border-border text-muted-foreground border-t-1 pt-2 text-xs">関数呼び出しモード</div>
+
+        <div class="flex flex-col gap-2">
+          <label class="flex cursor-pointer items-center space-x-3">
+            <input
+              :checked="props.localSettings.functionCallingMode === 'auto'"
+              type="radio"
+              name="functionCallingMode"
+              value="AUTO"
+              class="text-primary focus:ring-primary h-4 w-4 border-gray-300"
+              @change="updateSetting('functionCallingMode', 'auto')"
+            />
+            <div class="flex-1">
+              <div class="text-sm font-medium">AUTO（自動）</div>
+              <div class="text-muted-foreground text-xs">モデルが関数呼び出しか自然言語応答かを自動で決定します</div>
+            </div>
+          </label>
+          <label class="flex cursor-pointer items-center space-x-3">
+            <input
+              :checked="props.localSettings.functionCallingMode === 'any'"
+              type="radio"
+              name="functionCallingMode"
+              value="any"
+              class="text-primary focus:ring-primary h-4 w-4 border-gray-300"
+              @change="updateSetting('functionCallingMode', 'any')"
+            />
+            <div class="flex-1">
+              <div class="text-sm font-medium">ANY（強制関数呼び出し）</div>
+              <div class="text-muted-foreground text-xs">必ず関数呼び出しを行います。自然言語応答は返されません</div>
+            </div>
+          </label>
+          <label class="flex cursor-pointer items-center space-x-3">
+            <input
+              :checked="props.localSettings.functionCallingMode === 'none'"
+              type="radio"
+              name="functionCallingMode"
+              value="none"
+              class="text-primary focus:ring-primary h-4 w-4 border-gray-300"
+              @change="updateSetting('functionCallingMode', 'none')"
+            />
+            <div class="flex-1">
+              <div class="text-sm font-medium">NONE（強制関数呼び出し）</div>
+              <div class="text-muted-foreground text-xs">必ず関数呼び出しを行います。自然言語応答は返されません</div>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <div class="mt-2 space-y-3">
         <div
           v-if="toolOptions.length > 0"
-          class="text-muted-foreground text-xs"
+          class="border-border text-muted-foreground border-t-1 pt-2 text-xs"
         >
           利用するツールを選択（{{ selectedCount }} / {{ toolOptions.length }}）
         </div>
 
         <div
           v-if="toolOptions.length > 0"
-          class="flex flex-col gap-3"
+          class="grid grid-cols-1 items-start gap-4 px-2 md:grid-cols-2 md:gap-8"
         >
           <SettingToggle
             v-for="tool in toolOptions"

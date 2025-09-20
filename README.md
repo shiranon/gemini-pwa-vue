@@ -9,13 +9,12 @@
 
 ## 使い方
 ローカルで使用する場合  
-[Node](https://nodejs.org/ja/download)をインストール  
-[Bun](https://bun.com/docs/installation)をインストール (Bun推奨 yarn or npm可)  
+[Node](https://nodejs.org/ja/download) をインストール(node22 推奨)  
+[Bun](https://bun.com/docs/installation) をインストール (Bun推奨 yarn or npm可)  
 
 ```bash
 bun install
-bun run build
-bun preview
+bun dev
 ```
   
 リモートで使用する場合  
@@ -41,11 +40,12 @@ Deeplを使う場合にはDeepl用のAPIキーが必要です。
 有効なAPIが設定されていれば公式からモデル一覧を取得します。  
 モデル名にgeminiが含まれるもののみ表示・設定可能にしています。  
 
+- FunctionCallingツール選択設定
+  - FunctionCalling機能でGeminiに送るツールを選択可能
+
 ## アップデート予定(上から順に優先度高)
 - チャット画面で一部機能の設定を変更可能にする
   - ダミー設定やFunction Calling、検索機能を設定へ行き来せず変更可能にしたい
-- Function Callingで使いたいツールのみ有効にする
-  - 一律で全てを有効にせず、有効にしたいツールを選択できるようにする
 - マルチモーダル対応
 - チャット毎にアイコンを設定可能にする
 - 画像表示時のサイズをユーザーが設定可能にする(現在はブラウザ幅)
@@ -55,7 +55,12 @@ Deeplを使う場合にはDeepl用のAPIキーが必要です。
 ---
 
 ## 更新履歴
-### Version 0.1.1 (2025-9-16) 
+### Version 0.1.2 (2025-9-20) 
+- 機能追加
+  - 自動リトライ機能
+  - アイコン設定機能
+
+### Version 0.1.1 (2025-9-17) 
 - 機能追加
   - 自動リトライ機能
   - アイコン設定機能

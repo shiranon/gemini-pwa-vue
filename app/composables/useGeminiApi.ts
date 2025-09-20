@@ -107,7 +107,7 @@ export const useGeminiApi = () => {
   /**
    * Function Calling用のツール設定を構築する
    */
-  const buildToolConfig = (settings: GeminiApiSettings): { tools?: Tool[]; toolConfig?: ToolConfig } => {
+  const buildToolConfig = (settings: GeminiApiSettings, overrideMode?: 'auto' | 'any' | 'none'): { tools?: Tool[]; toolConfig?: ToolConfig } => {
     console.log('[関数呼び出し] 設定:', settings.functionCalling)
 
     const tools: Tool[] = []
@@ -164,15 +164,26 @@ export const useGeminiApi = () => {
         none: FunctionCallingConfigMode.NONE,
       }
 
+      // overrideModeが指定されている場合はそれを使用、そうでなければ設定値を使用
+      const effectiveMode = overrideMode ?? settings.functionCalling.mode
+
       toolConfig = {
         functionCallingConfig: {
-          mode: modeMap[settings.functionCalling.mode],
-          ...(settings.functionCalling.allowedFunctionNames && {
-            allowedFunctionNames: settings.functionCalling.allowedFunctionNames,
-          }),
+          mode: modeMap[effectiveMode],
+          // allowedFunctionNamesはANYモードでのみ指定可能
+          ...(effectiveMode === 'any' &&
+            settings.functionCalling.allowedFunctionNames && {
+              allowedFunctionNames: settings.functionCalling.allowedFunctionNames,
+            }),
         },
       }
-      console.log('[関数呼び出し] ツール設定:', { tools, toolConfig })
+      console.log('[関数呼び出し] ツール設定:', {
+        tools,
+        toolConfig,
+        originalMode: settings.functionCalling.mode,
+        effectiveMode,
+        overrideMode,
+      })
     }
 
     return { tools, ...(toolConfig && { toolConfig }) }
@@ -390,14 +401,17 @@ export const useGeminiApi = () => {
             }
           })
 
+          // Function Call結果送信時はAUTOモードを使用（ANYモードから切り替え）
+          const resultToolConfig = buildToolConfig(settings, 'auto')
+
           const finalResult = await genAI.models.generateContent({
             model: settings.model,
             contents: currentContents,
             config: {
               ...(generationConfig as Record<string, unknown>),
               ...(systemInstruction && { systemInstruction }),
-              ...(toolConfig.tools && { tools: toolConfig.tools }),
-              ...(toolConfig.toolConfig && { toolConfig: toolConfig.toolConfig }),
+              ...(resultToolConfig.tools && { tools: resultToolConfig.tools }),
+              ...(resultToolConfig.toolConfig && { toolConfig: resultToolConfig.toolConfig }),
               safetySettings: buildSafetySettings(),
             },
           })
@@ -625,14 +639,17 @@ export const useGeminiApi = () => {
           currentContents: currentContents.map((c) => ({ role: c.role, partsCount: c.parts?.length || 0 })),
         })
 
+        // Function Call結果送信時はAUTOモードを使用（ANYモードから切り替え）
+        const resultToolConfig = buildToolConfig(settings, 'auto')
+
         const finalResult = await genAI.models.generateContentStream({
           model: settings.model,
           contents: currentContents,
           config: {
             ...(generationConfig as Record<string, unknown>),
             ...(systemInstruction && { systemInstruction }),
-            ...(toolConfig.tools && { tools: toolConfig.tools }),
-            ...(toolConfig.toolConfig && { toolConfig: toolConfig.toolConfig }),
+            ...(resultToolConfig.tools && { tools: resultToolConfig.tools }),
+            ...(resultToolConfig.toolConfig && { toolConfig: resultToolConfig.toolConfig }),
             safetySettings: buildSafetySettings(),
           },
         })

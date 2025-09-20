@@ -1,6 +1,8 @@
 import type { FunctionToolDefinition } from '~/types/function-calling'
 
 import { getCurrentDateTime, getCurrentDateTimeDeclaration } from './functions/datetime'
+import { generateRandomString, generateRandomStringDeclaration } from './functions/generateRandomString'
+import { getRandomChoice, getRandomChoiceDeclaration } from './functions/getRandomChoice'
 import { getRandomInteger, getRandomIntegerDeclaration } from './functions/getRandomInteger'
 import { manageCharacterStatus, manageCharacterStatusDeclaration } from './functions/manageCharacterStatus'
 import { manageFlags, manageFlagsDeclaration } from './functions/manageFlags'
@@ -9,6 +11,7 @@ import { manageInventory, manageInventoryDeclaration } from './functions/manageI
 import { managePersistentMemory, managePersistentMemoryDeclaration } from './functions/managePersistentMemory'
 import { manageRelationship, manageRelationshipDeclaration } from './functions/manageRelationship'
 import { manageScene, manageSceneDeclaration } from './functions/manageScene'
+import { manageStyleProfile, manageStyleProfileDeclaration } from './functions/manageStyleProfile'
 import { rollDice, rollDiceDeclaration } from './functions/rollDice'
 import { manageTimer, manageTimerDeclaration } from './functions/timer'
 
@@ -127,21 +130,6 @@ export const functionToolDefinitions: FunctionToolDefinition[] = [
     },
   },
   {
-    declaration: manageRelationshipDeclaration,
-    handler: manageRelationship,
-    meta: {
-      id: 'manageRelationship',
-      displayName: '関係値管理',
-      description: 'キャラクター間の関係値（好感度、信頼度など）を多軸で管理します。関係値の設定、増減、取得、減衰機能を提供します。',
-      category: 'game',
-      tags: ['relationship', 'character', 'affection', 'trust'],
-      defaultEnabled: false,
-      argsHint:
-        'sourceCharacter, action, targetCharacter(optional), axis(optional), value(optional), clampMin(optional), clampMax(optional), daysToDecay(optional), decayValue(optional) - set/increase/decrease/get/getAllAxes/getAllFromSource',
-      contextHint: 'persistentMemory.relationships にキャラクター間の関係値を保存します。',
-    },
-  },
-  {
     declaration: manageGameDateDeclaration,
     handler: manageGameDate,
     meta: {
@@ -167,6 +155,64 @@ export const functionToolDefinitions: FunctionToolDefinition[] = [
       defaultEnabled: false,
       argsHint: 'min, max, count(optional) - 範囲内のランダム整数を生成',
       contextHint: 'ゲームやシミュレーションで使用される乱数生成機能です。',
+    },
+  },
+  {
+    declaration: getRandomChoiceDeclaration,
+    handler: getRandomChoice,
+    meta: {
+      id: 'getRandomChoice',
+      displayName: 'ランダム選択',
+      description: '提供されたリストの中からランダムに項目を選択します。選択する個数も指定可能で、重複を許可して選択します。',
+      category: 'utility',
+      tags: ['random', 'choice', 'selection'],
+      defaultEnabled: false,
+      argsHint: 'choiceList, choiceCount(optional) - 配列からランダムに項目を選択',
+      contextHint: '選択肢の配列からランダムに項目を選ぶ機能です。ゲームや意思決定支援で使用されます。',
+    },
+  },
+  {
+    declaration: generateRandomStringDeclaration,
+    handler: generateRandomString,
+    meta: {
+      id: 'generateRandomString',
+      displayName: 'ランダム文字列生成',
+      description: '指定された条件でランダムな文字列を生成します。文字の種類（大文字、小文字、数字、記号）、長さ、生成個数を指定できます。',
+      category: 'utility',
+      tags: ['random', 'string', 'generator', 'password'],
+      defaultEnabled: false,
+      argsHint: 'stringLength, stringCount(optional), useUppercase(optional), useLowercase(optional), useNumbers(optional), useSymbols(optional) - ランダム文字列を生成',
+      contextHint: 'パスワードやトークンなどのランダム文字列を生成する機能です。文字の種類や長さを指定できます。',
+    },
+  },
+  {
+    declaration: manageRelationshipDeclaration,
+    handler: manageRelationship,
+    meta: {
+      id: 'manageRelationship',
+      displayName: '関係値管理',
+      description: 'キャラクター間の関係値（好感度、信頼度など）を多軸で管理します。関係値の設定、増減、取得、減衰機能を提供します。',
+      category: 'game',
+      tags: ['relationship', 'character', 'affection', 'trust'],
+      defaultEnabled: false,
+      argsHint:
+        'sourceCharacter, action, targetCharacter(optional), axis(optional), value(optional), clampMin(optional), clampMax(optional), daysToDecay(optional), decayValue(optional) - set/increase/decrease/get/getAllAxes/getAllFromSource',
+      contextHint: 'persistentMemory.relationships にキャラクター間の関係値を保存します。',
+    },
+  },
+  {
+    declaration: manageStyleProfileDeclaration,
+    handler: manageStyleProfile,
+    meta: {
+      id: 'manageStyleProfile',
+      displayName: 'スタイルプロファイル管理',
+      description: 'キャラクターの口調や一人称などのスタイルプロファイルを管理します。定義済みプリセットの適用、カスタム設定の上書き、プロファイルの取得、利用可能なプリセット一覧の表示が可能です。',
+      category: 'character',
+      tags: ['style', 'character', 'speech', 'personality'],
+      defaultEnabled: false,
+      argsHint:
+        'action, characterName(optional), profileName(optional), overrides(optional) - set/get/list (profileName: polite/casual/tsundere/merchant/nobleMale/nobleFemale/samurai/ninja/kansai/neutralNarration)',
+      contextHint: 'persistentMemory.styleProfiles にキャラクターの口調プロファイルを保存します。',
     },
   },
 ]
