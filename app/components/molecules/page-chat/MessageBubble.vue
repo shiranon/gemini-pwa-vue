@@ -123,7 +123,6 @@
       </Button>
     </div>
 
-    <!-- 削除確認ダイアログ -->
     <ConfirmDialog
       v-model="showDeleteDialog"
       title="メッセージを削除"

@@ -29,7 +29,6 @@
       />
     </div>
 
-    <!-- User Avatar (Right Side) -->
     <Avatar
       v-if="shouldShowAvatar && isUserMessage"
       :class="avatarClasses"

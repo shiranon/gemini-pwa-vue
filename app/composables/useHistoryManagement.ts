@@ -1,8 +1,8 @@
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useDatabase } from '~/composables/useDatabase'
-import { buildChatExportData, buildChatsExportData } from '~/lib/export'
 import { downloadJson } from '~/lib/file'
+import { buildChatExportData, buildChatsExportData, parseImportData } from '~/lib/history'
 import { useChatStore } from '~/stores/chat'
 import type { ChatSession, GetChatsOptions } from '~/types/chat'
 
@@ -253,6 +253,26 @@ export function useHistoryManagement() {
     }
   }
 
+  const importChats = async (file: File): Promise<number> => {
+    try {
+      const fileContent = await file.text()
+      const data = JSON.parse(fileContent)
+
+      const importedChats = parseImportData(data)
+
+      const savePromises = importedChats.map((chat) => database.saveChat(chat))
+      await Promise.all(savePromises)
+
+      await loadChats()
+      return importedChats.length
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new TypeError(`インポートに失敗しました: ${error.message}`)
+      }
+      throw new Error('インポートに失敗しました')
+    }
+  }
+
   watch([searchQuery, sortOrder, showArchived], () => {
     currentPage.value = 1
   })
@@ -286,6 +306,7 @@ export function useHistoryManagement() {
     toggleArchive,
     deleteChatById,
     exportChat,
+    importChats,
 
     toggleBatchMode,
     toggleChatSelection,

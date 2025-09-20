@@ -4,7 +4,7 @@
       variant="ghost"
       size="sm"
       title="その他のアクション"
-      @click="showDropdown = !showDropdown"
+      @click.stop="toggleDropdown"
     >
       <Icon icon="material-symbols:more-vert" />
     </Button>
@@ -12,7 +12,8 @@
     <div
       v-if="showDropdown"
       v-click-outside="closeDropdown"
-      class="border-border bg-card text-card-foreground absolute top-full right-0 z-20 min-w-40 rounded-lg border py-2 shadow-2xl shadow-[0_30px_50px_rgba(15,23,42,0.12)]"
+      class="border-border bg-card text-card-foreground absolute right-0 bottom-full z-50 min-w-40 rounded-lg border py-2 shadow-2xl shadow-[0_30px_50px_rgba(15,23,42,0.12)]"
+      style="background: white; border: 1px solid #ccc"
     >
       <Button
         variant="ghost"
@@ -77,7 +78,14 @@ const emit = defineEmits<{
 
 const showDropdown = ref(false)
 
+const toggleDropdown = () => {
+  console.log('Dropdown button clicked, current state:', showDropdown.value)
+  showDropdown.value = !showDropdown.value
+  console.log('New dropdown state:', showDropdown.value)
+}
+
 const closeDropdown = () => {
+  console.log('Closing dropdown')
   showDropdown.value = false
 }
 
