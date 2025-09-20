@@ -41,7 +41,7 @@ Deeplを使う場合にはDeepl用のAPIキーが必要です。
 モデル名にgeminiが含まれるもののみ表示・設定可能にしています。  
 
 - FunctionCallingツール選択設定
-  - FunctionCalling機能でGeminiに送るツールを選択可能
+  - FunctionCalling機能でGeminiに送るツールを選択する事が出来ます。
 
 ## アップデート予定(上から順に優先度高)
 - チャット画面で一部機能の設定を変更可能にする
@@ -56,9 +56,8 @@ Deeplを使う場合にはDeepl用のAPIキーが必要です。
 
 ## 更新履歴
 ### Version 0.1.2 (2025-9-20) 
-- 機能追加
-  - 自動リトライ機能
-  - アイコン設定機能
+- FunctionCallで呼べる関数を追加
+- FunctionCallingツール選択設定を追加
 
 ### Version 0.1.1 (2025-9-17) 
 - 機能追加
