@@ -2,7 +2,7 @@
  * 設定関連の型定義
  */
 
-import { defaultEnabledFunctionToolNames } from '~/utils/functions/defaults'
+import { defaultEnabledFunctionToolNames } from '~/utils/defaults'
 
 // ============================================================================
 // 基本設定型

@@ -1,4 +1,4 @@
-import { functionToolDefinitions } from '../registry'
+import { functionToolDefinitions } from './registry'
 
 const collectDefaultEnabled = () => {
   return functionToolDefinitions

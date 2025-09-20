@@ -186,6 +186,7 @@ export const useFunctionCalling = () => {
         args: effectiveArgs,
         result,
         executionTime,
+        context: effectiveContext,
       }
 
       // 実行ログを記録
@@ -221,6 +222,7 @@ export const useFunctionCalling = () => {
         result: null,
         error: errorMessage,
         executionTime,
+        context: effectiveContext,
       }
 
       // エラーログを記録

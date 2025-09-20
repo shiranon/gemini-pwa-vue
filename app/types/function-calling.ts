@@ -49,6 +49,7 @@ export interface FunctionCallResult {
   result: unknown
   error?: string
   executionTime?: number
+  context?: FunctionExecutionContext
 }
 
 /**
