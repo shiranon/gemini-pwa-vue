@@ -1,11 +1,9 @@
 <template>
-  <div
-    class="border-border bg-card text-card-foreground hover:border-primary/40 overflow-hidden rounded-lg border transition-all duration-200 hover:shadow-[0_20px_45px_rgba(15,23,42,0.08)] hover:shadow-lg"
-  >
-    <div :class="['flex items-stretch', chat.isArchived && 'bg-muted opacity-70', batchMode && 'flex-row items-start gap-3 p-3', selected && 'border-primary bg-primary/10 border']">
+  <div class="border-border bg-card text-card-foreground hover:border-primary/40 rounded-lg border transition-all duration-200 hover:shadow-[0_20px_45px_rgba(15,23,42,0.08)] hover:shadow-lg">
+    <div :class="['flex h-full items-stretch', chat.isArchived && 'bg-muted opacity-70', batchMode && 'flex-row items-start gap-3 p-3', selected && 'border-primary bg-primary/10 border']">
       <div
         v-if="batchMode"
-        class="flex flex-shrink-0 items-center pt-1"
+        class="flex flex-shrink-0 items-start pt-4"
       >
         <input
           :id="`chat-${chat.id}`"
@@ -17,18 +15,18 @@
       </div>
 
       <div
-        :class="['flex-1 p-4 transition-colors duration-200', !batchMode && 'hover:bg-muted cursor-pointer']"
+        :class="['flex-1 transition-colors duration-200', batchMode ? 'p-0' : 'hover:bg-muted cursor-pointer p-4']"
         @click="handleChatClick"
       >
-        <div class="mb-2 flex items-start justify-between sm:flex-col sm:gap-2">
-          <h3 class="text-foreground mr-4 flex-1 text-lg leading-tight font-semibold sm:mr-0">{{ chat.title }}</h3>
-          <div class="flex flex-shrink-0 gap-2 sm:self-start">
+        <div class="mb-2 flex items-start justify-between gap-3 sm:flex-col sm:gap-2">
+          <h3 class="text-foreground flex-1 text-lg leading-tight font-semibold break-words">{{ chat.title }}</h3>
+          <div class="flex flex-shrink-0 flex-wrap gap-2 sm:self-start">
             <span
               v-if="chat.isArchived"
-              class="bg-accent text-accent-foreground rounded-full px-2 py-1 text-xs font-medium"
+              class="bg-accent text-accent-foreground rounded-full px-2 py-1 text-xs font-medium whitespace-nowrap"
               >アーカイブ</span
             >
-            <span class="bg-primary/10 text-primary rounded-full px-2 py-1 text-xs font-medium">{{ messageCount }}件</span>
+            <span class="bg-primary/10 text-primary rounded-full px-2 py-1 text-xs font-medium whitespace-nowrap">{{ messageCount }}件</span>
           </div>
         </div>
 

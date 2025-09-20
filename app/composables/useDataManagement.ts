@@ -2,7 +2,7 @@ import { computed, ref } from 'vue'
 import { useDatabase } from '~/composables/useDatabase'
 import { downloadBackup, importFullData, loadBackupFromFile, type ImportResult } from '~/lib/backup'
 import { downloadJson } from '~/lib/file'
-import { buildChatsExportData } from '~/lib/export'
+import { buildChatsExportData } from '~/lib/history'
 
 // ダイアログ関数の型定義
 interface DialogFunctions {

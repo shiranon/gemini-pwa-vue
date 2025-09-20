@@ -1,6 +1,6 @@
 <template>
   <div class="bg-background relative min-h-[200px]">
-    <div class="grid grid-cols-1 gap-4 sm:gap-3 lg:grid-cols-2 2xl:grid-cols-3">
+    <div class="grid grid-cols-1 gap-4 sm:gap-3 lg:grid-cols-2">
       <HistoryItem
         v-for="chat in chats"
         :key="chat.id"

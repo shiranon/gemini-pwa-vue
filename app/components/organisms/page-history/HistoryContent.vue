@@ -1,5 +1,5 @@
 <template>
-  <div class="border-border bg-card text-card-foreground min-h-[400px] rounded-lg border p-6 shadow-sm">
+  <div class="border-border bg-card text-card-foreground mb-6 min-h-[400px] rounded-lg border p-6 shadow-sm">
     <div
       v-if="loading"
       class="flex items-center justify-center py-12"

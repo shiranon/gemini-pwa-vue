@@ -14,6 +14,7 @@
       @update:show-archived="showArchived = $event"
       @toggle-batch-mode="toggleBatchMode"
       @create-new-chat="createNewChat"
+      @import-chats="openImportDialog"
       @select-all="handleSelectAll"
       @batch-export="batchExport"
       @batch-archive="batchArchive"
@@ -90,6 +91,12 @@
       :message="alertMessage"
       @ok="handleAlertOk"
     />
+
+    <ImportDialog
+      v-model:open="isImportDialogOpen"
+      @import="handleImportFile"
+      @cancel="handleImportCancel"
+    />
   </div>
 </template>
 
@@ -102,6 +109,7 @@ import HistoryList from '~/components/organisms/page-history/HistoryList.vue'
 import EditTitleDialog from '~/components/molecules/dialogs/EditTitleDialog.vue'
 import ConfirmDialog from '~/components/molecules/dialogs/ConfirmDialog.vue'
 import AlertDialog from '~/components/molecules/dialogs/AlertDialog.vue'
+import ImportDialog from '~/components/molecules/dialogs/ImportDialog.vue'
 import type { ChatSession } from '~/types/chat'
 
 const {
@@ -128,6 +136,7 @@ const {
   toggleArchive,
   deleteChatById,
   exportChat,
+  importChats,
 
   toggleBatchMode,
   toggleChatSelection,
@@ -145,6 +154,7 @@ const isDeleteDialogOpen = ref(false)
 const isBatchArchiveDialogOpen = ref(false)
 const isBatchDeleteDialogOpen = ref(false)
 const isAlertDialogOpen = ref(false)
+const isImportDialogOpen = ref(false)
 
 // ダイアログのメッセージと状態
 const editingChatTitle = ref('')
@@ -257,6 +267,24 @@ const handleBatchDeleteCancel = () => {
 const handleAlertOk = () => {
   alertTitle.value = ''
   alertMessage.value = ''
+}
+
+const openImportDialog = () => {
+  isImportDialogOpen.value = true
+}
+
+const handleImportFile = async (file: File) => {
+  try {
+    const count = await importChats(file)
+    showAlert('成功', `${count}件のチャットをインポートしました`)
+  } catch (err) {
+    showAlert('エラー', err instanceof Error ? err.message : 'インポートに失敗しました')
+    console.error('インポートエラー:', err)
+  }
+}
+
+const handleImportCancel = () => {
+  isImportDialogOpen.value = false
 }
 
 watch([searchQuery, sortOrder, showArchived], () => {

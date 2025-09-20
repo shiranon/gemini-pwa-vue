@@ -5,7 +5,7 @@
         :model-value="searchQuery"
         type="search"
         placeholder="チャットを検索..."
-        class="w-64 pr-10"
+        class="w-full pr-10 sm:w-64"
         @update:model-value="handleSearch"
       />
       <Icon

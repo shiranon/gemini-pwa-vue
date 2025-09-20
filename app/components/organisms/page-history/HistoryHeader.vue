@@ -1,51 +1,88 @@
 <template>
-  <div class="border-border bg-card text-card-foreground mb-6 rounded-lg border p-6 shadow-sm">
-    <div class="mb-4 flex items-center justify-between">
-      <h1 class="text-foreground text-2xl font-bold">チャット履歴</h1>
+  <div class="border-border bg-card text-card-foreground my-3 rounded-lg border p-6 shadow-sm sm:px-6 sm:pt-6">
+    <h1 class="text-foreground mb-4 text-xl font-bold sm:text-2xl">チャット履歴</h1>
 
-      <div class="flex items-center gap-2">
-        <Button
-          v-if="!batchMode"
-          variant="ghost"
-          size="sm"
-          @click="$emit('toggle-batch-mode')"
-        >
-          <template #icon>
-            <Icon icon="material-symbols:check-circle-outline" />
-          </template>
-          選択
-        </Button>
+    <div class="mb-4 space-y-2">
+      <div class="flex flex-col gap-2">
+        <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div class="flex-1 sm:flex-none">
+            <HistorySearch
+              :search-query="searchQuery"
+              @update:search-query="$emit('update:searchQuery', $event)"
+            />
+          </div>
 
-        <HistorySearch
-          :search-query="searchQuery"
-          @update:search-query="$emit('update:searchQuery', $event)"
-        />
+          <SortSelect
+            :sort-order="sortOrder"
+            @update:sort-order="$emit('update:sortOrder', $event)"
+          />
+          <div class="hidden w-full justify-end sm:flex">
+            <div class="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                @click="$emit('import-chats')"
+              >
+                <Icon icon="material-symbols:upload" />
+                <span class="sm:inline">インポート</span>
+              </Button>
+              <Button
+                variant="default"
+                size="sm"
+                @click="$emit('create-new-chat')"
+              >
+                <Icon icon="gridicons:add" />
+                <span class="sm:inline">新規チャット</span>
+              </Button>
+            </div>
+          </div>
+        </div>
 
-        <SortSelect
-          :sort-order="sortOrder"
-          @update:sort-order="$emit('update:sortOrder', $event)"
-        />
-
-        <Button
-          variant="default"
-          size="sm"
-          @click="$emit('create-new-chat')"
-        >
-          <template #icon>
-            <Icon icon="material-symbols:add" />
-          </template>
-          新規チャット
-        </Button>
+        <div class="block flex-none sm:hidden">
+          <div class="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              class="h-10 flex-1"
+              @click="$emit('import-chats')"
+            >
+              <Icon icon="material-symbols:upload" />
+              <span>インポート</span>
+            </Button>
+            <Button
+              variant="default"
+              size="sm"
+              class="h-10 flex-1"
+              @click="$emit('create-new-chat')"
+            >
+              <Icon icon="gridicons:add" />
+              <span>新規チャット</span>
+            </Button>
+          </div>
+        </div>
       </div>
-    </div>
 
-    <div class="flex items-center justify-between">
-      <HistoryFilters
-        :show-archived="showArchived"
-        @update:show-archived="$emit('update:showArchived', $event)"
-      />
+      <div class="flex flex-col gap-2 sm:flex-row">
+        <HistoryFilters
+          :show-archived="showArchived"
+          @update:show-archived="$emit('update:showArchived', $event)"
+        />
 
-      <HistoryStats :stats="stats" />
+        <div class="flex w-full items-center justify-end gap-2">
+          <Button
+            :variant="!batchMode ? 'outline' : 'destructive'"
+            size="sm"
+            @click="$emit('toggle-batch-mode')"
+          >
+            <template #icon>
+              <Icon icon="material-symbols:check-circle-outline" />
+            </template>
+            複数選択
+          </Button>
+
+          <HistoryStats :stats="stats" />
+        </div>
+      </div>
     </div>
 
     <div
@@ -97,6 +134,7 @@ defineEmits<{
   'update:showArchived': [value: boolean | null]
   'toggle-batch-mode': []
   'create-new-chat': []
+  'import-chats': []
   'select-all': [checked: boolean]
   'batch-export': []
   'batch-archive': []
