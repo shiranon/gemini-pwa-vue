@@ -9,7 +9,7 @@
       <SettingToggle
         :model-value="props.localSettings.geminiEnableFunctionCalling"
         label="Function Calling"
-        description="AI関数呼び出し機能 精度が下がるため10個以上のツールを渡す事は推奨しません。"
+        description="AI関数呼び出し機能"
         @update:model-value="(value: boolean) => updateSetting('geminiEnableFunctionCalling', value)"
       />
 
@@ -31,7 +31,7 @@
             />
             <div class="flex-1">
               <div class="text-sm font-medium">AUTO（自動）</div>
-              <div class="text-muted-foreground text-xs">モデルが関数呼び出しか自然言語応答かを自動で決定します</div>
+              <div class="text-muted-foreground text-xs">モデルが関数呼び出しか、自然言語応答かを自動で決定します。</div>
             </div>
           </label>
           <label class="flex cursor-pointer items-center space-x-3">
@@ -45,7 +45,7 @@
             />
             <div class="flex-1">
               <div class="text-sm font-medium">ANY（強制関数呼び出し）</div>
-              <div class="text-muted-foreground text-xs">必ず関数呼び出しを行います。自然言語応答は返されません</div>
+              <div class="text-muted-foreground text-xs">必ず関数呼び出しを行います。</div>
             </div>
           </label>
           <label class="flex cursor-pointer items-center space-x-3">
@@ -58,8 +58,8 @@
               @change="updateSetting('functionCallingMode', 'none')"
             />
             <div class="flex-1">
-              <div class="text-sm font-medium">NONE（強制関数呼び出し）</div>
-              <div class="text-muted-foreground text-xs">必ず関数呼び出しを行います。自然言語応答は返されません</div>
+              <div class="text-sm font-medium">NONE</div>
+              <div class="text-muted-foreground text-xs">関数を呼び出しません。</div>
             </div>
           </label>
         </div>
