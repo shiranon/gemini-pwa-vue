@@ -278,6 +278,7 @@ export const settingsFormSchema = z.object({
   messageBubbleRadius: z.number().min(0).max(40).optional(),
   messageBubblePaddingX: z.number().min(4).max(48).optional(),
   messageBubblePaddingY: z.number().min(4).max(48).optional(),
+  messageImageWidthPercent: z.number().min(10).max(100).optional().or(z.literal(null)),
   userBubbleColor: z.string().optional(),
   assistantBubbleColor: z.string().optional(),
   themePreset: z.enum(['default', 'midnight', 'forest', 'rose', 'noir']).optional(),

@@ -21,6 +21,18 @@ const cloneEnabledFunctionTools = (toolNames?: string[]) => {
   return result
 }
 
+const getImageMargins = (justify: 'start' | 'center' | 'end') => {
+  switch (justify) {
+    case 'center':
+      return { start: 'auto', end: 'auto' }
+    case 'end':
+      return { start: 'auto', end: '0' }
+    case 'start':
+    default:
+      return { start: '0', end: 'auto' }
+  }
+}
+
 const createSettingsState = (base: Partial<AppSettings> = {}): AppSettings => {
   const merged = { ...DEFAULT_SETTINGS, ...base } as AppSettings
   return {
@@ -131,6 +143,8 @@ export const useSettingsStore = defineStore('settings', () => {
       messageBubbleRadius: settings.value.messageBubbleRadius,
       messageBubblePaddingX: settings.value.messageBubblePaddingX,
       messageBubblePaddingY: settings.value.messageBubblePaddingY,
+      messageImageWidthPercent: settings.value.messageImageWidthPercent,
+      messageImageJustify: settings.value.messageImageJustify,
       userBubbleColor: settings.value.userBubbleColor,
       assistantBubbleColor: settings.value.assistantBubbleColor,
     }
@@ -144,6 +158,8 @@ export const useSettingsStore = defineStore('settings', () => {
     bubbleRadius: settings.value.messageBubbleRadius,
     bubblePaddingX: settings.value.messageBubblePaddingX,
     bubblePaddingY: settings.value.messageBubblePaddingY,
+    imageWidthPercent: settings.value.messageImageWidthPercent,
+    imageJustify: settings.value.messageImageJustify,
     userBubbleColor: settings.value.userBubbleColor,
     assistantBubbleColor: settings.value.assistantBubbleColor,
     opacity: settings.value.messageOpacity,
@@ -180,6 +196,8 @@ export const useSettingsStore = defineStore('settings', () => {
         bubbleRadius: settings.value.messageBubbleRadius,
         paddingX: settings.value.messageBubblePaddingX,
         paddingY: settings.value.messageBubblePaddingY,
+        imageWidthPercent: settings.value.messageImageWidthPercent,
+        imageJustify: settings.value.messageImageJustify,
         userBg: settings.value.userBubbleColor,
         assistantBg: settings.value.assistantBubbleColor,
       }),
@@ -462,6 +480,10 @@ function migrateLegacyThemeSettings(data: AppSettings): AppSettings {
 
   delete result.darkMode
 
+  if (!['start', 'center', 'end'].includes(result.messageImageJustify as string)) {
+    result.messageImageJustify = DEFAULT_SETTINGS.messageImageJustify
+  }
+
   const theme = getThemePreset(result.themePreset)
   result.userBubbleColor = theme.userBubbleColor
   result.assistantBubbleColor = theme.assistantBubbleColor
@@ -481,6 +503,11 @@ function applyAppearanceVariables(settings: AppSettings) {
   root.style.setProperty('--message-bubble-radius', `${settings.messageBubbleRadius}px`)
   root.style.setProperty('--message-bubble-padding-x', `${settings.messageBubblePaddingX}px`)
   root.style.setProperty('--message-bubble-padding-y', `${settings.messageBubblePaddingY}px`)
+  const widthPercent = settings.messageImageWidthPercent ?? 100
+  root.style.setProperty('--message-image-width', `${widthPercent}%`)
+  const { start, end } = getImageMargins(settings.messageImageJustify ?? 'start')
+  root.style.setProperty('--message-image-margin-inline-start', start)
+  root.style.setProperty('--message-image-margin-inline-end', end)
   root.style.setProperty('--message-user-bg', settings.userBubbleColor)
   root.style.setProperty('--message-assistant-bg', settings.assistantBubbleColor)
 }

@@ -70,8 +70,6 @@
         </Button>
       </div>
     </div>
-
-    <!-- リトライ確認ダイアログ -->
     <RetryConfirmDialog
       v-model="showRetryDialogLocal"
       :target-message="retryDialogTargetMessage"

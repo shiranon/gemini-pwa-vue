@@ -83,6 +83,10 @@ export interface ThemeSettings {
   messageBubblePaddingX: number
   /** メッセージバブルの上下パディング(px) */
   messageBubblePaddingY: number
+  /** メッセージ内の画像幅(%). nullの場合は100% */
+  messageImageWidthPercent: number | null
+  /** メッセージ内の画像配置 */
+  messageImageJustify: 'start' | 'center' | 'end'
   /** ユーザーメッセージの背景色 */
   userBubbleColor: string
   /** アシスタントメッセージの背景色 */
@@ -212,6 +216,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   messageBubbleRadius: 16,
   messageBubblePaddingX: 20,
   messageBubblePaddingY: 16,
+  messageImageWidthPercent: null,
+  messageImageJustify: 'start',
   userBubbleColor: '#eff6ff',
   assistantBubbleColor: '#ffffff',
 

@@ -11,6 +11,7 @@
 <script setup lang="ts">
 import { computed, defineComponent, h, resolveComponent } from 'vue'
 import type { PropType, VNode, VNodeChild } from 'vue'
+import MarkdownImage from '~/components/common/MarkdownImage.vue'
 import { parseMarkdown, type MarkdownBlockNode, type MarkdownInlineNode, type MarkdownListItemNode } from '~/lib/markdown'
 
 const props = defineProps({
@@ -110,37 +111,14 @@ const renderBlockNode = (node: MarkdownBlockNode, key?: string | number): VNode 
       const className = node.loose ? 'markdown-list markdown-list--loose' : 'markdown-list'
       return h(tag, { key, class: className }, renderListItems(node.items))
     }
-    case 'figure': {
-      const children: VNodeChild[] = [
-        h('img', {
-          key: 'image',
-          src: node.src,
-          alt: node.alt ?? '',
-          loading: 'lazy',
-          decoding: 'async',
-        }),
-      ]
-      if (node.title) {
-        children.push(
-          h(
-            'figcaption',
-            {
-              key: 'caption',
-              class: 'message-image__caption',
-            },
-            node.title
-          )
-        )
-      }
-      return h(
-        'figure',
-        {
-          key,
-          class: 'message-image',
-        },
-        children
-      )
-    }
+    case 'figure':
+      return h(MarkdownImage, {
+        key,
+        src: node.src,
+        alt: node.alt ?? '',
+        caption: node.title ?? null,
+        title: node.title ?? null,
+      })
     case 'thematicBreak':
       return h('hr', { key, class: 'markdown-hr' })
     default:
@@ -165,7 +143,9 @@ const RenderBlock = defineComponent({
 <style scoped>
 .markdown-inline-image {
   display: inline-block;
+  width: var(--message-image-width, 100%);
   max-width: 100%;
+  height: auto;
   vertical-align: middle;
   border-radius: 0.375rem;
 }
