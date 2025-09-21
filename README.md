@@ -6,6 +6,7 @@
 *   [追加機能](#追加機能)
 *   [アップデート予定](#アップデート予定)
 *   [更新履歴](#更新履歴)
+*   [Changelog](./docs/CHANGELOG.md)
 
 ## 使い方
 ローカルで使用する場合  
@@ -24,7 +25,8 @@ bun dev
 
 ## 主な機能
 
-[Gemini PWA Client Mk-II](https://github.com/kinkan04/Gemini-PWA-Mk-II) Ver 0.3時点をVueに移植した物です。
+[Gemini PWA Client Mk-II](https://github.com/kinkan04/Gemini-PWA-Mk-II) Ver 0.3時点をVueに移植した物です。  
+マルチモーダルやプロファイル機能は今後対応予定です。
 
 ## 追加機能
 
@@ -41,30 +43,30 @@ Deeplを使う場合にはDeepl用のAPIキーが必要です。
 モデル名にgeminiが含まれるもののみ表示・設定可能にしています。  
 
 - FunctionCallingツール選択設定
-  - FunctionCalling機能でGeminiに送るツールを選択する事が出来ます。
+  - FunctionCalling機能でGeminiに送るツールを選択する事が出来ます。  
+
+- Geminiの[groundingTool](https://ai.google.dev/gemini-api/docs/google-search?hl=ja)を使うことでGoogle検索用APIを設定不要にしました。
 
 ## アップデート予定(上から順に優先度高)
 - チャット画面で一部機能の設定を変更可能にする
   - ダミー設定やFunction Calling、検索機能を設定へ行き来せず変更可能にしたい
+  - プロファイル機能を移植したい
+- コンテキスト量節約関連
+  - 任意のタイミングでチャットを要約出来るようにする
+    - 要約以前のメッセージを送信しないことでコンテキスト量を節約したい
+    - 校正機能のように要約用モデルやプロンプトを設定出来るようにする
+    - 要約に使う部分は新しいメッセージから要約部分まで
+  - 永続メモリの処理
+    - システムプロンプトの末尾に永続メモリの情報を追加しAIに正確な判断をさせる
+    - 要約することでチャット内から情報が欠けたとしても問題なくなるはず
 - マルチモーダル対応
 - チャット毎にアイコンを設定可能にする
-- 画像表示時のサイズをユーザーが設定可能にする(現在はブラウザ幅)
 - スワイプナビゲーション
 - Gemini以外への対応
 
 ---
+## Changelog
+詳細な更新履歴は [CHANGELOG.md](./docs/CHANGELOG.md) をご確認ください。
 
-## 更新履歴
-### Version 0.1.2 (2025-9-20) 
-- FunctionCallで呼べる関数を追加
-- FunctionCallingツール選択設定を追加
-
-### Version 0.1.1 (2025-9-17) 
-- 機能追加
-  - 自動リトライ機能
-  - アイコン設定機能
-### Version 0.1.0-beta (2025-9-16) 
-
----
 ## LICENSE MIT
 
