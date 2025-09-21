@@ -17,6 +17,7 @@ A Nuxt 3 Progressive Web App for Gemini AI chat interactions, specifically desig
 - `bun run lint` - Run ESLint
 - `bun lint --fix` - Auto-fix ESLint issues
 - `bun run test` - Run Vitest tests with TZ=Asia/Tokyo
+- `bun run check-all` - Run lint --fix, typecheck, and test in sequence
 - `bun run generate` - Generate static site
 - `bun run preview` - Preview production build on http://localhost:8880
 - `bun run generate-pwa-assets` - Generate PWA assets from public/icon.png
@@ -55,6 +56,7 @@ app/                     # Nuxt 3 app directory (main source)
 │   │   ├── page-history/ # History page organisms
 │   │   ├── page-setting/ # Settings page organisms
 │   │   └── layout/     # Layout organisms
+│   ├── common/         # Shared components (MarkdownRenderer, etc.)
 │   └── ui/             # shadcn-vue UI components (atoms)
 ├── composables/        # Vue composables
 ├── layouts/            # Vue layouts
@@ -68,7 +70,10 @@ app/                     # Nuxt 3 app directory (main source)
 └── app.vue             # Root Vue component
 
 tests/                  # Test files
+├── components/         # Component tests
 ├── lib/                # Library tests
+├── stores/             # Pinia store tests
+├── plugins/            # Plugin tests
 └── utils/functions/    # Function utilities tests
 
 public/                 # Static assets
@@ -124,7 +129,7 @@ server/                 # Server-side code
 
 ### Function Calling Tools (`app/utils/functions/`)
 TRPG-specific utilities for game mechanics:
-- `rollDice` - Dice rolling mechanics
+- `rollDice` - Dice rolling mechanics with multiple dice types
 - `manageInventory` - Inventory management
 - `manageCharacterStatus` - Character stats
 - `manageRelationship` - Relationship tracking
@@ -133,6 +138,11 @@ TRPG-specific utilities for game mechanics:
 - `managePersistentMemory` - Memory persistence
 - `manageFlags` - Game flags
 - `manageStyleProfile` - Style profiles
+- `getRandomChoice` - Random selection from arrays
+- `getRandomInteger` - Random integer generation
+- `generateRandomString` - Random string generation
+- `datetime` - Date/time utilities
+- `timer` - Timer functionality
 
 ### Data Flow Patterns
 
@@ -186,11 +196,22 @@ TRPG-specific utilities for game mechanics:
 ### Test Structure
 ```
 tests/
-├── lib/
-│   └── history.spec.ts
-└── utils/functions/
+├── components/        # Component tests
+│   ├── MarkdownImage.spec.ts
+│   └── MarkdownRenderer.spec.ts
+├── lib/               # Library tests
+│   ├── history.spec.ts
+│   └── markdown.spec.ts
+├── stores/            # Pinia store tests
+│   ├── settings.spec.ts
+│   └── settings-image-percentage.spec.ts
+├── plugins/           # Plugin tests
+│   └── prism.spec.ts
+└── utils/functions/   # Function utilities tests
     ├── rollDice.spec.ts
     ├── manageInventory.spec.ts
+    ├── datetime.spec.ts
+    ├── timer.spec.ts
     └── [other function tests]
 ```
 

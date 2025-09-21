@@ -9,7 +9,7 @@
 *   [Changelog](./docs/CHANGELOG.md)
 
 ## 使い方
-ローカルで使用する場合  
+### ローカルで使用する場合  
 [Node](https://nodejs.org/ja/download) をインストール(node22 推奨)  
 [Bun](https://bun.com/docs/installation) をインストール (Bun推奨 yarn or npm可)  
 
@@ -18,8 +18,9 @@ bun install
 bun dev
 ```
   
-リモートで使用する場合  
+### リモートで使用する場合  
 リポジトリをFork、Cloneし、[Vercel](https://vercel.com/) 等にデプロイしてください。  
+タグ切りリリースが必要ない場合は`vercel.json`, `.github` を削除してください。  
   
 [デモサイト](https://gemini-pwa-vue.vercel.app/)
 
@@ -45,7 +46,7 @@ Deeplを使う場合にはDeepl用のAPIキーが必要です。
 - FunctionCallingツール選択設定
   - FunctionCalling機能でGeminiに送るツールを選択する事が出来ます。  
 
-- Geminiの[groundingTool](https://ai.google.dev/gemini-api/docs/google-search?hl=ja)を使うことでGoogle検索用APIを設定不要にしました。
+- Geminiの [groundingTool](https://ai.google.dev/gemini-api/docs/google-search?hl=ja) を使うことでGoogle検索用APIを設定不要にしました。
 
 ## アップデート予定(上から順に優先度高)
 - チャット画面で一部機能の設定を変更可能にする
