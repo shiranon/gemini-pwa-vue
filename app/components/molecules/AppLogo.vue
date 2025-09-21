@@ -1,5 +1,5 @@
 <template>
-  <div class="flex items-center">
+  <div class="flex w-full items-center">
     <div class="mr-3">
       <Icon
         icon="material-symbols:chat"

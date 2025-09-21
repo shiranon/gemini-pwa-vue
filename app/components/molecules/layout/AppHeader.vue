@@ -3,6 +3,22 @@
     <div class="mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
       <AppLogo :title="pageTitle" />
 
+      <div
+        v-if="currentPage === 'chat'"
+        class="flex w-full justify-end pr-6"
+      >
+        <Button
+          variant="outline"
+          size="default"
+          class="rounded-sm"
+          @click="$emit('new-chat')"
+        >
+          <Icon
+            icon="material-symbols:add"
+            class="h-6 w-6"
+          />
+        </Button>
+      </div>
       <DesktopNavigation
         :current-page="currentPage"
         @navigate="$emit('navigate', $event)"
@@ -42,10 +58,12 @@ interface Props {
   showMobileMenu: boolean
 }
 
-defineProps<Props>()
+const props = defineProps<Props>()
+console.log(props.pageTitle)
 defineEmits<{
   navigate: [page: string]
   'navigate-mobile': [page: string]
   'toggle-mobile-menu': []
+  'new-chat': []
 }>()
 </script>

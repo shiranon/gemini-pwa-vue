@@ -12,6 +12,7 @@
         }
       "
       @toggle-mobile-menu="toggleMobileMenu"
+      @new-chat="createNewChat"
     />
 
     <main class="flex flex-1 flex-col">
@@ -46,6 +47,7 @@
 <script setup lang="ts">
 import { useNavigation } from '~/composables/useNavigation'
 import { useMobileMenu } from '~/composables/useMobileMenu'
+import { useHistoryManagement } from '~/composables/useHistoryManagement'
 import AppHeader from '~/components/molecules/layout/AppHeader.vue'
 import PWANotification from '~/components/molecules/layout/PWANotification.vue'
 import { useRegisterSW } from 'virtual:pwa-register/vue'
@@ -54,6 +56,8 @@ import { onMounted, onBeforeUnmount, ref } from 'vue'
 const { currentPage, pageTitle, navigateTo } = useNavigation()
 
 const { showMobileMenu, toggleMobileMenu, closeMobileMenu } = useMobileMenu()
+
+const { createNewChat } = useHistoryManagement()
 
 const { offlineReady, needRefresh, updateServiceWorker } = useRegisterSW({
   immediate: true,
