@@ -58,8 +58,7 @@ interface Props {
   showMobileMenu: boolean
 }
 
-const props = defineProps<Props>()
-console.log(props.pageTitle)
+defineProps<Props>()
 defineEmits<{
   navigate: [page: string]
   'navigate-mobile': [page: string]
