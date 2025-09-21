@@ -1,5 +1,6 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 import tailwindcss from '@tailwindcss/vite'
+import type { NitroConfig } from 'nitropack'
 
 export default defineNuxtConfig({
   srcDir: 'app',
@@ -39,7 +40,16 @@ export default defineNuxtConfig({
       crawlLinks: true,
       ignore: ['/components-test'],
     },
-  },
+    security: {
+      headers: {
+        contentSecurityPolicy: {
+          'img-src': ["'self'", 'data:', 'blob:'],
+          'script-src': ["'self'", "'unsafe-inline'"],
+          'style-src': ["'self'", "'unsafe-inline'"],
+        },
+      },
+    },
+  } as NitroConfig,
 
   typescript: {
     tsConfig: {
