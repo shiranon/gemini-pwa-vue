@@ -1,5 +1,6 @@
 import { Type } from '@google/genai'
 import type { FunctionCallArgs, FunctionDeclaration, FunctionExecutionContext } from '~/types/function-calling'
+import { logger } from '~/utils/logger'
 
 /**
  * 指定された条件でランダムな文字列を生成する関数
@@ -20,7 +21,7 @@ import type { FunctionCallArgs, FunctionDeclaration, FunctionExecutionContext } 
  *
  */
 export async function generateRandomString(args: FunctionCallArgs, context: FunctionExecutionContext): Promise<{ success: boolean; results: string[] } | { error: string }> {
-  console.log(`[Function Calling] generateRandomStringが呼び出されました。コンテキスト:`, context)
+  logger.info(`[Function Calling] generateRandomStringが呼び出されました。コンテキスト:`, { component: 'generateRandomString' }, context)
 
   const {
     stringLength,
@@ -78,10 +79,10 @@ export async function generateRandomString(args: FunctionCallArgs, context: Func
     }
 
     const result = { success: true, results: results }
-    console.log(`[Function Calling] generateRandomString: 生成結果:`, result)
+    logger.info(`[Function Calling] generateRandomString: 生成結果:`, result)
     return result
   } catch (error) {
-    console.error(`[Function Calling] generateRandomStringでエラーが発生しました:`, error)
+    logger.info(`[Function Calling] generateRandomStringでエラーが発生しました:`, { component: 'generateRandomString' }, error)
     throw new Error(`ランダム文字列生成中にエラーが発生しました: ${(error as Error).message}`)
   }
 }

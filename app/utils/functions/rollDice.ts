@@ -4,6 +4,7 @@
 
 import { Type } from '@google/genai'
 import type { FunctionCallArgs, FunctionDeclaration, FunctionExecutionContext } from '~/types/function-calling'
+import { logger } from '~/utils/logger'
 
 /**
  * ダイスロールを実行する関数
@@ -45,12 +46,12 @@ export async function rollDice(
   modifier: string
   total: number
 }> {
-  console.log(`[Function Calling] rollDiceが呼び出されました。コンテキスト:`, context)
+  logger.info(`[Function Calling] rollDiceが呼び出されました。コンテキスト:`, { component: 'rollDice' }, context)
 
   const expression = args.expression as string
   if (!expression) {
     const errorMsg = 'ダイス式が指定されていません。'
-    console.error(`[Function Calling] rollDice: ${errorMsg}`)
+    logger.info(`[Function Calling] rollDice: ${errorMsg}`, { component: 'rollDice' })
     throw new Error(errorMsg)
   }
 
@@ -59,7 +60,7 @@ export async function rollDice(
 
   if (!match) {
     const errorMsg = '無効なダイス形式です。「(個数)d(面数)+(補正値)」の形式で指定してください。(例: 1d6, 2d10+5)'
-    console.error(`[Function Calling] rollDice: ${errorMsg}`)
+    logger.info(`[Function Calling] rollDice: ${errorMsg}`, { component: 'rollDice' })
     throw new Error(errorMsg)
   }
 
@@ -102,10 +103,10 @@ export async function rollDice(
       total: total,
     }
 
-    console.log(`[Function Calling] rollDice: 実行結果:`, result)
+    logger.info(`[Function Calling] rollDice: 実行結果:`, result)
     return result
   } catch (error) {
-    console.error(`[Function Calling] rollDiceで予期せぬエラー:`, error)
+    logger.info(`[Function Calling] rollDiceで予期せぬエラー:`, { component: 'rollDice' }, error)
     throw new Error(`ダイスロール中に予期せぬエラーが発生しました: ${(error as Error).message}`)
   }
 }

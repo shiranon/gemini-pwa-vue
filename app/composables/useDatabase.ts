@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue'
 import { runAction, type ActionContext } from '~/lib/async'
 import {
+  db,
   clearAllChats as dbClearAllChats,
   clearAllData as dbClearAllData,
   deleteChat as dbDeleteChat,
@@ -18,6 +19,7 @@ import { generateChatId as genChatId, generateFileId as genFileId, generateMessa
 import type { ChatSession, GetChatsOptions } from '~/types/chat'
 import type { ChatQueryOptions, DatabaseStats, ExportedData, ImportResult } from '~/types/database'
 import type { AppSettings } from '~/types/settings'
+import { logger } from '~/utils/logger'
 
 const isInitialized = ref(false)
 const isLoading = ref(false)
@@ -28,8 +30,12 @@ export function useDatabase() {
   const actionCtx: ActionContext = {
     setLoading: (v) => (isLoading.value = v),
     setError: (m) => (lastError.value = m),
-    logger: (m, ...args) => console.log(m, ...args),
+    logger: (m, ...args) => logger.info(m, { component: 'useDatabase' }, ...args),
   }
+
+  // 自動リフレッシュ用のクリーンアップ関数を保持
+  let unsubscribeAutoRefresh: (() => void) | null = null
+
   const initialize = async (): Promise<boolean> => {
     if (isInitialized.value) return true
 
@@ -43,14 +49,30 @@ export function useDatabase() {
       }
 
       stats.value = statsResult.data || null
+
+      // 自動リフレッシュシステムの設定
+      unsubscribeAutoRefresh = db.onDatabaseChange(async (changeType, table) => {
+        // 統計に影響するテーブルが変更された時のみ更新
+        if (table === 'chats' || table === 'messages' || table === 'attachedFiles') {
+          try {
+            const result = await dbGetDatabaseStats()
+            if (result.success) {
+              stats.value = result.data || null
+            }
+          } catch (error) {
+            logger.error('自動統計更新に失敗:', { component: 'useDatabase' }, error)
+          }
+        }
+      })
+
       isInitialized.value = true
 
-      console.log('データベースの初期化に成功', stats.value)
+      logger.info('データベースの初期化に成功', { component: 'useDatabase' }, { stats: stats.value })
       return true
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '不明なエラー'
       lastError.value = errorMessage
-      console.error('データベースの初期化に失敗:', errorMessage)
+      logger.error('データベースの初期化に失敗:', { component: 'useDatabase' }, errorMessage)
       return false
     } finally {
       isLoading.value = false
@@ -61,11 +83,10 @@ export function useDatabase() {
     const res = await runAction('saveChat', actionCtx, async () => {
       const result = await dbSaveChat(session)
       if (!result.success) throw new Error(result.error || 'Failed to save chat')
-      await refreshStats()
       return result
     })
     if (!res.ok) return false
-    console.log(`チャットを保存しました: ${session.id}`, res.data.performance)
+    logger.info(`チャットを保存しました: ${session.id}`, { component: 'useDatabase' }, { performance: res.data.performance })
     return true
   }
 
@@ -76,7 +97,7 @@ export function useDatabase() {
       return result
     })
     if (!res.ok) return null
-    console.log(`チャットを読み込みました: ${chatId}`, res.data.performance)
+    logger.info(`チャットを読み込みました: ${chatId}`, { component: 'useDatabase' }, { performance: res.data.performance })
     return res.data.data || null
   }
 
@@ -102,7 +123,7 @@ export function useDatabase() {
     const chatRecords = res.data.data || []
     const loaded = await Promise.all(chatRecords.map((record) => loadChat(record.id)))
     const chatSessions = loaded.filter((c): c is ChatSession => Boolean(c))
-    console.log(`チャット一覧を取得: ${chatSessions.length} 件`, res.data.performance)
+    logger.info(`チャット一覧を取得: ${chatSessions.length} 件`, { component: 'useDatabase' }, { performance: res.data.performance })
     return chatSessions
   }
 
@@ -110,11 +131,10 @@ export function useDatabase() {
     const res = await runAction('deleteChat', actionCtx, async () => {
       const result = await dbDeleteChat(chatId)
       if (!result.success) throw new Error(result.error || 'Failed to delete chat')
-      await refreshStats()
       return result
     })
     if (!res.ok) return false
-    console.log(`チャットを削除しました: ${chatId}`, res.data.performance)
+    logger.info(`チャットを削除しました: ${chatId}`, { component: 'useDatabase' }, { performance: res.data.performance })
     return true
   }
 
@@ -125,7 +145,7 @@ export function useDatabase() {
       return result
     })
     if (!res.ok) return false
-    console.log('設定を保存しました')
+    logger.info('設定を保存しました', { component: 'useDatabase' })
     return true
   }
 
@@ -136,7 +156,7 @@ export function useDatabase() {
       return result
     })
     if (!res.ok) return null
-    console.log('設定を読み込みました')
+    logger.info('設定を読み込みました', { component: 'useDatabase' })
     return res.data.data || null
   }
 
@@ -144,11 +164,10 @@ export function useDatabase() {
     const res = await runAction('clearAllChats', actionCtx, async () => {
       const result = await dbClearAllChats()
       if (!result.success) throw new Error(result.error || 'Failed to clear all chats')
-      await refreshStats()
       return result
     })
     if (!res.ok) return false
-    console.log('すべてのチャットを削除しました')
+    logger.info('すべてのチャットを削除しました', { component: 'useDatabase' })
     return true
   }
 
@@ -159,7 +178,7 @@ export function useDatabase() {
         stats.value = result.data || null
       }
     } catch (error) {
-      console.error('統計情報の更新に失敗:', error)
+      logger.error('統計情報の更新に失敗:', { component: 'useDatabase' }, error)
     }
   }
 
@@ -178,7 +197,7 @@ export function useDatabase() {
       return result
     })
     if (!res.ok) return false
-    console.log('すべてのデータを削除しました')
+    logger.info('すべてのデータを削除しました', { component: 'useDatabase' })
     return true
   }
 
@@ -189,7 +208,7 @@ export function useDatabase() {
       return result
     })
     if (!res.ok) return null
-    console.log('データを書き出しました', res.data.performance)
+    logger.info('データを書き出しました', { component: 'useDatabase' }, { performance: res.data.performance })
     return res.data.data || null
   }
 
@@ -197,11 +216,10 @@ export function useDatabase() {
     const res = await runAction('importData', actionCtx, async () => {
       const result = await dbImportData(data)
       if (!result.success) throw new Error(result.error || 'Failed to import data')
-      await refreshStats()
       return result
     })
     if (!res.ok) return null
-    console.log('データを読み込みました', res.data.data)
+    logger.info('データを読み込みました', { component: 'useDatabase' }, { data: res.data.data })
     return res.data.data || null
   }
 
@@ -220,14 +238,20 @@ export function useDatabase() {
 
   const hasError = computed(() => lastError.value !== null)
 
-  const watchDatabaseChanges = (callback: () => void) => {
-    // TODO: 実際の実装では、DexieJSのhooksやobserverを使用
-    const interval = setInterval(async () => {
-      await refreshStats()
-      callback()
-    }, 30000) // 30秒間隔でチェック
+  const watchDatabaseChanges = (callback: (changeType: string, table: string, key?: string | number | null) => void) => {
+    const unsubscribe = db.onDatabaseChange(async (changeType, table, key) => {
+      callback(changeType, table, key)
+    })
 
-    return () => clearInterval(interval)
+    return unsubscribe
+  }
+
+  // クリーンアップ用の関数
+  const cleanup = () => {
+    if (unsubscribeAutoRefresh) {
+      unsubscribeAutoRefresh()
+      unsubscribeAutoRefresh = null
+    }
   }
 
   return {
@@ -263,6 +287,7 @@ export function useDatabase() {
     clearError,
 
     watchDatabaseChanges,
+    cleanup,
   }
 }
 
@@ -275,6 +300,7 @@ export function useChatQuery() {
   }
 
   const getRecentChats = async (limit = 10) => {
+    logger.info('[DEBUG] getRecentChats called with limit:', { component: 'useChatQuery' }, { limit })
     return await database.getChats({
       sortBy: 'updatedAt',
       sortOrder: 'desc',
@@ -333,7 +359,7 @@ export function useBackup() {
 
       return await database.importData(data)
     } catch (error) {
-      console.error('バックアップからの復元に失敗:', error)
+      logger.error('バックアップからの復元に失敗:', { component: 'useDatabase' }, error)
       return null
     }
   }

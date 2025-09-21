@@ -79,13 +79,10 @@ const emit = defineEmits<{
 const showDropdown = ref(false)
 
 const toggleDropdown = () => {
-  console.log('Dropdown button clicked, current state:', showDropdown.value)
   showDropdown.value = !showDropdown.value
-  console.log('New dropdown state:', showDropdown.value)
 }
 
 const closeDropdown = () => {
-  console.log('Closing dropdown')
   showDropdown.value = false
 }
 

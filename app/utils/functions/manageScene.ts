@@ -4,6 +4,7 @@
 
 import { Type } from '@google/genai'
 import type { FunctionCallArgs, FunctionDeclaration, FunctionExecutionContext } from '~/types/function-calling'
+import { logger } from '~/utils/logger'
 
 /**
  * シーン情報の型定義
@@ -64,7 +65,7 @@ interface SceneManagementResult {
  * @throws {Error} これ以上前のシーンに戻れない場合（popアクション時）
  */
 export async function manageScene(args: FunctionCallArgs, context: FunctionExecutionContext): Promise<SceneManagementResult> {
-  console.log(`[Function Calling] manageSceneが呼び出されました。コンテキスト:`, context)
+  logger.info(`[Function Calling] manageSceneが呼び出されました。コンテキスト:`, { component: 'manageScene' }, context)
 
   try {
     const { action, ...sceneDetails } = args as {
@@ -106,7 +107,7 @@ export async function manageScene(args: FunctionCallArgs, context: FunctionExecu
           currentScene: currentScene,
           message,
         }
-        console.log(`[Function Calling] manageScene: 取得結果:`, getResult)
+        logger.info(`[Function Calling] manageScene: 取得結果:`, { component: 'manageScene' }, getResult)
         return getResult
       }
 
@@ -158,10 +159,10 @@ export async function manageScene(args: FunctionCallArgs, context: FunctionExecu
       message,
     }
 
-    console.log(`[Function Calling] manageScene: 処理完了:`, result)
+    logger.info(`[Function Calling] manageScene: 処理完了:`, { component: 'manageScene' }, result)
     return result
   } catch (error) {
-    console.error(`[Function Calling] manageSceneでエラーが発生しました:`, error)
+    logger.info(`[Function Calling] manageSceneでエラーが発生しました:`, { component: 'manageScene' }, error)
     return {
       success: false,
       currentScene: { sceneId: 'initial', location: '不明な場所' },

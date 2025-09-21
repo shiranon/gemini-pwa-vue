@@ -183,7 +183,7 @@ const settingsFormSchemaTyped = toTypedSchema(settingsFormSchema)
 
 // フォーム送信ハンドラー
 const onSubmit = async (values: SettingsFormData) => {
-  console.log('設定フォームを送信:', values)
+  logger.info('設定フォームを送信:', values)
   await saveSettings()
 }
 
@@ -201,6 +201,6 @@ onMounted(async () => {
   // 初期化後にlocalSettingsを同期
   syncLocalSettings()
 
-  console.log('設定ページを初期化。ローカル設定:', localSettings.value)
+  logger.info('設定ページを初期化。ローカル設定:', { component: 'settings' }, localSettings.value)
 })
 </script>

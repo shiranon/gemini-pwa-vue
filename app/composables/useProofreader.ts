@@ -1,5 +1,5 @@
 import { useGeminiApi } from '~/composables/useGeminiApi'
-
+import { logger } from '~/utils/logger'
 export interface ProofreadOptions {
   apiKey: string
   model: string
@@ -14,7 +14,7 @@ export async function proofreadText(text: string, options: ProofreadOptions): Pr
   const trimmed = text?.trim() || ''
   if (!trimmed) return ''
 
-  console.log('校正処理を実行', { text, options })
+  logger.info('校正処理を実行', { text, options })
 
   const api = useGeminiApi()
   const client = api.createGeminiClient(apiKey)
@@ -48,7 +48,7 @@ export async function proofreadText(text: string, options: ProofreadOptions): Pr
 
   // トークン制限やその他の問題で校正が失敗した場合は元の文章を返す
   if (!parts || parts.length === 0 || candidate?.finishReason === 'MAX_TOKENS') {
-    console.warn('校正が不完全または失敗:', {
+    logger.warn('校正が不完全または失敗:', {
       finishReason: candidate?.finishReason,
       hasParts: !!parts?.length,
     })

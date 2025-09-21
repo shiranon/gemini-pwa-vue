@@ -78,9 +78,9 @@ export function useHistoryManagement() {
 
       await database.refreshStats()
       stats.value = database.stats.value
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : '履歴の読み込みに失敗しました'
-      console.error('履歴読み込みエラー:', err)
+    } catch (raisedError) {
+      error.value = raisedError instanceof Error ? raisedError.message : '履歴の読み込みに失敗しました'
+      logger.error('履歴読み込みエラー:', { component: 'useHistoryManagement' }, raisedError)
     } finally {
       loading.value = false
     }
@@ -102,8 +102,8 @@ export function useHistoryManagement() {
         throw new Error('チャットの読み込みに失敗しました')
       }
       router.push('/')
-    } catch (error) {
-      console.error('チャットの選択に失敗:', error)
+    } catch (raisedError) {
+      logger.error('チャットの選択に失敗:', { component: 'useHistoryManagement' }, raisedError)
       throw new Error('チャットの読み込みに失敗しました')
     }
   }

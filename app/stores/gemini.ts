@@ -224,7 +224,7 @@ export const useGeminiStore = defineStore('gemini', () => {
               chatStore.addMessage(assistantMessage)
               messageIndex = chatStore.currentMessages.length - 1
               streamingMessageId.value = assistantMessage.timestamp?.toString() || null
-              console.log('[Geminiストア] アシスタントメッセージを作成（インデックス）:', messageIndex)
+              logger.info('[Geminiストア] アシスタントメッセージを作成（インデックス）:', { component: 'useGeminiStore' }, messageIndex)
             }
           }
 
@@ -275,8 +275,8 @@ export const useGeminiStore = defineStore('gemini', () => {
               },
             })
             if (translated) assistantMessage.translatedThoughts = translated
-          } catch (e) {
-            console.warn('Thought translation failed:', e)
+          } catch (error) {
+            logger.warn('思考プロセスの翻訳に失敗しました:', { component: 'useGeminiStore' }, error)
           }
         }
       }
@@ -291,7 +291,7 @@ export const useGeminiStore = defineStore('gemini', () => {
           })
           if (proof && proof !== assistantMessage.content) {
             assistantMessage.content = proof
-            ;(assistantMessage as unknown as { isProofread?: boolean }).isProofread = true
+            ;(assistantMessage as { isProofread?: boolean }).isProofread = true
             // 校正後の内容をUIに反映
             if (messageIndex !== -1) {
               callbacks.onMessageUpdate(messageIndex, {
@@ -300,8 +300,8 @@ export const useGeminiStore = defineStore('gemini', () => {
               } as Partial<ChatMessage>)
             }
           }
-        } catch (e) {
-          console.warn('Proofreading failed:', e)
+        } catch (error) {
+          logger.warn('校正に失敗しました:', { component: 'useGeminiStore' }, error)
         }
       }
 
@@ -355,7 +355,7 @@ export const useGeminiStore = defineStore('gemini', () => {
       // 思考プロセスを抽出
       const thoughtExtraction = geminiApi.extractThoughtsFromResponse(response)
 
-      console.log('[Geminiストア] 関数呼び出しを含む応答:', {
+      logger.info('[Geminiストア] 関数呼び出しを含む応答:', {
         functionCalls: response.functionCalls,
         functionResults: response.functionResults,
       })
@@ -372,8 +372,8 @@ export const useGeminiStore = defineStore('gemini', () => {
               deeplApiKey: settings.deeplApiKey || '',
             },
           })
-        } catch (e) {
-          console.warn('Thought translation failed:', e)
+        } catch (error) {
+          logger.warn('思考プロセスの翻訳に失敗しました:', { component: 'useGeminiStore' }, error)
         }
       }
 
@@ -391,8 +391,8 @@ export const useGeminiStore = defineStore('gemini', () => {
             finalContent = proof
             isProofread = true
           }
-        } catch (e) {
-          console.warn('Proofreading failed:', e)
+        } catch (error) {
+          logger.warn('校正に失敗しました:', { component: 'useGeminiStore' }, error)
         }
       }
 
@@ -419,7 +419,7 @@ export const useGeminiStore = defineStore('gemini', () => {
         }),
       }
 
-      console.log('[Geminiストア] アシスタントメッセージを作成:', assistantMessage)
+      logger.info('[Geminiストア] アシスタントメッセージを作成:', { component: 'useGeminiStore' }, assistantMessage)
 
       callbacks.onMessageAdd(assistantMessage)
       successfulCalls.value++
@@ -447,7 +447,7 @@ export const useGeminiStore = defineStore('gemini', () => {
       throw new Error('別のメッセージが処理中です')
     }
 
-    console.log('[自動リトライ] リクエスト送信を開始します', {
+    logger.info('[自動リトライ] リクエスト送信を開始します', {
       messageCount: messages.length,
       streaming: settings.streamingOutput,
     })
@@ -469,11 +469,11 @@ export const useGeminiStore = defineStore('gemini', () => {
         attempt++
         totalApiCalls.value++
 
-        console.log('[自動リトライ] リクエスト試行を開始します', { attempt })
+        logger.info('[自動リトライ] リクエスト試行を開始します', { attempt })
 
         if (attempt > 1) {
           callbacks.onRetryStarted?.({ attempt })
-          console.log('[自動リトライ] 再試行を実行中です', { attempt })
+          logger.info('[自動リトライ] 再試行を実行中です', { attempt })
         }
 
         try {
@@ -490,9 +490,9 @@ export const useGeminiStore = defineStore('gemini', () => {
 
           callbacks.onError?.(null)
           if (attempt > 1) {
-            console.log('[自動リトライ] 再試行に成功しました', { attempt })
+            logger.info('[自動リトライ] 再試行に成功しました', { attempt })
           } else {
-            console.log('[自動リトライ] 初回の試行で成功しました')
+            logger.info('[自動リトライ] 初回の試行で成功しました', { component: 'useGeminiStore' })
           }
           break
         } catch (error) {
@@ -520,14 +520,14 @@ export const useGeminiStore = defineStore('gemini', () => {
 
           if (shouldRetry && delayMs) {
             callbacks.onRetryScheduled?.({ attempt: retryNumber, delayMs })
-            console.log('[自動リトライ] 再試行を予約しました', {
+            logger.info('[自動リトライ] 再試行を予約しました', {
               nextAttempt: retryNumber + 1,
               delayMs,
             })
           }
 
           if (!shouldRetry || !delayMs) {
-            console.log('[自動リトライ] 再試行を断念します', {
+            logger.info('[自動リトライ] 再試行を断念します', {
               finalAttempt: attempt,
               errorCode: apiError.code,
             })
@@ -661,7 +661,7 @@ export const useGeminiStore = defineStore('gemini', () => {
       })
     )
 
-    console.log('[自動リトライ] sendChatMessageが正常終了しました')
+    logger.info('[自動リトライ] sendChatMessageが正常終了しました', { component: 'useGeminiStore' })
 
     return true
   }
@@ -670,7 +670,7 @@ export const useGeminiStore = defineStore('gemini', () => {
     const chatStore = useChatStore()
     const messageToRetry = chatStore.retryFromError()
     if (!messageToRetry) {
-      console.log('[自動リトライ] リトライ対象のユーザーメッセージが見つかりませんでした')
+      logger.info('[自動リトライ] リトライ対象のユーザーメッセージが見つかりませんでした', { component: 'useGeminiStore' })
       return false
     }
 

@@ -2,6 +2,7 @@
 import { onMounted } from 'vue'
 import { Toaster } from '~/components/ui/sonner'
 import 'vue-sonner/style.css'
+import { logger } from '~/utils/logger'
 
 const settingsStore = useSettingsStore()
 
@@ -9,7 +10,7 @@ onMounted(async () => {
   try {
     await settingsStore.initialize()
   } catch (error) {
-    console.error('[SettingsStore] 初期化に失敗しました:', error)
+    logger.error('[SettingsStore] 初期化に失敗しました:', { component: 'app' }, error)
   }
 })
 </script>

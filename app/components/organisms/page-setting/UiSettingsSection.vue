@@ -232,8 +232,74 @@
       </SettingItem>
 
       <SettingItem
+        label="画像設定"
+        standalone
+        collapsible
+        :default-open="false"
+      >
+        <div class="space-y-4">
+          <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <span class="text-muted-foreground w-32 text-sm">横幅 (%)</span>
+            <Slider
+              :model-value="[messageImageWidthPercent ?? 100]"
+              :min="10"
+              :max="100"
+              :step="1"
+              class="flex-1"
+              @update:model-value="(value?: number[]) => updateMessageImageWidthPercent(value?.[0] ?? null)"
+            />
+            <Input
+              :model-value="messageImageWidthPercent ?? ''"
+              type="number"
+              class="w-24"
+              :min="10"
+              :max="100"
+              placeholder="100"
+              @update:model-value="
+                (value: string | number | null) => {
+                  if (value === null) {
+                    updateMessageImageWidthPercent(null)
+                    return
+                  }
+                  if (typeof value === 'string') {
+                    if (value.trim() === '') {
+                      updateMessageImageWidthPercent(null)
+                      return
+                    }
+                    updateMessageImageWidthPercent(Number(value))
+                    return
+                  }
+                  updateMessageImageWidthPercent(value)
+                }
+              "
+            />
+          </div>
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <span class="text-muted-foreground w-32 text-sm">配置</span>
+            <RadioGroup
+              :model-value="messageImageJustify"
+              class="grid gap-2 sm:flex sm:items-center sm:gap-3"
+              @update:model-value="updateMessageImageJustify"
+            >
+              <label
+                v-for="option in imageJustifyOptions"
+                :key="option.value"
+                :class="[
+                  'border-border text-foreground hover:border-foreground/30 focus-visible:border-ring focus-visible:ring-ring/40 inline-flex cursor-pointer items-center gap-2 rounded-md border px-3 py-1.5 text-sm font-medium transition-[color,box-shadow,border-color] focus-visible:ring-[3px] focus-visible:outline-none',
+                  messageImageJustify === option.value ? 'border-primary bg-primary/5 text-primary' : '',
+                ]"
+              >
+                <RadioGroupItem :value="option.value" />
+                <span>{{ option.label }}</span>
+              </label>
+            </RadioGroup>
+          </div>
+          <p class="text-muted-foreground text-xs">幅はメッセージ幅に対する割合です。配置は左寄せ・中央・右寄せから選べます。</p>
+        </div>
+      </SettingItem>
+
+      <SettingItem
         label="プレビュー"
-        description="現在の設定で表示されるメッセージのイメージ"
         standalone
       >
         <MessageBubblePreview :appearance="previewAppearance" />
@@ -250,6 +316,7 @@ import MessageBubblePreview from '~/components/molecules/page-chat/MessageBubble
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select'
 import { Input } from '~/components/ui/input'
 import { Slider } from '~/components/ui/slider'
+import { RadioGroup, RadioGroupItem } from '~/components/ui/radio-group'
 import type { AppSettings } from '~/types/settings'
 import { clamp } from '~/utils/calc'
 
@@ -260,6 +327,12 @@ interface Props {
 
 const props = defineProps<Props>()
 const { fontPresets, applyPreset, applySystemFont, applyUploadedFont } = useFontSettings()
+
+const imageJustifyOptions = [
+  { value: 'start', label: '左寄せ' },
+  { value: 'center', label: '中央' },
+  { value: 'end', label: '右寄せ' },
+] as const
 
 const fontMode = computed({
   get: () => props.localSettings.fontMode,
@@ -290,6 +363,8 @@ const thoughtFontSize = computed(() => props.localSettings.thoughtFontSize)
 const messageBubbleRadius = computed(() => props.localSettings.messageBubbleRadius)
 const messageBubblePaddingX = computed(() => props.localSettings.messageBubblePaddingX)
 const messageBubblePaddingY = computed(() => props.localSettings.messageBubblePaddingY)
+const messageImageWidthPercent = computed(() => props.localSettings.messageImageWidthPercent)
+const messageImageJustify = computed(() => props.localSettings.messageImageJustify)
 
 const updateMessageFontSize = (value: number) => {
   const clamped = clamp(Number(value) || props.localSettings.messageFontSize, 12, 28)
@@ -319,6 +394,22 @@ const updateBubblePaddingX = (value: number) => {
 const updateBubblePaddingY = (value: number) => {
   const clamped = clamp(Number(value) || props.localSettings.messageBubblePaddingY, 8, 32)
   props.updateLocalSetting('messageBubblePaddingY', clamped as AppSettings['messageBubblePaddingY'])
+}
+
+const updateMessageImageWidthPercent = (value: number | null | undefined) => {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    props.updateLocalSetting('messageImageWidthPercent', null)
+    return
+  }
+
+  const clamped = clamp(Number(value), 10, 100)
+  props.updateLocalSetting('messageImageWidthPercent', clamped as AppSettings['messageImageWidthPercent'])
+}
+
+const updateMessageImageJustify = (value: string) => {
+  if (value === 'start' || value === 'center' || value === 'end') {
+    props.updateLocalSetting('messageImageJustify', value as AppSettings['messageImageJustify'])
+  }
 }
 
 const onPresetChange = async (value: string) => {
@@ -368,6 +459,8 @@ const previewAppearance = computed(() => ({
   bubbleRadius: props.localSettings.messageBubbleRadius,
   bubblePaddingX: props.localSettings.messageBubblePaddingX,
   bubblePaddingY: props.localSettings.messageBubblePaddingY,
+  imageWidthPercent: props.localSettings.messageImageWidthPercent,
+  imageJustify: props.localSettings.messageImageJustify,
   userBubbleColor: props.localSettings.userBubbleColor,
   assistantBubbleColor: props.localSettings.assistantBubbleColor,
   opacity: props.localSettings.messageOpacity,

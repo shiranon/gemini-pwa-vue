@@ -1,5 +1,6 @@
 import { Type } from '@google/genai'
 import type { FunctionCallArgs, FunctionDeclaration, FunctionExecutionContext } from '~/types/function-calling'
+import { logger } from '~/utils/logger'
 
 // 関係値の型定義
 interface RelationshipValue {
@@ -48,7 +49,7 @@ export async function manageRelationship(
   message?: string
   error?: string
 }> {
-  console.log(`[Function Calling] manageRelationshipが呼び出されました。コンテキスト:`, context)
+  logger.info(`[Function Calling] manageRelationshipが呼び出されました。コンテキスト:`, { component: 'manageRelationship' }, context)
 
   const { sourceCharacter, targetCharacter, axis, action, value, clampMin, clampMax, daysToDecay, decayValue } = args
 
@@ -172,10 +173,10 @@ export async function manageRelationship(
         return { error: `無効なアクションです: ${action}` }
     }
 
-    console.log(`[Function Calling] 処理完了:`, resultData)
+    logger.info(`[Function Calling] 処理完了:`, { component: 'manageRelationship' }, resultData)
     return resultData
   } catch (error) {
-    console.error(`[Function Calling] manageRelationshipでエラーが発生しました:`, error)
+    logger.info(`[Function Calling] manageRelationshipでエラーが発生しました:`, { component: 'manageRelationship' }, error)
     return { error: `内部エラーが発生しました: ${(error as Error).message}` }
   }
 }

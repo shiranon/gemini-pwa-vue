@@ -44,9 +44,9 @@ export function useSettings(dialogs: DialogFunctions) {
       settingsStore.updateSettings(localSettings.value)
       await settingsStore.saveSettings()
       dialogs.showAlert('設定を保存しました')
-    } catch (err) {
+    } catch (error) {
       dialogs.showAlert('設定の保存に失敗しました')
-      console.error('設定の保存エラー:', err)
+      logger.error('設定の保存エラー:', { component: 'useSettings' }, error)
     } finally {
       saving.value = false
     }
@@ -61,9 +61,9 @@ export function useSettings(dialogs: DialogFunctions) {
         await settingsStore.saveSettings()
         localSettings.value = cloneSettings(settingsStore.settings)
         dialogs.showAlert('設定をリセットしました')
-      } catch (err) {
+      } catch (error) {
         dialogs.showAlert('設定のリセットに失敗しました')
-        console.error('設定のリセットエラー:', err)
+        logger.error('設定のリセットエラー:', { component: 'useSettings' }, error)
       }
     }
   }

@@ -3,6 +3,7 @@
  */
 import { Type } from '@google/genai'
 import type { FunctionCallArgs, FunctionDeclaration, FunctionExecutionContext } from '~/types/function-calling'
+import { logger } from '~/utils/logger'
 
 /**
  * 物語のフラグやカウンターを管理する関数
@@ -52,7 +53,7 @@ export async function manageFlags(
   message: string
   error?: string
 }> {
-  console.log(`[Function Calling] manageFlagsが呼び出されました。コンテキスト:`, context)
+  logger.info(`[Function Calling] manageFlagsが呼び出されました。コンテキスト:`, { component: 'manageFlags' }, context)
 
   try {
     const { action, key, value, ttlMinutes } = args
@@ -157,10 +158,10 @@ export async function manageFlags(
       message,
     }
 
-    console.log(`[Function Calling] manageFlags: 処理完了:`, result)
+    logger.info(`[Function Calling] manageFlags: 処理完了:`, result)
     return result
   } catch (error) {
-    console.error(`[Function Calling] manageFlagsでエラーが発生しました:`, error)
+    logger.info(`[Function Calling] manageFlagsでエラーが発生しました:`, { component: 'manageFlags' }, error)
     return {
       success: false,
       key: (args.key as string) || '',

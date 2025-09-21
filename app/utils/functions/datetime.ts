@@ -1,5 +1,6 @@
 import { Type } from '@google/genai'
 import type { FunctionCallArgs, FunctionDeclaration, FunctionExecutionContext } from '~/types/function-calling'
+import { logger } from '~/utils/logger'
 
 /**
  * 現在の日付と時刻をJST（日本標準時）で取得する関数
@@ -29,7 +30,7 @@ export async function getCurrentDateTime(
   time: string
   timezone: string
 }> {
-  console.log(`[Function Calling] getCurrentDateTimeが呼び出されました。コンテキスト:`, context)
+  logger.info(`[Function Calling] getCurrentDateTimeが呼び出されました。コンテキスト:`, { component: 'getCurrentDateTime' }, context)
 
   try {
     const options: Intl.DateTimeFormatOptions = {
@@ -62,10 +63,10 @@ export async function getCurrentDateTime(
       timezone: 'JST (UTC+9)',
     }
 
-    console.log(`[Function Calling] getCurrentDateTime: 取得結果:`, result)
+    logger.info(`[Function Calling] getCurrentDateTime: 取得結果:`, result)
     return result
   } catch (error) {
-    console.error(`[Function Calling] getCurrentDateTimeでエラーが発生しました:`, error)
+    logger.info(`[Function Calling] getCurrentDateTimeでエラーが発生しました:`, { component: 'getCurrentDateTime' }, error)
     throw new Error(`時刻の取得中にエラーが発生しました: ${(error as Error).message}`)
   }
 }

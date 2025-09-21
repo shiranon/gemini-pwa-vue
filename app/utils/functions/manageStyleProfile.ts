@@ -1,5 +1,6 @@
 import { Type } from '@google/genai'
 import type { FunctionCallArgs, FunctionDeclaration, FunctionExecutionContext } from '~/types/function-calling'
+import { logger } from '~/utils/logger'
 
 /**
  * スタイルプロファイルの型定義
@@ -53,7 +54,7 @@ export async function manageStyleProfile(
   error?: string
 }> {
   const { action, characterName, profileName, overrides } = args
-  console.log(`[Function Calling] manageStyleProfileが呼び出されました。`, { action, characterName, profileName, overrides })
+  logger.info(`[Function Calling] manageStyleProfileが呼び出されました。`, { action, characterName, profileName, overrides })
   const STYLE_PRESETS: StylePresets = {
     polite: { firstPerson: '私', politeness: 0.8, sentenceEnder: 'です,ます', dialect: 'standard', description: '丁寧語' },
     casual: { firstPerson: '俺', politeness: 0.3, sentenceEnder: 'だ,だよ', dialect: 'standard', description: 'カジュアル' },
@@ -98,7 +99,7 @@ export async function manageStyleProfile(
           ...(overrides as StyleProfile),
         }
         profiles[characterName as string] = finalProfile
-        console.log(`[Function Calling] manageStyleProfile: ${characterName}のプロファイルを設定しました:`, finalProfile)
+        logger.info(`[Function Calling] manageStyleProfile: ${characterName}のプロファイルを設定しました:`, { component: 'manageStyleProfile' }, finalProfile)
         return { success: true, message: `${characterName}の口調プロファイルを更新しました。`, profile: finalProfile }
       }
       case 'get': {
@@ -106,18 +107,18 @@ export async function manageStyleProfile(
         if (!profile) {
           return { success: false, message: `${characterName}の口調プロファイルは設定されていません。` }
         }
-        console.log(`[Function Calling] manageStyleProfile: ${characterName}のプロファイルを取得しました:`, profile)
+        logger.info(`[Function Calling] manageStyleProfile: ${characterName}のプロファイルを取得しました:`, { component: 'manageStyleProfile' }, profile)
         return { success: true, profile: profile }
       }
       case 'list': {
-        console.log(`[Function Calling] manageStyleProfile: 利用可能なプリセット一覧を取得しました`)
+        logger.info(`[Function Calling] manageStyleProfile: 利用可能なプリセット一覧を取得しました`, { component: 'manageStyleProfile' })
         return { success: true, availablePresets: STYLE_PRESETS }
       }
       default:
         return { error: `無効なアクションです: ${action}` }
     }
   } catch (error) {
-    console.error(`[Function Calling] manageStyleProfileでエラーが発生しました:`, error)
+    logger.info(`[Function Calling] manageStyleProfileでエラーが発生しました:`, { component: 'manageStyleProfile' }, error)
     throw new Error(`スタイルプロファイルの管理中にエラーが発生しました: ${(error as Error).message}`)
   }
 }

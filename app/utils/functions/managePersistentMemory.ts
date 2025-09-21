@@ -4,6 +4,7 @@
 
 import { Type } from '@google/genai'
 import type { FunctionCallArgs, FunctionDeclaration, FunctionExecutionContext } from '~/types/function-calling'
+import { logger } from '~/utils/logger'
 
 /**
  * 永続メモリ管理の結果型定義
@@ -51,7 +52,7 @@ interface PersistentMemoryResult {
  * @throws {Error} 無効なアクションが指定された場合
  */
 export async function managePersistentMemory(args: FunctionCallArgs, context: FunctionExecutionContext): Promise<PersistentMemoryResult> {
-  console.log(`[Function Calling] managePersistentMemoryが呼び出されました。コンテキスト:`, context)
+  logger.info(`[Function Calling] managePersistentMemoryが呼び出されました。コンテキスト:`, { component: 'managePersistentMemory' }, context)
 
   try {
     const { action, key, value } = args as {
@@ -86,7 +87,7 @@ export async function managePersistentMemory(args: FunctionCallArgs, context: Fu
           success: true,
           message: `キー「${key}」に値を保存しました。`,
         }
-        console.log(`[Function Calling] managePersistentMemory: 処理完了:`, result)
+        logger.info(`[Function Calling] managePersistentMemory: 処理完了:`, { component: 'managePersistentMemory' }, result)
         return result
       }
 
@@ -98,7 +99,7 @@ export async function managePersistentMemory(args: FunctionCallArgs, context: Fu
           }
         }
         const result: PersistentMemoryResult = key in memory ? { success: true, key, value: memory[key] } : { success: false, message: `キー「${key}」は見つかりませんでした。` }
-        console.log(`[Function Calling] managePersistentMemory: 処理完了:`, result)
+        logger.info(`[Function Calling] managePersistentMemory: 処理完了:`, { component: 'managePersistentMemory' }, result)
         return result
       }
 
@@ -125,7 +126,7 @@ export async function managePersistentMemory(args: FunctionCallArgs, context: Fu
           memory[key] = undefined
         }
 
-        console.log(`[Function Calling] managePersistentMemory: 処理完了:`, result)
+        logger.info(`[Function Calling] managePersistentMemory: 処理完了:`, { component: 'managePersistentMemory' }, result)
         return result
       }
 
@@ -136,7 +137,7 @@ export async function managePersistentMemory(args: FunctionCallArgs, context: Fu
           count: keys.length,
           keys,
         }
-        console.log(`[Function Calling] managePersistentMemory: 処理完了:`, result)
+        logger.info(`[Function Calling] managePersistentMemory: 処理完了:`, { component: 'managePersistentMemory' }, result)
         return result
       }
 
@@ -147,7 +148,7 @@ export async function managePersistentMemory(args: FunctionCallArgs, context: Fu
         }
     }
   } catch (error) {
-    console.error(`[Function Calling] managePersistentMemoryでエラーが発生しました:`, error)
+    logger.info(`[Function Calling] managePersistentMemoryでエラーが発生しました:`, { component: 'managePersistentMemory' }, error)
     return {
       success: false,
       error: `内部エラーが発生しました: ${(error as Error).message}`,

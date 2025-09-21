@@ -1,15 +1,21 @@
-<!-- eslint-disable vue/no-v-html -->
 <template>
   <div
     :class="bubbleClasses"
     :style="bubbleStyle"
   >
-    <div
-      v-if="!isEditing"
+    <MarkdownRenderer
+      v-if="!isEditing && enableMarkdown"
       class="text-foreground mb-2"
       :style="messageContentStyle"
-      v-html="formattedContent"
+      :content="message.content"
     />
+    <div
+      v-else-if="!isEditing"
+      class="text-foreground mb-2 whitespace-pre-wrap"
+      :style="messageContentStyle"
+    >
+      {{ message.content }}
+    </div>
 
     <div
       v-else
@@ -140,10 +146,10 @@
 import { computed, ref, nextTick } from 'vue'
 import type { ChatMessage, MessageBubbleOptions } from '~/types/chat'
 import type { FunctionCall, FunctionCallResult } from '~/types/function-calling'
-import { formatMessageContent } from '~/lib/markdown'
 import { formatMessageTimestamp } from '~/lib/format'
 import { Button } from '~/components/ui/button'
 import { Textarea } from '~/components/ui/textarea'
+import MarkdownRenderer from '~/components/common/MarkdownRenderer.vue'
 import ConfirmDialog from '~/components/molecules/dialogs/ConfirmDialog.vue'
 import { useSettingsStore } from '~/stores/settings'
 import { hexToRgba } from '~/utils/color'
@@ -151,6 +157,7 @@ import FunctionCallDisplay from '~/components/molecules/page-chat/FunctionCallDi
 import ThoughtProcessDisplay from '~/components/molecules/page-chat/ThoughtProcessDisplay.vue'
 import { storeToRefs } from 'pinia'
 import { Icon } from '@iconify/vue'
+import { logger } from '~/utils/logger'
 
 interface Props {
   message: ChatMessage
@@ -219,13 +226,6 @@ const messageContentStyle = computed(() => ({
 
 const showActions = computed(() => {
   return props.options.allowEdit || props.options.allowDelete || props.options.allowRetry
-})
-
-const formattedContent = computed(() => {
-  if (!props.enableMarkdown) {
-    return props.message.content
-  }
-  return formatMessageContent(props.message.content)
 })
 
 const formattedTimestamp = computed(() => {
@@ -321,7 +321,7 @@ const handleCopy = async () => {
     await navigator.clipboard.writeText(props.message.content)
     emit('copy', props.message)
   } catch (error) {
-    console.error('Failed to copy message content:', error)
+    logger.error('Failed to copy message content:', { component: 'MessageBubble' }, error)
   }
 }
 

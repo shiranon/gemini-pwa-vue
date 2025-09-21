@@ -1,5 +1,6 @@
 import { useGeminiApi } from '~/composables/useGeminiApi'
 import type { GeminiApiSettings } from '~/types/chat'
+import { logger } from '~/utils/logger'
 export type TranslationProvider = 'gemini' | 'deepl'
 
 export interface TranslateThoughtsOptions {
@@ -39,9 +40,7 @@ export async function translateThoughts(options: TranslateThoughtsOptions): Prom
   const client = gemini.createGeminiClient(settings.apiKey)
 
   // 開発用に詳細なデバッグログを出力
-  if (process.env.ENVIRONMENT === 'development') {
-    console.log('思考翻訳を実行', { model, text })
-  }
+  logger.debug('思考翻訳を実行', { model, text })
 
   const resp = await client.models.generateContent({
     model,
@@ -59,9 +58,7 @@ export async function translateThoughts(options: TranslateThoughtsOptions): Prom
   })
 
   // 開発用に詳細なデバッグログを出力
-  if (process.env.ENVIRONMENT === 'development') {
-    console.log('思考翻訳の応答', { resp })
-  }
+  logger.debug('思考翻訳の応答', { resp })
 
   type MinimalCandidate = { content?: { parts?: Array<{ text?: string }> } }
   const candidate = resp.candidates?.[0] as MinimalCandidate | undefined

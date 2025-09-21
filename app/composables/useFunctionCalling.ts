@@ -19,6 +19,7 @@ import type {
   FunctionToolMeta,
 } from '~/types/function-calling'
 
+import { logger } from '~/utils/logger'
 import { functionToolDefinitions } from '~/utils/registry'
 
 const functionRegistry = reactive<Map<string, FunctionRegistryEntry>>(new Map())
@@ -71,7 +72,7 @@ export const useFunctionCalling = () => {
 
     functionRegistry.set(name, entry)
 
-    console.log(`[Function Calling] 関数が${existingEntry ? '更新' : '登録'}されました: ${name}`)
+    logger.info(`[Function Calling] 関数が${existingEntry ? '更新' : '登録'}されました: ${name}`, { component: 'useFunctionCalling' })
   }
 
   const registerFunctionDefinition = (definition: FunctionToolDefinition, overrides: { enabled?: boolean } = {}) => {
@@ -94,7 +95,7 @@ export const useFunctionCalling = () => {
   const unregisterFunction = (name: string) => {
     const deleted = functionRegistry.delete(name)
     if (deleted) {
-      console.log(`[Function Calling] 関数の登録が解除されました: ${name}`)
+      logger.info(`[Function Calling] 関数の登録が解除されました: ${name}`, { component: 'useFunctionCalling' })
     }
     return deleted
   }
@@ -106,7 +107,7 @@ export const useFunctionCalling = () => {
     const entry = functionRegistry.get(name)
     if (entry) {
       entry.enabled = enabled
-      console.log(`[Function Calling] 関数が${enabled ? '有効' : '無効'}になりました: ${name}`)
+      logger.info(`[Function Calling] 関数が${enabled ? '有効' : '無効'}になりました: ${name}`, { component: 'useFunctionCalling' })
     }
   }
 
@@ -117,14 +118,14 @@ export const useFunctionCalling = () => {
     const enabledSet = new Set(enabledFunctionNames)
     enabledSet.forEach((name) => {
       if (!functionRegistry.has(name)) {
-        console.warn(`[Function Calling] 有効化対象の関数が見つかりません: ${name}`)
+        logger.warn(`[Function Calling] 有効化対象の関数が見つかりません: ${name}`, { component: 'useFunctionCalling' })
       }
     })
     functionRegistry.forEach((entry, name) => {
       const nextEnabled = enabledSet.has(name)
       if (entry.enabled !== nextEnabled) {
         entry.enabled = nextEnabled
-        console.log(`[Function Calling] 関数が${nextEnabled ? '有効' : '無効'}になりました: ${name}`)
+        logger.info(`[Function Calling] 関数が${nextEnabled ? '有効' : '無効'}になりました: ${name}`, { component: 'useFunctionCalling' })
       }
     })
   }
@@ -155,9 +156,10 @@ export const useFunctionCalling = () => {
     let effectiveContext: FunctionExecutionContext = context
 
     try {
-      console.log(`[Function Calling] 関数実行開始: ${functionCall.name}`, {
+      logger.info(`[Function Calling] 関数実行開始: ${functionCall.name}`, {
         args: functionCall.args,
         context,
+        component: 'useFunctionCalling',
       })
 
       // 関数がレジストリに存在するかチェック
@@ -206,9 +208,10 @@ export const useFunctionCalling = () => {
         executionLogs.value = executionLogs.value.slice(0, 100)
       }
 
-      console.log(`[Function Calling] 関数実行完了: ${functionCall.name}`, {
+      logger.info(`[Function Calling] 関数実行完了: ${functionCall.name}`, {
         result,
         executionTime: `${executionTime}ms`,
+        component: 'useFunctionCalling',
       })
 
       return callResult
@@ -238,7 +241,7 @@ export const useFunctionCalling = () => {
       }
       executionLogs.value.unshift(log)
 
-      console.error(`[Function Calling] 関数実行エラー: ${functionCall.name}`, {
+      logger.error(`[Function Calling] 関数実行エラー: ${functionCall.name}`, {
         error: errorMessage,
         executionTime: `${executionTime}ms`,
       })
@@ -254,7 +257,7 @@ export const useFunctionCalling = () => {
 
   const clearExecutionLogs = () => {
     executionLogs.value = []
-    console.log('[Function Calling] 実行ログがクリアされました')
+    logger.info('[Function Calling] 実行ログがクリアされました', { component: 'useFunctionCalling' })
   }
 
   /**
@@ -264,7 +267,7 @@ export const useFunctionCalling = () => {
     definitions.forEach((definition) => {
       const name = definition.declaration.name
       if (!name) {
-        console.warn('[Function Calling] 名前のない関数宣言が検出されました。スキップします。', definition)
+        logger.warn('[Function Calling] 名前のない関数宣言が検出されました。スキップします。', { component: 'useFunctionCalling' }, definition)
         return
       }
       if (functionRegistry.has(name)) {
@@ -273,9 +276,10 @@ export const useFunctionCalling = () => {
       registerFunctionDefinition(definition)
     })
 
-    console.log('[Function Calling] デフォルト関数が初期化されました', {
+    logger.info('[Function Calling] デフォルト関数が初期化されました', {
       total: functionRegistry.size,
       enabled: getEnabledFunctionNames(),
+      component: 'useFunctionCalling',
     })
   }
 

@@ -13,7 +13,7 @@ export async function runAction<T>(label: string, ctx: ActionContext, action: ()
     ctx.setLoading(true)
     ctx.setError(null)
     const data = await action()
-    ctx.logger?.(`[DB] ${label} succeeded`)
+    ctx.logger?.(`[DB] ${label} succeeded`, { component: 'runAction' })
     return { ok: true, data }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error'

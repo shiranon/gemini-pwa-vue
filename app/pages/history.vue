@@ -203,9 +203,9 @@ const handleTitleSave = async (newTitle: string) => {
       if (updated) {
         showAlert('成功', 'タイトルを更新しました')
       }
-    } catch (err) {
-      showAlert('エラー', err instanceof Error ? err.message : 'タイトルの更新に失敗しました')
-      console.error('タイトル更新エラー:', err)
+    } catch (error) {
+      showAlert('エラー', error instanceof Error ? error.message : 'タイトルの更新に失敗しました')
+      logger.error('タイトル更新エラー:', { component: 'history' }, error)
     }
   }
   editingChatTitle.value = ''
@@ -221,9 +221,9 @@ const handleDeleteConfirm = async () => {
   try {
     await deleteChatById(deletingChatId.value)
     showAlert('成功', 'チャットを削除しました')
-  } catch (err) {
-    showAlert('エラー', err instanceof Error ? err.message : 'チャットの削除に失敗しました')
-    console.error('チャット削除エラー:', err)
+  } catch (error) {
+    showAlert('エラー', error instanceof Error ? error.message : 'チャットの削除に失敗しました')
+    logger.error('チャット削除エラー:', { component: 'history' }, error)
   }
   deletingChatId.value = ''
   deleteDialogMessage.value = ''
@@ -238,9 +238,9 @@ const handleBatchArchiveConfirm = async () => {
   try {
     const count = await batchArchiveChats()
     showAlert('成功', `${count}件のチャットをアーカイブしました`)
-  } catch (err) {
-    showAlert('エラー', err instanceof Error ? err.message : 'バッチアーカイブに失敗しました')
-    console.error('バッチアーカイブエラー:', err)
+  } catch (error) {
+    showAlert('エラー', error instanceof Error ? error.message : 'バッチアーカイブに失敗しました')
+    logger.error('バッチアーカイブエラー:', { component: 'history' }, error)
   }
   batchArchiveDialogMessage.value = ''
 }
@@ -253,9 +253,9 @@ const handleBatchDeleteConfirm = async () => {
   try {
     const count = await batchDeleteChats()
     showAlert('成功', `${count}件のチャットを削除しました`)
-  } catch (err) {
-    showAlert('エラー', err instanceof Error ? err.message : 'バッチ削除に失敗しました')
-    console.error('バッチ削除エラー:', err)
+  } catch (error) {
+    showAlert('エラー', error instanceof Error ? error.message : 'バッチ削除に失敗しました')
+    logger.error('バッチ削除エラー:', { component: 'history' }, error)
   }
   batchDeleteDialogMessage.value = ''
 }
@@ -277,9 +277,9 @@ const handleImportFile = async (file: File) => {
   try {
     const count = await importChats(file)
     showAlert('成功', `${count}件のチャットをインポートしました`)
-  } catch (err) {
-    showAlert('エラー', err instanceof Error ? err.message : 'インポートに失敗しました')
-    console.error('インポートエラー:', err)
+  } catch (error) {
+    showAlert('エラー', error instanceof Error ? error.message : 'インポートに失敗しました')
+    logger.error('インポートエラー:', { component: 'history' }, error)
   }
 }
 

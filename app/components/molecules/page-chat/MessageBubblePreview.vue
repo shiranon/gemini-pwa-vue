@@ -21,13 +21,14 @@
       class="message-bubble border-border relative mr-2 max-w-full border shadow-sm transition-all duration-200 sm:mr-4 md:mr-8"
       :style="assistantBubbleStyle"
     >
-      <div
-        class="mb-2"
-        :style="messageTextStyle"
-      >
-        プレビューでフォントサイズや角丸、背景色などを確認できます。
-        <br />
-        Function Calling や思考プロセスもサンプル表示しています。
+      <div class="mt-3 space-y-2">
+        <img
+          src="/placeholder.svg"
+          alt="Sample preview"
+          loading="lazy"
+          decoding="async"
+          :style="previewImageStyle"
+        />
       </div>
 
       <div
@@ -81,6 +82,8 @@ interface MessageBubblePreviewAppearance {
   bubbleRadius: number
   bubblePaddingX: number
   bubblePaddingY: number
+  imageWidthPercent: number | null
+  imageJustify: 'start' | 'center' | 'end'
   userBubbleColor: string
   assistantBubbleColor: string
   opacity: number
@@ -94,6 +97,8 @@ const DEFAULT_APPEARANCE: MessageBubblePreviewAppearance = {
   bubbleRadius: 16,
   bubblePaddingX: 20,
   bubblePaddingY: 16,
+  imageWidthPercent: null,
+  imageJustify: 'start',
   userBubbleColor: '#eff6ff',
   assistantBubbleColor: '#ffffff',
   opacity: 0.9,
@@ -155,6 +160,30 @@ const thoughtStyle = computed(() => ({
   fontFamily: normalizedAppearance.value.fontFamily || 'var(--message-font-family)',
   color: 'var(--foreground)',
 }))
+
+const previewImageStyle = computed(() => ({
+  width: `${normalizedAppearance.value.imageWidthPercent ?? 100}%`,
+  maxWidth: '100%',
+  height: 'auto',
+  borderRadius: `${Math.max(normalizedAppearance.value.bubbleRadius - 4, 4)}px`,
+  border: '1px solid color-mix(in srgb, var(--foreground) 12%, transparent)',
+  backgroundColor: 'var(--background)',
+  display: 'block',
+  marginInlineStart: getMargins(normalizedAppearance.value.imageJustify).start,
+  marginInlineEnd: getMargins(normalizedAppearance.value.imageJustify).end,
+}))
+
+function getMargins(justify: 'start' | 'center' | 'end') {
+  switch (justify) {
+    case 'center':
+      return { start: 'auto', end: 'auto' }
+    case 'end':
+      return { start: 'auto', end: '0' }
+    case 'start':
+    default:
+      return { start: '0', end: 'auto' }
+  }
+}
 </script>
 
 <style scoped>

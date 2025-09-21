@@ -6,7 +6,6 @@
   >
     <SettingItem
       label="背景画像"
-      description="任意の画像をアップロードして背景に設定"
       standalone
     >
       <div class="space-y-4">
@@ -85,7 +84,6 @@
 
     <SettingItem
       label="オーバーレイの濃さ"
-      description="背景上にかける暗幕の濃さ（可読性向上）"
       standalone
     >
       <div class="flex items-center gap-4">
@@ -124,7 +122,6 @@
 
     <SettingItem
       label="メッセージ不透明度"
-      description="メッセージバブル背景の透過度"
       standalone
     >
       <div class="flex items-center gap-4">
