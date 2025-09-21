@@ -293,10 +293,9 @@ export const useGeminiApi = () => {
       if (process.env.NODE_ENV === 'development') {
         const simplified = currentContents.map((c) => ({
           role: c.role,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          texts: (c.parts || []).map((p: Part) => ('text' in p ? (p as any).text : (p as any).functionCall ? `fc:${(p as any).functionCall.name}` : 'fr')),
+          texts: (c.parts || []).map((p: Part) => ('text' in p ? p.text : p.functionCall ? `fc:${p.functionCall.name}` : 'fr')),
         }))
-        logger.info('[GeminiAPI] generateContent 入力', { component: 'useGeminiApi' }, simplified)
+        logger.devOnly('[GeminiAPI] generateContent 入力', simplified, { component: 'useGeminiApi' })
       }
 
       const result = await genAI.models.generateContent({
@@ -463,10 +462,9 @@ export const useGeminiApi = () => {
       if (process.env.NODE_ENV === 'development') {
         const simplified = currentContents.map((c) => ({
           role: c.role,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          texts: (c.parts || []).map((p: Part) => ('text' in p ? (p as any).text : (p as any).functionCall ? `fc:${(p as any).functionCall.name}` : 'fr')),
+          texts: (c.parts || []).map((p: Part) => ('text' in p ? p.text : p.functionCall ? `fc:${p.functionCall.name}` : 'fr')),
         }))
-        logger.info('[GeminiAPI] generateContentStream 入力', { component: 'useGeminiApi' }, simplified)
+        logger.devOnly('[GeminiAPI] generateContentStream 入力', simplified, { component: 'useGeminiApi' })
       }
 
       const result = await genAI.models.generateContentStream({
