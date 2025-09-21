@@ -39,7 +39,7 @@ export function useDataManagement(dialogs: DialogFunctions) {
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       dialogs.showAlert(`バックアップの作成に失敗しました: ${message}`)
-      console.error('バックアップの書き出しエラー:', err)
+      logger.error('バックアップの書き出しエラー:', { component: 'useDataManagement' }, err)
     } finally {
       loading.value = false
     }
@@ -55,10 +55,10 @@ export function useDataManagement(dialogs: DialogFunctions) {
       downloadJson(exportData, `gemini-chats-${new Date().toISOString().slice(0, 10)}.json`)
 
       dialogs.showAlert('チャットデータをダウンロードしました')
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
       dialogs.showAlert(`チャットデータのエクスポートに失敗しました: ${message}`)
-      console.error('チャット書き出しエラー:', err)
+      logger.error('チャット書き出しエラー:', { component: 'useDataManagement' }, error)
     } finally {
       loading.value = false
     }
@@ -83,10 +83,10 @@ export function useDataManagement(dialogs: DialogFunctions) {
         await refreshStats()
         dialogs.showAlert('データのインポートが完了しました')
       }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
       dialogs.showAlert(`ファイルの処理に失敗しました: ${message}`)
-      console.error('ファイル処理エラー:', err)
+      logger.error('ファイル処理エラー:', { component: 'useDataManagement' }, error)
     } finally {
       loading.value = false
     }
@@ -114,10 +114,10 @@ export function useDataManagement(dialogs: DialogFunctions) {
         } else {
           dialogs.showAlert('チャットデータの削除に失敗しました')
         }
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err)
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
         dialogs.showAlert(`削除中にエラーが発生しました: ${message}`)
-        console.error('チャット削除エラー:', err)
+        logger.error('チャット削除エラー:', { component: 'useDataManagement' }, error)
       } finally {
         loading.value = false
       }
@@ -146,10 +146,10 @@ export function useDataManagement(dialogs: DialogFunctions) {
           } else {
             dialogs.showAlert('データの削除に失敗しました')
           }
-        } catch (err) {
-          const message = err instanceof Error ? err.message : String(err)
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error)
           dialogs.showAlert(`削除中にエラーが発生しました: ${message}`)
-          console.error('全データ削除エラー:', err)
+          logger.error('全データ削除エラー:', { component: 'useDataManagement' }, error)
         } finally {
           loading.value = false
         }

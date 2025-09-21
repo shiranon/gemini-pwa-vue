@@ -233,7 +233,6 @@
 
       <SettingItem
         label="画像設定"
-        description="Markdown画像の表示幅と配置を調整"
         standalone
         collapsible
         :default-open="false"
@@ -301,7 +300,6 @@
 
       <SettingItem
         label="プレビュー"
-        description="現在の設定で表示されるメッセージのイメージ"
         standalone
       >
         <MessageBubblePreview :appearance="previewAppearance" />

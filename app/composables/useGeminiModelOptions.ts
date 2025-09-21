@@ -50,8 +50,8 @@ export function useGeminiModelOptions(apiKey: ComputedRef<string> | Ref<string>)
       } else {
         modelOptions.value = defaultModelOptions
       }
-    } catch (e) {
-      console.error('モデルの読み込みに失敗:', e)
+    } catch (error) {
+      logger.error('モデルの読み込みに失敗:', { component: 'useGeminiModelOptions' }, error)
       modelOptions.value = defaultModelOptions
     } finally {
       loadingModels.value = false

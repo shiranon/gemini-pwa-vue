@@ -345,11 +345,11 @@ export const useSettingsStore = defineStore('settings', () => {
         lastSavedAt.value = Date.now()
         isDirty.value = false
       } else {
-        console.error('Failed to save settings to IndexedDB:', result.error)
+        logger.error('IndexedDBへの設定の保存に失敗しました:', { component: 'useSettingsStore' }, result.error)
         throw new Error(result.error || 'Failed to save settings')
       }
     } catch (error) {
-      console.error('Settings save error:', error)
+      logger.error('IndexedDBへの設定の保存に失敗しました:', { component: 'useSettingsStore' }, error)
       throw error
     } finally {
       isLoading.value = false
@@ -377,15 +377,15 @@ export const useSettingsStore = defineStore('settings', () => {
         const migrated = migrateLegacyThemeSettings(result.data)
         settings.value = createSettingsState(migrated)
         isDirty.value = false
-        console.log('IndexedDB から設定を読み込みました')
+        logger.info('IndexedDB から設定を読み込みました', { component: 'useSettingsStore' })
       } else {
         // IndexedDBに設定がない場合はデフォルト設定を使用
         settings.value = createSettingsState()
         isDirty.value = false
-        console.log('デフォルト設定を使用します')
+        logger.info('デフォルト設定を使用します', { component: 'useSettingsStore' })
       }
     } catch (error) {
-      console.error('Settings load error:', error)
+      logger.error('IndexedDBからの設定の読み込みに失敗しました:', { component: 'useSettingsStore' }, error)
       settings.value = createSettingsState()
       isDirty.value = false
     } finally {
@@ -394,7 +394,7 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   const initialize = async () => {
-    console.log('設定ストアを初期化中...')
+    logger.info('設定ストアを初期化中...', { component: 'useSettingsStore' })
     await loadSettings()
     // CSS変数とアップロードフォントを適用（永続化されたデータURL対応）
     if (import.meta.client) {
@@ -413,11 +413,11 @@ export const useSettingsStore = defineStore('settings', () => {
             document.head.appendChild(style)
           }
         }
-      } catch (e) {
-        console.warn('フォント適用時のエラー:', e)
+      } catch (error) {
+        logger.warn('フォント適用時のエラー:', { component: 'useSettingsStore' }, error)
       }
     }
-    console.log('設定ストアの初期化が完了', { isValidConfiguration: isValidConfiguration.value })
+    logger.info('設定ストアの初期化が完了', { isValidConfiguration: isValidConfiguration.value, component: 'useSettingsStore' })
   }
 
   return {

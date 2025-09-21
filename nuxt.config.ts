@@ -6,13 +6,13 @@ export default defineNuxtConfig({
   srcDir: 'app',
   modules: ['@nuxt/eslint', '@pinia/nuxt', '@pinia-plugin-persistedstate/nuxt', '@vite-pwa/nuxt', 'shadcn-nuxt'],
 
-  devtools: { enabled: process.env.ENVIRONMENT === 'development' },
+  devtools: { enabled: process.env.NODE_ENV === 'development' },
 
   ssr: false,
 
   app: {
     head: {
-      title: process.env.ENVIRONMENT === 'development' ? `Gemini PWA Vue (${process.env.ENVIRONMENT})` : 'Gemini PWA Vue',
+      title: process.env.NODE_ENV === 'development' ? `Gemini PWA Vue (${process.env.NODE_ENV})` : 'Gemini PWA Vue',
       meta: [
         { name: 'description', content: 'Gemini PWA Vue' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
@@ -23,7 +23,6 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      ENVIRONMENT: process.env.ENVIRONMENT,
       persistedState: {
         cookieOptions: {},
       },

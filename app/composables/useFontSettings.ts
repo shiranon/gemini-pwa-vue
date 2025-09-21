@@ -120,7 +120,7 @@ export const useFontSettings = () => {
       try {
         await loadWebFont(preset)
       } catch (error) {
-        console.warn('Webフォントの読み込みに失敗:', error)
+        logger.warn('Webフォントの読み込みに失敗:', { component: 'useFontSettings' }, error)
       }
     }
 
@@ -134,7 +134,7 @@ export const useFontSettings = () => {
 
     const exists = checkSystemFont(fontName)
     if (!exists) {
-      console.warn(`フォント「${fontName}」がシステムに見つかりません`)
+      logger.warn(`フォント「${fontName}」がシステムに見つかりません`, { component: 'useFontSettings' })
     }
 
     const fontStack = `"${fontName}", ${fontPresets[0]?.stack || 'system-ui, sans-serif'}`

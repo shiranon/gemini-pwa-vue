@@ -4,6 +4,7 @@
 
 import { Type } from '@google/genai'
 import type { FunctionCallArgs, FunctionDeclaration, FunctionExecutionContext } from '~/types/function-calling'
+import { logger } from '~/utils/logger'
 
 // タイマー管理用のシンプルな実装
 const timers = new Map<string, { endTime: number; duration: number }>()
@@ -49,7 +50,7 @@ export async function manageTimer(
   remainingTime?: number
   duration?: number
 }> {
-  console.log(`[Function Calling] manageTimerが呼び出されました。コンテキスト:`, context)
+  logger.info(`[Function Calling] manageTimerが呼び出されました。コンテキスト:`, { component: 'manageTimer' }, context)
 
   const action = args.action as string
   const timerName = args.timerName as string
@@ -57,7 +58,7 @@ export async function manageTimer(
 
   if (!timerName) {
     const errorMsg = 'タイマー名(timerName)は必須です。'
-    console.error(`[Function Calling] manageTimer: ${errorMsg}`)
+    logger.info(`[Function Calling] manageTimer: ${errorMsg}`, { component: 'manageTimer' })
     throw new Error(errorMsg)
   }
 
@@ -69,7 +70,7 @@ export async function manageTimer(
         }
         const endTime = Date.now() + durationMinutes * 60 * 1000
         timers.set(timerName, { endTime, duration: durationMinutes })
-        console.log(`[Function Calling] manageTimer: タイマー開始: ${timerName}, 期間: ${durationMinutes}分`)
+        logger.info(`[Function Calling] manageTimer: タイマー開始: ${timerName}, 期間: ${durationMinutes}分`)
         return {
           action: 'start',
           timerName,
@@ -86,7 +87,7 @@ export async function manageTimer(
         const remainingTime = Math.max(0, timer.endTime - Date.now())
         const remainingMinutes = Math.ceil(remainingTime / (60 * 1000))
         const status = remainingTime > 0 ? '実行中' : '終了'
-        console.log(`[Function Calling] manageTimer: タイマー確認: ${timerName}, 残り時間: ${remainingMinutes}分`)
+        logger.info(`[Function Calling] manageTimer: タイマー確認: ${timerName}, 残り時間: ${remainingMinutes}分`)
         return {
           action: 'check',
           timerName,
@@ -101,7 +102,7 @@ export async function manageTimer(
           throw new Error(`タイマー "${timerName}" が見つかりません。`)
         }
         timers.delete(timerName)
-        console.log(`[Function Calling] manageTimer: タイマー停止: ${timerName}`)
+        logger.info(`[Function Calling] manageTimer: タイマー停止: ${timerName}`, { component: 'manageTimer' })
         return {
           action: 'stop',
           timerName,
@@ -113,7 +114,7 @@ export async function manageTimer(
         throw new Error(`無効なアクションです: ${action}`)
     }
   } catch (error) {
-    console.error(`[Function Calling] manageTimerでエラーが発生しました:`, error)
+    logger.info(`[Function Calling] manageTimerでエラーが発生しました:`, { component: 'manageTimer' }, error)
     throw new Error(`タイマー操作中にエラーが発生しました: ${(error as Error).message}`)
   }
 }

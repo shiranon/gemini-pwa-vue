@@ -1,5 +1,6 @@
 import { Type } from '@google/genai'
 import type { FunctionCallArgs, FunctionDeclaration, FunctionExecutionContext } from '~/types/function-calling'
+import { logger } from '~/utils/logger'
 
 /**
  * ゲーム内の経過日数を管理する関数
@@ -35,7 +36,7 @@ export async function manageGameDate(
       error: string
     }
 > {
-  console.log(`[Function Calling] manageGameDateが呼び出されました。コンテキスト:`, context)
+  logger.info(`[Function Calling] manageGameDateが呼び出されました。コンテキスト:`, { component: 'manageGameDate' }, context)
 
   const { action, days = 1 } = args
 
@@ -69,7 +70,7 @@ export async function manageGameDate(
       case 'getCurrentDay': {
         message = `現在は${currentDay}日目です。`
         const getResult = { success: true, currentDay, message }
-        console.log(`[Function Calling] 処理完了:`, getResult)
+        logger.info(`[Function Calling] 処理完了:`, getResult)
         return getResult
       }
 
@@ -78,10 +79,10 @@ export async function manageGameDate(
     }
 
     const result = { success: true, currentDay, message }
-    console.log(`[Function Calling] 処理完了:`, result)
+    logger.info(`[Function Calling] 処理完了:`, result)
     return result
   } catch (error) {
-    console.error(`[Function Calling] manageGameDateでエラーが発生しました:`, error)
+    logger.info(`[Function Calling] manageGameDateでエラーが発生しました:`, { component: 'manageGameDate' }, error)
     return { error: `内部エラーが発生しました: ${(error as Error).message}` }
   }
 }

@@ -94,6 +94,7 @@ import { Button } from '~/components/ui/button'
 import { hexToRgba } from '~/utils/color'
 import type { ApiError, ChatMessage, AttachedFile, Message } from '~/types/chat'
 import { toast } from 'vue-sonner'
+import { logger } from '~/utils/logger'
 
 const chatStore = useChatStore()
 const settingsStore = useSettingsStore()
@@ -240,7 +241,7 @@ const sendMessage = async (options?: { contentOverride?: string; skipAddingUserM
       inputText.value = ''
     }
   } catch (error) {
-    console.error('Message sending error:', error)
+    logger.error('Message sending error:', { component: 'ChatInterface' }, error)
   }
 }
 
@@ -268,7 +269,7 @@ const handleMessageDelete = async (messageToDelete: ChatMessage) => {
   // MessageBubbleから削除対象のメッセージを受け取り、ChatStoreで削除
   // timestampを使用してvisibleMessagesから元のメッセージを特定
   const originalMessage = chatStore.visibleMessages.find((m) => m.createdAt === messageToDelete.timestamp)
-  console.log(originalMessage?.id)
+  logger.info('handleMessageDelete', { component: 'ChatInterface' }, { originalMessageId: originalMessage?.id })
   if (originalMessage) {
     await chatStore.deleteMessage(originalMessage.id)
   }
@@ -276,7 +277,7 @@ const handleMessageDelete = async (messageToDelete: ChatMessage) => {
 
 const handleMessageCopy = (copiedMessage: ChatMessage) => {
   // コピー完了の通知（必要に応じてトーストなどを表示）
-  console.log('Message copied to clipboard:', copiedMessage.content)
+  logger.info('Message copied to clipboard:', { component: 'ChatInterface' }, { content: copiedMessage.content })
 }
 
 const handleMessageRetry = async (messageToRetry: ChatMessage) => {
@@ -304,7 +305,7 @@ const handleRetryConfirm = async () => {
       })
     }
   } catch (error) {
-    console.error('Retry confirmation error:', error)
+    logger.error('Retry confirmation error:', { component: 'ChatInterface' }, error)
     chatStore.cancelRetry()
     showRetryDialogLocal.value = false
   }

@@ -4,6 +4,7 @@
 
 import { Type } from '@google/genai'
 import type { FunctionCallArgs, FunctionDeclaration, FunctionExecutionContext } from '~/types/function-calling'
+import { logger } from '~/utils/logger'
 
 /**
  * キャラクターのステータス（HP, MPなど）を管理する関数
@@ -51,7 +52,7 @@ export async function manageCharacterStatus(
   newValue?: number
   message: string
 }> {
-  console.log(`[Function Calling] manageCharacterStatusが呼び出されました。コンテキスト:`, context)
+  logger.info(`[Function Calling] manageCharacterStatusが呼び出されました。コンテキスト:`, { component: 'manageCharacterStatus' }, context)
 
   const characterName = args.characterName as string
   const action = args.action as string
@@ -60,13 +61,13 @@ export async function manageCharacterStatus(
 
   if (!characterName || !action || !statusKey) {
     const errorMsg = "引数 'characterName', 'action', 'statusKey' は必須です。"
-    console.error(`[Function Calling] manageCharacterStatus: ${errorMsg}`)
+    logger.info(`[Function Calling] manageCharacterStatus: ${errorMsg}`, { component: 'manageCharacterStatus' })
     throw new Error(errorMsg)
   }
 
   if (['set', 'increase', 'decrease'].includes(action) && typeof value !== 'number') {
     const errorMsg = `アクション '${action}' には数値型の 'value' が必要です。`
-    console.error(`[Function Calling] manageCharacterStatus: ${errorMsg}`)
+    logger.info(`[Function Calling] manageCharacterStatus: ${errorMsg}`, { component: 'manageCharacterStatus' })
     throw new Error(errorMsg)
   }
 
@@ -95,7 +96,7 @@ export async function manageCharacterStatus(
           newValue,
           message,
         }
-        console.log(`[Function Calling] manageCharacterStatus: 処理完了:`, result)
+        logger.info(`[Function Calling] manageCharacterStatus: 処理完了:`, result)
         return result
       }
 
@@ -111,7 +112,7 @@ export async function manageCharacterStatus(
           newValue,
           message,
         }
-        console.log(`[Function Calling] manageCharacterStatus: 処理完了:`, result)
+        logger.info(`[Function Calling] manageCharacterStatus: 処理完了:`, result)
         return result
       }
 
@@ -127,7 +128,7 @@ export async function manageCharacterStatus(
           newValue,
           message,
         }
-        console.log(`[Function Calling] manageCharacterStatus: 処理完了:`, result)
+        logger.info(`[Function Calling] manageCharacterStatus: 処理完了:`, result)
         return result
       }
 
@@ -140,7 +141,7 @@ export async function manageCharacterStatus(
           value: currentValue,
           message,
         }
-        console.log(`[Function Calling] manageCharacterStatus: 処理完了:`, result)
+        logger.info(`[Function Calling] manageCharacterStatus: 処理完了:`, result)
         return result
       }
 
@@ -148,7 +149,7 @@ export async function manageCharacterStatus(
         throw new Error(`無効なアクションです: ${action}`)
     }
   } catch (error) {
-    console.error(`[Function Calling] manageCharacterStatusでエラーが発生しました:`, error)
+    logger.info(`[Function Calling] manageCharacterStatusでエラーが発生しました:`, { component: 'manageCharacterStatus' }, error)
     throw new Error(`キャラクターステータス操作中にエラーが発生しました: ${(error as Error).message}`)
   }
 }

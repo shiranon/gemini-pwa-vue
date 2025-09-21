@@ -21,17 +21,7 @@
       class="message-bubble border-border relative mr-2 max-w-full border shadow-sm transition-all duration-200 sm:mr-4 md:mr-8"
       :style="assistantBubbleStyle"
     >
-      <div
-        class="mb-2"
-        :style="messageTextStyle"
-      >
-        プレビューでフォントサイズや角丸、背景色などを確認できます。
-        <br />
-        Function Calling や思考プロセスもサンプル表示しています。
-      </div>
-
       <div class="mt-3 space-y-2">
-        <p class="text-muted-foreground text-sm">画像プレビュー</p>
         <img
           src="/placeholder.svg"
           alt="Sample preview"

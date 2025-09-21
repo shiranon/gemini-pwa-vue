@@ -8,6 +8,7 @@ import { computed, onUnmounted, ref, watch } from 'vue'
 import { useChatQuery, useDatabase } from '~/composables/useDatabase'
 import type { ApiError, AssistantMessage, AttachedFile, ChatInputState, ChatSession, Message, MessageDisplayState, StreamingState, UserMessage } from '~/types/chat'
 import type { FunctionCall, FunctionCallResult } from '~/types/function-calling'
+import { logger } from '~/utils/logger'
 import { useSettingsStore } from './settings'
 
 export const useChatStore = defineStore('chat', () => {
@@ -108,12 +109,12 @@ export const useChatStore = defineStore('chat', () => {
       const success = await database.saveChat(currentSession.value)
       if (success) {
         lastSaveTime.value = Date.now()
-        console.log(`チャットを保存しました（${reason}）:`, currentSession.value.id)
+        logger.info(`チャットを保存しました（${reason}）:`, { component: 'useChatStore' }, currentSession.value.id)
       } else {
-        console.error(`チャットの保存に失敗（${reason}）`)
+        logger.error(`チャットの保存に失敗（${reason}）`, { component: 'useChatStore' })
       }
     } catch (error) {
-      console.error(`チャット保存エラー（${reason}）:`, error)
+      logger.error(`チャット保存エラー（${reason}）:`, { component: 'useChatStore' }, error)
     } finally {
       isSaving.value = false
     }
@@ -167,7 +168,7 @@ export const useChatStore = defineStore('chat', () => {
     // 自動保存を開始
     startAutoSave()
 
-    console.log('新しいチャットセッションを作成:', newSession.id)
+    logger.info('新しいチャットセッションを作成:', { component: 'useChatStore' }, newSession.id)
   }
 
   const loadSession = async (sessionId: string): Promise<boolean> => {
@@ -177,7 +178,7 @@ export const useChatStore = defineStore('chat', () => {
 
       const session = await database.loadChat(sessionId)
       if (!session) {
-        console.error('チャットが見つかりませんでした')
+        logger.error('チャットが見つかりませんでした', { component: 'useChatStore' })
         return false
       }
 
@@ -190,10 +191,10 @@ export const useChatStore = defineStore('chat', () => {
       // 自動保存を開始
       startAutoSave()
 
-      console.log('チャットセッションを読み込み:', sessionId)
+      logger.info(`チャットセッションを読み込み: ${sessionId}`, { component: 'useChatStore' })
       return true
     } catch (error) {
-      console.error('Failed to load chat session:', error)
+      logger.error('チャットセッションの読み込みに失敗しました:', { component: 'useChatStore' }, error)
       return false
     } finally {
       isLoadingSession.value = false
@@ -219,11 +220,11 @@ export const useChatStore = defineStore('chat', () => {
 
       const success = await database.saveChat(currentSession.value)
       if (success) {
-        console.log('チャットセッションを保存:', currentSession.value.id)
+        logger.info(`チャットセッションを保存: ${currentSession.value.id}`, { component: 'useChatStore' })
       }
       return success
     } catch (error) {
-      console.error('Failed to save chat session:', error)
+      logger.error('チャットセッションの保存に失敗しました:', { component: 'useChatStore' }, error)
       return false
     }
   }
@@ -237,8 +238,8 @@ export const useChatStore = defineStore('chat', () => {
 
   const addUserMessage = (content: string, attachments?: AttachedFile[]): UserMessage => {
     // 開発用に詳細なデバッグログを出力
-    if (process.env.ENVIRONMENT === 'development') {
-      console.log('[ChatStore] ユーザーメッセージ追加前', { count: visibleMessages.value.length, content })
+    if (process.env.NODE_ENV === 'development') {
+      logger.info('[ChatStore] ユーザーメッセージ追加前', { component: 'useChatStore' }, { count: visibleMessages.value.length, content: content })
     }
     const message: UserMessage = {
       id: database.generateMessageId(),
@@ -250,8 +251,8 @@ export const useChatStore = defineStore('chat', () => {
 
     visibleMessages.value.push(message)
     // 開発用に詳細なデバッグログを出力
-    if (process.env.ENVIRONMENT === 'development') {
-      console.log('[ChatStore] ユーザーメッセージ追加後', { count: visibleMessages.value.length })
+    if (process.env.NODE_ENV === 'development') {
+      logger.info('[ChatStore] ユーザーメッセージ追加後', { component: 'useChatStore' }, { count: visibleMessages.value.length, content: content })
     }
 
     // セッションが存在しない場合は新規作成
@@ -329,7 +330,7 @@ export const useChatStore = defineStore('chat', () => {
 
     try {
       isSending.value = true
-      console.log('[ChatStore] sendMessage() 開始', { input: contentToSend })
+      logger.info('[ChatStore] sendMessage() 開始', { component: 'useChatStore' }, { input: contentToSend })
 
       if (!options?.skipAddingUserMessage) {
         addUserMessage(contentToSend, attachmentsToSend)
@@ -340,13 +341,13 @@ export const useChatStore = defineStore('chat', () => {
 
       // 送信時の即座保存
       await saveOnSend()
-      if (process.env.ENVIRONMENT === 'development') {
-        console.log('[ChatStore] 送信時に保存済み', { count: visibleMessages.value.length })
+      if (process.env.NODE_ENV === 'development') {
+        logger.info('[ChatStore] 送信時に保存済み', { count: visibleMessages.value.length })
       }
 
       return true
     } catch (error) {
-      console.error('メッセージ送信に失敗:', error)
+      logger.error('メッセージ送信に失敗:', { component: 'useChatStore' }, error)
       setError({
         code: 'SEND_ERROR',
         message: 'メッセージの送信に失敗しました',
@@ -511,7 +512,7 @@ export const useChatStore = defineStore('chat', () => {
   const deleteMessagesAfter = async (messageId: string): Promise<boolean> => {
     const messageIndex = visibleMessages.value.findIndex((m: Message) => m.id === messageId)
     if (messageIndex === -1) {
-      console.error('Message not found:', messageId)
+      logger.error('メッセージが見つかりません:', { component: 'useChatStore' }, messageId)
       return false
     }
 
@@ -523,10 +524,10 @@ export const useChatStore = defineStore('chat', () => {
       // セッションに反映して保存
       await saveSession()
 
-      console.log(`Deleted ${beforeLength - messageIndex} messages from selected message onwards`)
+      logger.info(`${beforeLength - messageIndex} 件のメッセージを削除しました`, { component: 'useChatStore' })
       return true
     } catch (error) {
-      console.error('Failed to delete messages after:', error)
+      logger.error('メッセージの削除に失敗しました:', { component: 'useChatStore' }, error)
       return false
     }
   }
@@ -534,19 +535,19 @@ export const useChatStore = defineStore('chat', () => {
   /** 指定したメッセージからリトライ（確認なし） */
   const retryFromMessage = async (messageId: string): Promise<UserMessage | null> => {
     if (isSending.value) {
-      console.warn('Cannot retry while sending')
+      logger.warn('リトライ中にはリトライできません', { component: 'useChatStore' })
       return null
     }
 
     try {
       const targetMessage = visibleMessages.value.find((m: Message) => m.id === messageId)
       if (!targetMessage) {
-        console.error('Target message not found:', messageId)
+        logger.error('対象のメッセージが見つかりません:', { component: 'useChatStore' }, messageId)
         return null
       }
 
       if (targetMessage.role !== 'user') {
-        console.error('Retry target must be a user message')
+        logger.error('リトライ対象はユーザーメッセージでなければなりません', { component: 'useChatStore' })
         return null
       }
 
@@ -564,10 +565,10 @@ export const useChatStore = defineStore('chat', () => {
 
       clearError()
 
-      console.log('Retry from message prepared:', messageId)
+      logger.info('リトライの準備ができました:', { component: 'useChatStore' }, messageId)
       return messageToResend
     } catch (error) {
-      console.error('Failed to retry from message:', error)
+      logger.error('メッセージからリトライに失敗しました:', { component: 'useChatStore' }, error)
       setError({
         code: 'RETRY_ERROR',
         message: 'リトライに失敗しました',
@@ -580,18 +581,18 @@ export const useChatStore = defineStore('chat', () => {
   /** 確認ダイアログ付きリトライ */
   const retryWithConfirmation = async (messageId: string): Promise<boolean> => {
     if (isSending.value) {
-      console.warn('Cannot retry while sending')
+      logger.warn('リトライ中にはリトライできません', { component: 'useChatStore' })
       return false
     }
 
     const targetMessage = visibleMessages.value.find((m: Message) => m.id === messageId)
     if (!targetMessage) {
-      console.error('Target message not found:', messageId)
+      logger.error('対象のメッセージが見つかりません:', { component: 'useChatStore' }, messageId)
       return false
     }
 
     if (targetMessage.role !== 'user') {
-      console.error('Retry target must be a user message')
+      logger.error('リトライ対象はユーザーメッセージでなければなりません', { component: 'useChatStore' })
       return false
     }
 
@@ -677,7 +678,7 @@ export const useChatStore = defineStore('chat', () => {
   const initialize = async () => {
     // 既にセッションが存在する場合は初期化しない
     if (currentSession.value) {
-      console.log('Chatストアにすでにセッションが存在します, 初期化をスキップします')
+      logger.info('Chatストアにすでにセッションが存在します, 初期化をスキップします', { component: 'useChatStore' })
       return
     }
 
@@ -693,22 +694,22 @@ export const useChatStore = defineStore('chat', () => {
           const success = await loadSession(latestChat.id)
 
           if (success) {
-            console.log('Chatストアが最新のチャットを読み込みました:', latestChat.id)
+            logger.info('Chatストアが最新のチャットを読み込みました:', { component: 'useChatStore' }, latestChat.id)
             return
           } else {
-            console.warn('最新のチャットの読み込みに失敗しました, 新規チャットを作成します')
+            logger.warn('最新のチャットの読み込みに失敗しました, 新規チャットを作成します', { component: 'useChatStore' })
           }
         }
       }
 
       // 最新のチャットが存在しないか読み込みに失敗した場合は新規チャットを作成
       createNewSession()
-      console.log('Chatストアが新規チャットを作成しました')
+      logger.info('Chatストアが新規チャットを作成しました', { component: 'useChatStore' })
     } catch (error) {
-      console.error('Chatストアの初期化中にエラーが発生しました:', error)
+      logger.error('Chatストアの初期化中にエラーが発生しました:', { component: 'useChatStore' }, error)
       // エラーが発生した場合も新規チャットを作成
       createNewSession()
-      console.log('Chatストアが新規チャットを作成しました (フォールバック)')
+      logger.info('Chatストアが新規チャットを作成しました (フォールバック)', { component: 'useChatStore' })
     }
   }
 

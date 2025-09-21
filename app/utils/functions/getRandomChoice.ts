@@ -1,5 +1,6 @@
 import { Type } from '@google/genai'
 import type { FunctionCallArgs, FunctionDeclaration, FunctionExecutionContext } from '~/types/function-calling'
+import { logger } from '~/utils/logger'
 
 /**
  * 提供されたリストの中からランダムに項目を選択する関数
@@ -20,7 +21,7 @@ import type { FunctionCallArgs, FunctionDeclaration, FunctionExecutionContext } 
  *
  */
 export async function getRandomChoice(args: FunctionCallArgs, context: FunctionExecutionContext): Promise<{ success: boolean; results: unknown[] } | { error: string }> {
-  console.log(`[Function Calling] getRandomChoiceが呼び出されました。コンテキスト:`, context)
+  logger.info(`[Function Calling] getRandomChoiceが呼び出されました。コンテキスト:`, { component: 'getRandomChoice' }, context)
 
   const { choiceList, choiceCount = 1 } = args as { choiceList: unknown[]; choiceCount?: number }
 
@@ -42,10 +43,10 @@ export async function getRandomChoice(args: FunctionCallArgs, context: FunctionE
     }
 
     const result = { success: true, results: results }
-    console.log(`[Function Calling] getRandomChoice: 取得結果:`, result)
+    logger.info(`[Function Calling] getRandomChoice: 取得結果:`, result)
     return result
   } catch (error) {
-    console.error(`[Function Calling] getRandomChoiceでエラーが発生しました:`, error)
+    logger.info(`[Function Calling] getRandomChoiceでエラーが発生しました:`, { component: 'getRandomChoice' }, error)
     throw new Error(`ランダム選択中にエラーが発生しました: ${(error as Error).message}`)
   }
 }

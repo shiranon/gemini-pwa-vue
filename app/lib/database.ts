@@ -3,7 +3,7 @@
  * チャットデータの効率的な管理とクエリを提供
  */
 
-import Dexie, { type Table } from 'dexie'
+import Dexie, { type IndexableType, type Table } from 'dexie'
 import { deserializeAssistantExtras, serializeAssistantExtras } from '~/lib/messageSerialization'
 import type { AttachedFile, ChatSession, Message, UserMessage } from '~/types/chat'
 import type {
@@ -19,6 +19,7 @@ import type {
   SettingsRecord,
 } from '~/types/database'
 import type { AppSettings } from '~/types/settings'
+import { logger } from '~/utils/logger'
 
 export const DB_NAME = 'GeminiPWADatabase'
 
@@ -29,6 +30,8 @@ export const TABLES = {
   settings: 'settings',
   appMeta: 'appMeta',
 } as const
+
+const asIndexKey = (value: boolean): IndexableType => (value ? 1 : 0) as IndexableType
 
 export const SCHEMAS = {
   v1: {
@@ -48,6 +51,9 @@ export class GeminiDatabase extends Dexie {
   settings!: Table<SettingsRecord>
   appMeta!: Table<AppMetaRecord>
 
+  // Change listeners
+  private changeListeners = new Set<(changeType: string, table: string, key: string | number | null) => void>()
+
   constructor() {
     super(DB_NAME)
 
@@ -55,8 +61,76 @@ export class GeminiDatabase extends Dexie {
     this.version(2)
       .stores({})
       .upgrade(() => {
-        console.log('データベースをバージョン2へアップグレード中...')
+        logger.info('データベースをバージョン2へアップグレード中...', { component: 'Database' })
       })
+
+    this.setupHooks()
+  }
+
+  private setupHooks() {
+    this.chats.hook('creating', () => {
+      this.notifyChange('create', 'chats', null)
+    })
+    this.chats.hook('updating', (_modifications, primKey) => {
+      this.notifyChange('update', 'chats', primKey)
+    })
+    this.chats.hook('deleting', (primKey) => {
+      this.notifyChange('delete', 'chats', primKey)
+    })
+
+    this.messages.hook('creating', () => {
+      this.notifyChange('create', 'messages', null)
+    })
+    this.messages.hook('updating', (_modifications, primKey) => {
+      this.notifyChange('update', 'messages', primKey)
+    })
+    this.messages.hook('deleting', (primKey) => {
+      this.notifyChange('delete', 'messages', primKey)
+    })
+
+    this.attachedFiles.hook('creating', () => {
+      this.notifyChange('create', 'attachedFiles', null)
+    })
+    this.attachedFiles.hook('updating', (_modifications, primKey) => {
+      this.notifyChange('update', 'attachedFiles', primKey)
+    })
+    this.attachedFiles.hook('deleting', (primKey) => {
+      this.notifyChange('delete', 'attachedFiles', primKey)
+    })
+
+    this.settings.hook('creating', () => {
+      this.notifyChange('create', 'settings', null)
+    })
+    this.settings.hook('updating', (_modifications, primKey) => {
+      this.notifyChange('update', 'settings', primKey)
+    })
+
+    this.appMeta.hook('creating', () => {
+      this.notifyChange('create', 'appMeta', null)
+    })
+    this.appMeta.hook('updating', (_modifications, primKey) => {
+      this.notifyChange('update', 'appMeta', primKey)
+    })
+    this.appMeta.hook('deleting', (primKey) => {
+      this.notifyChange('delete', 'appMeta', primKey)
+    })
+  }
+
+  private notifyChange(changeType: string, table: string, key: string | number | null) {
+    this.changeListeners.forEach((listener) => {
+      try {
+        listener(changeType, table, key)
+      } catch (error) {
+        logger.error('変更通知時にエラーが発生しました:', { component: 'database' }, error)
+      }
+    })
+  }
+
+  public onDatabaseChange(listener: (changeType: string, table: string, key: string | number | null) => void): () => void {
+    this.changeListeners.add(listener)
+    return () => {
+      this.changeListeners.delete(listener)
+    }
   }
 }
 
@@ -144,15 +218,20 @@ export async function saveChat(session: ChatSession): Promise<DatabaseOperationR
       const chatRecord = chatSessionToRecord(session)
       await db.chats.put(chatRecord)
 
+      // 既存のメッセージと添付ファイルを削除
       await db.messages.where('chatId').equals(session.id).delete()
       await db.attachedFiles.where('chatId').equals(session.id).delete()
+
+      // メッセージレコードと添付ファイルレコードを準備
+      const messageRecords: MessageRecord[] = []
+      const fileRecords: AttachedFileRecord[] = []
 
       for (let i = 0; i < session.messages.length; i++) {
         const message = session.messages[i]
         if (!message) continue
 
         const messageRecord = messageToRecord(message, session.id, i)
-        await db.messages.put(messageRecord)
+        messageRecords.push(messageRecord)
 
         if (message.role === 'user' && 'attachments' in message) {
           const userMessage = message as UserMessage
@@ -161,10 +240,18 @@ export async function saveChat(session: ChatSession): Promise<DatabaseOperationR
           if (Array.isArray(attachments)) {
             for (const file of attachments) {
               const fileRecord = fileToRecord(file, message.id, session.id)
-              await db.attachedFiles.put(fileRecord)
+              fileRecords.push(fileRecord)
             }
           }
         }
+      }
+
+      // バルク操作でメッセージと添付ファイルを保存
+      if (messageRecords.length > 0) {
+        await db.messages.bulkPut(messageRecords)
+      }
+      if (fileRecords.length > 0) {
+        await db.attachedFiles.bulkPut(fileRecords)
       }
     })
 
@@ -179,7 +266,7 @@ export async function saveChat(session: ChatSession): Promise<DatabaseOperationR
       },
     }
   } catch (error) {
-    console.error('Failed to save chat:', error)
+    logger.error('チャットの保存に失敗しました:', { component: 'database' }, error)
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -204,23 +291,35 @@ export async function loadChat(chatId: string): Promise<DatabaseOperationResult<
       }
     }
 
-    const messageRecords = await db.messages.where('[chatId+order]').between([chatId, Dexie.minKey], [chatId, Dexie.maxKey]).toArray()
+    // メッセージと添付ファイルを並列で取得
+    const [messageRecords, allFileRecords] = await Promise.all([
+      db.messages.where('[chatId+order]').between([chatId, Dexie.minKey], [chatId, Dexie.maxKey]).toArray(),
+      db.attachedFiles.where('chatId').equals(chatId).toArray(),
+    ])
 
-    const messages: Message[] = []
+    // 添付ファイルをメッセージIDでグループ化（メモリ上で高速検索）
+    const filesByMessageId = new Map<string, AttachedFileRecord[]>()
+    for (const file of allFileRecords) {
+      if (!filesByMessageId.has(file.messageId)) {
+        filesByMessageId.set(file.messageId, [])
+      }
+      filesByMessageId.get(file.messageId)!.push(file)
+    }
 
-    for (const messageRecord of messageRecords) {
+    // メッセージを構築
+    const messages: Message[] = messageRecords.map((messageRecord) => {
       const message = messageRecordToMessage(messageRecord)
 
-      // ユーザーメッセージの場合、添付ファイルを取得
+      // ユーザーメッセージの場合、添付ファイルをマップから取得
       if (message.role === 'user') {
-        const fileRecords = await db.attachedFiles.where('messageId').equals(message.id).toArray()
-        if (fileRecords.length > 0) {
-          ;(message as UserMessage).attachments = fileRecords
+        const attachments = filesByMessageId.get(message.id)
+        if (attachments && attachments.length > 0) {
+          ;(message as UserMessage).attachments = attachments
         }
       }
 
-      messages.push(message)
-    }
+      return message
+    })
 
     const session: ChatSession = {
       ...chatRecordToSession(chatRecord),
@@ -238,7 +337,7 @@ export async function loadChat(chatId: string): Promise<DatabaseOperationResult<
       },
     }
   } catch (error) {
-    console.error('Failed to load chat:', error)
+    logger.error('チャットの読み込みに失敗しました:', { component: 'database' }, error)
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -250,10 +349,13 @@ export async function loadChat(chatId: string): Promise<DatabaseOperationResult<
 export async function getChats(options: ChatQueryOptions = {}): Promise<DatabaseOperationResult<ChatRecord[]>> {
   try {
     const startTime = Date.now()
+    const sortBy = options.sortBy ?? 'updatedAt'
+    const order = options.order ?? 'desc'
 
-    let query = db.chats.orderBy(options.sortBy || 'updatedAt')
+    // シンプルなクエリに戻す
+    let query = db.chats.orderBy(sortBy)
 
-    // アーカイブ状態でフィルタ
+    // アーカイブ状態でフィルタ（ブール値で直接フィルタ）
     if (options.archived !== undefined) {
       query = query.filter((chat) => chat.isArchived === options.archived)
     }
@@ -266,19 +368,23 @@ export async function getChats(options: ChatQueryOptions = {}): Promise<Database
     // 検索キーワードでフィルタ
     if (options.query) {
       const searchTerm = options.query.toLowerCase()
-      query = query.filter((chat) => chat.title.toLowerCase().includes(searchTerm) || chat.systemPrompt.toLowerCase().includes(searchTerm))
+      query = query.filter((chat) => {
+        const title = chat.title.toLowerCase()
+        const systemPrompt = chat.systemPrompt?.toLowerCase() ?? ''
+        return title.includes(searchTerm) || systemPrompt.includes(searchTerm)
+      })
     }
 
-    // ソート順（DexieのorderByは昇順。降順指定時にreverse()を適用）
-    if (options.order === 'desc') {
+    // ソート順（降順の場合はreverse）
+    if (order === 'desc') {
       query = query.reverse()
     }
 
     // ページネーション
-    if (options.offset) {
+    if (options.offset && options.offset > 0) {
       query = query.offset(options.offset)
     }
-    if (options.limit) {
+    if (options.limit && options.limit > 0) {
       query = query.limit(options.limit)
     }
 
@@ -295,7 +401,7 @@ export async function getChats(options: ChatQueryOptions = {}): Promise<Database
       },
     }
   } catch (error) {
-    console.error('Failed to get chats:', error)
+    logger.error('チャットの一覧取得に失敗しました:', { component: 'database' }, error)
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -324,7 +430,7 @@ export async function deleteChat(chatId: string): Promise<DatabaseOperationResul
       },
     }
   } catch (error) {
-    console.error('Failed to delete chat:', error)
+    logger.error('チャットの削除に失敗しました:', { component: 'database' }, error)
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -350,7 +456,7 @@ export async function saveSettings(settings: AppSettings): Promise<DatabaseOpera
       data: true,
     }
   } catch (error) {
-    console.error('Failed to save settings:', error)
+    logger.error('設定の保存に失敗しました:', { component: 'database' }, error)
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -376,7 +482,7 @@ export async function loadSettings(): Promise<DatabaseOperationResult<AppSetting
       data: settings,
     }
   } catch (error) {
-    console.error('Failed to load settings:', error)
+    logger.error('設定の読み込みに失敗しました:', { component: 'database' }, error)
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -392,8 +498,8 @@ export async function getDatabaseStats(): Promise<DatabaseOperationResult<Databa
       db.chats.count(),
       db.messages.count(),
       db.attachedFiles.count(),
-      db.chats.where('isArchived').equals(0).count(), // false = 0
-      db.chats.where('isArchived').equals(1).count(), // true = 1
+      db.chats.where('isArchived').equals(asIndexKey(false)).count(),
+      db.chats.where('isArchived').equals(asIndexKey(true)).count(),
     ])
 
     // 最古と最新のチャット日時を取得
@@ -425,7 +531,7 @@ export async function getDatabaseStats(): Promise<DatabaseOperationResult<Databa
       },
     }
   } catch (error) {
-    console.error('Failed to get database stats:', error)
+    logger.error('データベースの統計情報の取得に失敗しました:', { component: 'database' }, error)
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -452,7 +558,7 @@ async function estimateDatabaseSize(): Promise<number> {
 
     return totalSize
   } catch (error) {
-    console.error('Failed to estimate database size:', error)
+    logger.error('データベースのサイズの推定に失敗しました:', { component: 'database' }, error)
     return 0
   }
 }
@@ -469,7 +575,7 @@ export async function clearAllChats(): Promise<DatabaseOperationResult<boolean>>
       data: true,
     }
   } catch (error) {
-    console.error('Failed to clear all chats:', error)
+    logger.error('すべてのチャットの削除に失敗しました:', { component: 'database' }, error)
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -489,7 +595,7 @@ export async function clearAllData(): Promise<DatabaseOperationResult<boolean>> 
       data: true,
     }
   } catch (error) {
-    console.error('Failed to clear all data:', error)
+    logger.error('すべてのデータの削除に失敗しました:', { component: 'database' }, error)
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -541,7 +647,7 @@ export async function exportData(chatIds?: string[]): Promise<DatabaseOperationR
       },
     }
   } catch (error) {
-    console.error('Failed to export data:', error)
+    logger.error('データのエクスポートに失敗しました:', { component: 'database' }, error)
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -602,7 +708,7 @@ export async function importData(data: ExportedData): Promise<DatabaseOperationR
       data: result,
     }
   } catch (error) {
-    console.error('Failed to import data:', error)
+    logger.error('データのインポートに失敗しました:', { component: 'database' }, error)
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',

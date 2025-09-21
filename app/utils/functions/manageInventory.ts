@@ -4,6 +4,7 @@
 
 import { Type } from '@google/genai'
 import type { FunctionCallArgs, FunctionDeclaration, FunctionExecutionContext } from '~/types/function-calling'
+import { logger } from '~/utils/logger'
 
 /**
  * キャラクターの所持品を管理する関数
@@ -52,7 +53,7 @@ export async function manageInventory(
   removedQuantity?: number
   message: string
 }> {
-  console.log(`[Function Calling] manageInventoryが呼び出されました。コンテキスト:`, context)
+  logger.info(`[Function Calling] manageInventoryが呼び出されました。コンテキスト:`, { component: 'manageInventory' }, context)
 
   const characterName = args.characterName as string
   const action = args.action as string
@@ -61,13 +62,13 @@ export async function manageInventory(
 
   if (!characterName || !action || !itemName) {
     const errorMsg = "引数 'characterName', 'action', 'itemName' は必須です。"
-    console.error(`[Function Calling] manageInventory: ${errorMsg}`)
+    logger.info(`[Function Calling] manageInventory: ${errorMsg}`, { component: 'manageInventory' })
     throw new Error(errorMsg)
   }
 
   if (['add', 'remove'].includes(action) && (typeof quantity !== 'number' || quantity <= 0)) {
     const errorMsg = `アクション '${action}' には1以上の数値型の 'quantity' が必要です。`
-    console.error(`[Function Calling] manageInventory: ${errorMsg}`)
+    logger.info(`[Function Calling] manageInventory: ${errorMsg}`, { component: 'manageInventory' })
     throw new Error(errorMsg)
   }
 
@@ -100,7 +101,7 @@ export async function manageInventory(
           newQuantity,
           message,
         }
-        console.log(`[Function Calling] manageInventory: 処理完了:`, result)
+        logger.info(`[Function Calling] manageInventory: 処理完了:`, result)
         return result
       }
 
@@ -117,7 +118,7 @@ export async function manageInventory(
             removedQuantity: 0,
             message,
           }
-          console.log(`[Function Calling] manageInventory: 処理完了:`, result)
+          logger.info(`[Function Calling] manageInventory: 処理完了:`, result)
           return result
         }
         const newQuantity = currentQuantity - removedAmount
@@ -141,7 +142,7 @@ export async function manageInventory(
           removedQuantity: removedAmount,
           message,
         }
-        console.log(`[Function Calling] manageInventory: 処理完了:`, result)
+        logger.info(`[Function Calling] manageInventory: 処理完了:`, result)
         return result
       }
 
@@ -154,7 +155,7 @@ export async function manageInventory(
           currentQuantity,
           message,
         }
-        console.log(`[Function Calling] manageInventory: 処理完了:`, result)
+        logger.info(`[Function Calling] manageInventory: 処理完了:`, result)
         return result
       }
 
@@ -162,7 +163,7 @@ export async function manageInventory(
         throw new Error(`無効なアクションです: ${action}`)
     }
   } catch (error) {
-    console.error(`[Function Calling] manageInventoryでエラーが発生しました:`, error)
+    logger.info(`[Function Calling] manageInventoryでエラーが発生しました:`, { component: 'manageInventory' }, error)
     throw new Error(`インベントリ操作中にエラーが発生しました: ${(error as Error).message}`)
   }
 }

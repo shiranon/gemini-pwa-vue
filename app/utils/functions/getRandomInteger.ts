@@ -1,5 +1,6 @@
 import { Type } from '@google/genai'
 import type { FunctionCallArgs, FunctionDeclaration, FunctionExecutionContext } from '~/types/function-calling'
+import { logger } from '~/utils/logger'
 
 /**
  * 指定された範囲内のランダムな整数を生成する関数
@@ -34,7 +35,7 @@ export async function getRandomInteger(
       error: string
     }
 > {
-  console.log(`[Function Calling] getRandomIntegerが呼び出されました。コンテキスト:`, context)
+  logger.info(`[Function Calling] getRandomIntegerが呼び出されました。コンテキスト:`, { component: 'getRandomInteger' }, context)
 
   const { min, max, count = 1 } = args
 
@@ -60,10 +61,10 @@ export async function getRandomInteger(
     }
 
     const result = { success: true, results }
-    console.log(`[Function Calling] 処理完了:`, result)
+    logger.info(`[Function Calling] 処理完了:`, result)
     return result
   } catch (error) {
-    console.error(`[Function Calling] getRandomIntegerでエラーが発生しました:`, error)
+    logger.info(`[Function Calling] getRandomIntegerでエラーが発生しました:`, { component: 'getRandomInteger' }, error)
     return { error: `内部エラーが発生しました: ${(error as Error).message}` }
   }
 }

@@ -18,6 +18,7 @@ import { generateMessageId } from '~/lib/ids'
 import { useChatStore } from '~/stores/chat'
 import type { GeminiApiSettings, GeminiMessage } from '~/types/chat'
 import type { FunctionCall, FunctionCallResult } from '~/types/function-calling'
+import { logger } from '~/utils/logger'
 
 /**
  * Gemini APIレスポンスから思考プロセスを抽出する
@@ -108,14 +109,14 @@ export const useGeminiApi = () => {
    * Function Calling用のツール設定を構築する
    */
   const buildToolConfig = (settings: GeminiApiSettings, overrideMode?: 'auto' | 'any' | 'none'): { tools?: Tool[]; toolConfig?: ToolConfig } => {
-    console.log('[関数呼び出し] 設定:', settings.functionCalling)
+    logger.info('[関数呼び出し] 設定:', { component: 'useGeminiApi' }, settings.functionCalling?.enabled ? settings.functionCalling : '無効')
 
     const tools: Tool[] = []
 
     // 有効時のみFunction Callingツールを追加
     if (settings.functionCalling?.enabled) {
       const enabledFunctions = getEnabledFunctionDeclarations()
-      console.log('[関数呼び出し] 有効な関数:', enabledFunctions)
+      logger.info('[関数呼び出し] 有効な関数:', { component: 'useGeminiApi' }, enabledFunctions)
 
       let functionDeclarations = enabledFunctions
       if (settings.functionCalling.allowedFunctionNames?.length) {
@@ -123,13 +124,13 @@ export const useGeminiApi = () => {
         const availableNames = new Set(enabledFunctions.map((declaration) => declaration.name).filter((name): name is string => typeof name === 'string'))
         const missingNames = settings.functionCalling.allowedFunctionNames.filter((name) => !availableNames.has(name))
         if (missingNames.length > 0) {
-          console.warn('[関数呼び出し] allowedFunctionNamesに未登録の関数があります:', missingNames)
+          logger.warn('[関数呼び出し] allowedFunctionNamesに未登録の関数があります:', { component: 'useGeminiApi' }, missingNames)
         }
 
         functionDeclarations = enabledFunctions.filter((declaration) => declaration.name && allowedSet.has(declaration.name))
 
         if (functionDeclarations.length !== enabledFunctions.length) {
-          console.log('[関数呼び出し] allowedFunctionNamesで関数をフィルタリングしました', {
+          logger.info('[関数呼び出し] allowedFunctionNamesで関数をフィルタリングしました', {
             before: enabledFunctions.length,
             after: functionDeclarations.length,
             allowedFunctionNames: settings.functionCalling.allowedFunctionNames,
@@ -143,13 +144,13 @@ export const useGeminiApi = () => {
         })
       }
     } else {
-      console.log('[関数呼び出し] Function Calling は無効です')
+      logger.info('[関数呼び出し] Function Calling は無効です', { component: 'useGeminiApi' })
     }
 
     // Google Search tool (グラウンディングが有効時)
     if (settings.geminiEnableGrounding) {
       tools.push({ googleSearch: {} })
-      console.log('[Google検索] ツールを有効化')
+      logger.info('[Google検索] ツールを有効化', { component: 'useGeminiApi' })
     }
 
     // ツールが有効でない場合は空の設定を返す
@@ -177,7 +178,7 @@ export const useGeminiApi = () => {
             }),
         },
       }
-      console.log('[関数呼び出し] ツール設定:', {
+      logger.info('[関数呼び出し] ツール設定:', {
         tools,
         toolConfig,
         originalMode: settings.functionCalling.mode,
@@ -193,15 +194,15 @@ export const useGeminiApi = () => {
    * Function Calling を検出・実行する
    */
   const handleFunctionCalls = async (response: ResponseLike, messageId?: string): Promise<{ functionCalls: FunctionCall[]; functionResults: FunctionCallResult[] }> => {
-    console.log('[非ストリーミング] Function Calling処理開始:', { messageId })
+    logger.info('[非ストリーミング] Function Calling処理開始:', { messageId })
     const functionCalls: FunctionCall[] = []
     const functionResults: FunctionCallResult[] = []
 
     if (response.candidates?.[0]?.content?.parts) {
-      console.log('[非ストリーミング] レスポンスパーツ数:', response.candidates[0].content.parts.length)
+      logger.info('[非ストリーミング] レスポンスパーツ数:', { component: 'useGeminiApi' }, response.candidates[0].content.parts.length)
       for (let i = 0; i < response.candidates[0].content.parts.length; i++) {
         const part = response.candidates[0].content.parts[i]
-        console.log(`[非ストリーミング] パーツ ${i + 1}:`, { isFunctionCall: part ? isFunctionCallPart(part) : false, part })
+        logger.info(`[非ストリーミング] パーツ ${i + 1}:`, { component: 'useGeminiApi' }, { isFunctionCall: part ? isFunctionCallPart(part) : false, part })
 
         if (part && isFunctionCallPart(part)) {
           const args = part?.functionCall?.args && typeof part.functionCall.args === 'object' ? (part.functionCall.args as Record<string, unknown>) : {}
@@ -209,19 +210,19 @@ export const useGeminiApi = () => {
             name: part?.functionCall?.name || 'unknown',
             args,
           }
-          console.log(`[非ストリーミング] Function Call検出 ${functionCalls.length + 1}:`, functionCall)
+          logger.info(`[非ストリーミング] Function Call検出 ${functionCalls.length + 1}:`, { component: 'useGeminiApi' }, functionCall)
           functionCalls.push(functionCall)
 
           try {
-            console.log(`[非ストリーミング] 関数実行開始 ${functionResults.length + 1}:`, functionCall.name)
+            logger.info(`[非ストリーミング] 関数実行開始 ${functionResults.length + 1}:`, { component: 'useGeminiApi' }, functionCall.name)
             const result = await executeFunction(functionCall, {
               messageId,
               timestamp: Date.now(),
               persistentMemory: chatStore.currentSession?.persistentMemory || {},
             })
-            console.log(`[非ストリーミング] 関数実行完了 ${functionResults.length + 1}:`, functionCall.name, result)
+            logger.info(`[非ストリーミング] 関数実行完了 ${functionResults.length + 1}:`, { component: 'useGeminiApi' }, functionCall.name, result)
             functionResults.push(result)
-            console.log(`[非ストリーミング] Function Result追加後:`, {
+            logger.info(`[非ストリーミング] Function Result追加後:`, {
               calls: functionCalls.length,
               results: functionResults.length,
             })
@@ -231,7 +232,7 @@ export const useGeminiApi = () => {
               chatStore.currentSession.persistentMemory = result.context.persistentMemory as typeof chatStore.currentSession.persistentMemory
             }
           } catch (error) {
-            console.error(`[非ストリーミング] 関数の実行に失敗 ${functionResults.length + 1}:`, functionCall.name, error)
+            logger.error(`[非ストリーミング] 関数の実行に失敗 ${functionResults.length + 1}:`, { component: 'useGeminiApi' }, functionCall.name, error)
             const errorResult = {
               name: functionCall.name,
               args: functionCall.args,
@@ -239,7 +240,7 @@ export const useGeminiApi = () => {
               error: error instanceof Error ? error.message : String(error),
             }
             functionResults.push(errorResult)
-            console.log(`[非ストリーミング] エラー結果追加後:`, {
+            logger.info(`[非ストリーミング] エラー結果追加後:`, {
               calls: functionCalls.length,
               results: functionResults.length,
             })
@@ -248,7 +249,7 @@ export const useGeminiApi = () => {
       }
     }
 
-    console.log('[非ストリーミング] Function Calling処理完了:', {
+    logger.info('[非ストリーミング] Function Calling処理完了:', {
       functionCallsCount: functionCalls.length,
       functionResultsCount: functionResults.length,
       functionCalls: functionCalls.map((fc) => ({ name: fc.name, args: fc.args })),
@@ -289,13 +290,13 @@ export const useGeminiApi = () => {
       }
       const currentContents: Content[] = toContent(currentMessages)
       // 開発用に詳細なデバッグログを出力
-      if (process.env.ENVIRONMENT === 'development') {
+      if (process.env.NODE_ENV === 'development') {
         const simplified = currentContents.map((c) => ({
           role: c.role,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           texts: (c.parts || []).map((p: Part) => ('text' in p ? (p as any).text : (p as any).functionCall ? `fc:${(p as any).functionCall.name}` : 'fr')),
         }))
-        console.log('[GeminiAPI] generateContent 入力', simplified)
+        logger.info('[GeminiAPI] generateContent 入力', { component: 'useGeminiApi' }, simplified)
       }
 
       const result = await genAI.models.generateContent({
@@ -320,7 +321,7 @@ export const useGeminiApi = () => {
         functionResults = fcResult.functionResults
 
         if (functionCalls.length > 0) {
-          console.log('[非ストリーミング] 関数呼び出しを検出:', {
+          logger.info('[非ストリーミング] 関数呼び出しを検出:', {
             functionCallsCount: functionCalls.length,
             functionResultsCount: functionResults.length,
             functionCalls: functionCalls.map((fc) => ({ name: fc.name, args: fc.args })),
@@ -332,8 +333,9 @@ export const useGeminiApi = () => {
           const respLike = result
           if (respLike.candidates?.[0]?.content?.parts) {
             const parts = respLike.candidates![0]!.content!.parts as Part[]
-            console.log(
+            logger.info(
               '[非ストリーミング] レスポンスパーツ詳細:',
+              { component: 'useGeminiApi' },
               parts.map((part, index) => ({
                 index,
                 isFunctionCall: isFunctionCallPart(part),
@@ -344,18 +346,19 @@ export const useGeminiApi = () => {
 
             // Function Callパーツのみを抽出（テキストパーツは除外）
             const functionCallParts = parts.filter((part) => isFunctionCallPart(part))
-            console.log(
+            logger.info(
               '[非ストリーミング] 抽出されたFunction Callパーツ:',
+              { component: 'useGeminiApi' },
               functionCallParts.length,
               functionCallParts.map((p) => p.functionCall?.name)
             )
 
             // Function Callパーツの追加をスキップ（既にcurrentContentsに含まれているため）
-            console.log('[非ストリーミング] Function Callパーツの追加をスキップ（既存のパーツを使用）')
+            logger.info('[非ストリーミング] Function Callパーツの追加をスキップ（既存のパーツを使用）', { component: 'useGeminiApi' })
           }
 
           // 2. Function Call結果を追加
-          console.log('[非ストリーミング] Function Response作成開始:', {
+          logger.info('[非ストリーミング] Function Response作成開始:', {
             resultsCount: functionResults.length,
             results: functionResults.map((fr) => ({ name: fr.name, hasResult: !!fr.result, hasError: !!fr.error })),
           })
@@ -363,7 +366,7 @@ export const useGeminiApi = () => {
           for (let i = 0; i < functionResults.length; i++) {
             const funcResult = functionResults[i]
             if (!funcResult) continue
-            console.log(`[非ストリーミング] Function Response ${i + 1}/${functionResults.length}:`, funcResult.name, funcResult)
+            logger.info(`[非ストリーミング] Function Response ${i + 1}/${functionResults.length}:`, { component: 'useGeminiApi' }, funcResult.name, funcResult)
 
             const payload: Record<string, unknown> =
               funcResult && funcResult.result && typeof funcResult.result === 'object'
@@ -372,14 +375,14 @@ export const useGeminiApi = () => {
                   ? { error: funcResult.error }
                   : ({} as Record<string, unknown>)
 
-            console.log(`[非ストリーミング] Function Response ${i + 1} payload:`, payload)
+            logger.info(`[非ストリーミング] Function Response ${i + 1} payload:`, { component: 'useGeminiApi' }, payload)
             const part = createPartFromFunctionResponse(generateMessageId(), funcResult.name, payload)
             currentContents.push({ role: 'function', parts: [part] })
-            console.log(`[非ストリーミング] Function Response ${i + 1} 追加完了`)
+            logger.info(`[非ストリーミング] Function Response ${i + 1} 追加完了`, { component: 'useGeminiApi' })
           }
 
           // 3. Function Call結果を含めて再度API呼び出し
-          console.log('[非ストリーミング] Gemini API送信前の最終状態:', {
+          logger.info('[非ストリーミング] Gemini API送信前の最終状態:', {
             currentContentsLength: currentContents.length,
             functionCallParts: currentContents.filter((c) => c.role === 'model').length,
             functionResponseParts: currentContents.filter((c) => c.role === 'function').length,
@@ -389,8 +392,9 @@ export const useGeminiApi = () => {
           // 各パーツの詳細内容をログ出力
           currentContents.forEach((content, index) => {
             if (content.role === 'model' && content.parts) {
-              console.log(
+              logger.info(
                 `[非ストリーミング] パーツ ${index} (model):`,
+                { component: 'useGeminiApi' },
                 content.parts.map((part, partIndex) => ({
                   partIndex,
                   isFunctionCall: isFunctionCallPart(part),
@@ -456,13 +460,13 @@ export const useGeminiApi = () => {
       }
       const currentContents: Content[] = toContent(currentMessages)
       // 開発用に詳細なデバッグログを出力
-      if (process.env.ENVIRONMENT === 'development') {
+      if (process.env.NODE_ENV === 'development') {
         const simplified = currentContents.map((c) => ({
           role: c.role,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           texts: (c.parts || []).map((p: Part) => ('text' in p ? (p as any).text : (p as any).functionCall ? `fc:${(p as any).functionCall.name}` : 'fr')),
         }))
-        console.log('[GeminiAPI] generateContentStream 入力', simplified)
+        logger.info('[GeminiAPI] generateContentStream 入力', { component: 'useGeminiApi' }, simplified)
       }
 
       const result = await genAI.models.generateContentStream({
@@ -524,7 +528,7 @@ export const useGeminiApi = () => {
 
         // Function Call を実行
         if (functionCalls.length > 0 && settings.functionCalling?.enabled) {
-          console.log('[ストリーミング] Function Call検出:', {
+          logger.info('[ストリーミング] Function Call検出:', {
             newFunctionCalls: functionCalls,
             currentAccumulatedCalls: accumulatedFunctionCalls.length,
             currentAccumulatedResults: accumulatedFunctionResults.length,
@@ -532,21 +536,21 @@ export const useGeminiApi = () => {
 
           // Function Callを先に追加
           accumulatedFunctionCalls = [...accumulatedFunctionCalls, ...functionCalls]
-          console.log('[ストリーミング] Function Call追加後:', {
+          logger.info('[ストリーミング] Function Call追加後:', {
             totalCalls: accumulatedFunctionCalls.length,
             totalResults: accumulatedFunctionResults.length,
           })
           for (const functionCall of functionCalls) {
-            console.log('[ストリーミング] 関数実行開始:', functionCall.name, functionCall.args)
+            logger.info('[ストリーミング] 関数実行開始:', { component: 'useGeminiApi' }, functionCall.name, functionCall.args)
             try {
               const result = await executeFunction(functionCall, {
                 messageId: generateMessageId(),
                 timestamp: Date.now(),
                 persistentMemory: chatStore.currentSession?.persistentMemory || {},
               })
-              console.log('[ストリーミング] 関数実行完了:', functionCall.name, result)
+              logger.info('[ストリーミング] 関数実行完了:', { component: 'useGeminiApi' }, functionCall.name, result)
               accumulatedFunctionResults.push(result)
-              console.log('[ストリーミング] Function Result追加後:', {
+              logger.info('[ストリーミング] Function Result追加後:', {
                 totalCalls: accumulatedFunctionCalls.length,
                 totalResults: accumulatedFunctionResults.length,
               })
@@ -556,7 +560,7 @@ export const useGeminiApi = () => {
                 chatStore.currentSession.persistentMemory = result.context.persistentMemory as typeof chatStore.currentSession.persistentMemory
               }
             } catch (error) {
-              console.error('[ストリーミング] 関数の実行に失敗:', functionCall.name, error)
+              logger.error('[ストリーミング] 関数の実行に失敗:', { component: 'useGeminiApi' }, functionCall.name, error)
               const errorResult = {
                 name: functionCall.name,
                 args: functionCall.args,
@@ -564,7 +568,7 @@ export const useGeminiApi = () => {
                 error: error instanceof Error ? error.message : String(error),
               }
               accumulatedFunctionResults.push(errorResult)
-              console.log('[ストリーミング] エラー結果追加後:', {
+              logger.info('[ストリーミング] エラー結果追加後:', {
                 totalCalls: accumulatedFunctionCalls.length,
                 totalResults: accumulatedFunctionResults.length,
               })
@@ -585,7 +589,7 @@ export const useGeminiApi = () => {
 
       // Function Callがある場合、結果をAPIに送り返して最終回答をストリーミング
       if (accumulatedFunctionCalls.length > 0 && settings.functionCalling?.enabled) {
-        console.log('[ストリーミング関数呼び出し] 関数結果をAPIへ送信', {
+        logger.info('[ストリーミング関数呼び出し] 関数結果をAPIへ送信', {
           functionCallsCount: accumulatedFunctionCalls.length,
           functionResultsCount: accumulatedFunctionResults.length,
           functionCalls: accumulatedFunctionCalls.map((fc) => ({ name: fc.name, args: fc.args })),
@@ -594,7 +598,7 @@ export const useGeminiApi = () => {
 
         // Function CallとFunction Responseの数が一致しているかチェック
         if (accumulatedFunctionCalls.length !== accumulatedFunctionResults.length) {
-          console.error('[ストリーミング関数呼び出し] Function CallとFunction Responseの数が一致しません', {
+          logger.error('[ストリーミング関数呼び出し] Function CallとFunction Responseの数が一致しません', {
             calls: accumulatedFunctionCalls.length,
             results: accumulatedFunctionResults.length,
           })
@@ -603,12 +607,12 @@ export const useGeminiApi = () => {
 
         // 1. アシスタントのFunction Callレスポンスを追加
         // Function Callパーツの追加をスキップ（既にcurrentContentsに含まれているため）
-        console.log('[ストリーミング] Function Callパーツの追加をスキップ（既存のパーツを使用）', {
+        logger.info('[ストリーミング] Function Callパーツの追加をスキップ（既存のパーツを使用）', {
           firstResponsePartsLength: firstResponseParts.length,
         })
 
         // 2. Function Call結果を追加
-        console.log('[ストリーミング] Function Response作成開始:', {
+        logger.info('[ストリーミング] Function Response作成開始:', {
           resultsCount: accumulatedFunctionResults.length,
           results: accumulatedFunctionResults.map((fr) => ({ name: fr.name, hasResult: !!fr.result, hasError: !!fr.error })),
         })
@@ -616,7 +620,7 @@ export const useGeminiApi = () => {
         for (let i = 0; i < accumulatedFunctionResults.length; i++) {
           const funcResult = accumulatedFunctionResults[i]
           if (!funcResult) continue
-          console.log(`[ストリーミング] Function Response ${i + 1}/${accumulatedFunctionResults.length}:`, funcResult.name, funcResult)
+          logger.info(`[ストリーミング] Function Response ${i + 1}/${accumulatedFunctionResults.length}:`, { component: 'useGeminiApi' }, funcResult.name, funcResult)
 
           const payload: Record<string, unknown> =
             funcResult && funcResult.result && typeof funcResult.result === 'object'
@@ -625,14 +629,14 @@ export const useGeminiApi = () => {
                 ? { error: funcResult.error }
                 : ({} as Record<string, unknown>)
 
-          console.log(`[ストリーミング] Function Response ${i + 1} payload:`, payload)
+          logger.info(`[ストリーミング] Function Response ${i + 1} payload:`, payload)
           const part = createPartFromFunctionResponse(generateMessageId(), funcResult.name, payload)
           currentContents.push({ role: 'function', parts: [part] })
-          console.log(`[ストリーミング] Function Response ${i + 1} 追加完了`)
+          logger.info(`[ストリーミング] Function Response ${i + 1} 追加完了`, { component: 'useGeminiApi' })
         }
 
         // 3. Function Call結果を含めて再度ストリーミング
-        console.log('[ストリーミング] Gemini API送信前の最終状態:', {
+        logger.info('[ストリーミング] Gemini API送信前の最終状態:', {
           currentContentsLength: currentContents.length,
           functionCallParts: currentContents.filter((c) => c.role === 'model').length,
           functionResponseParts: currentContents.filter((c) => c.role === 'function').length,
@@ -718,7 +722,7 @@ export const useGeminiApi = () => {
 
       return true
     } catch (error) {
-      console.error('APIキーの検証に失敗:', error)
+      logger.error('APIキーの検証に失敗:', { component: 'useGeminiApi' }, error)
       return false
     }
   }
@@ -744,7 +748,7 @@ export const useGeminiApi = () => {
       const unique = Array.from(new Set(names))
       return unique
     } catch (error) {
-      console.error('利用可能なモデルの取得に失敗:', error)
+      logger.error('利用可能なモデルの取得に失敗:', { component: 'useGeminiApi' }, error)
       // フォールバック: 既知のモデル一覧を返す
       return ['gemini-2.0-flash-lite', 'gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-2.5-pro']
     }

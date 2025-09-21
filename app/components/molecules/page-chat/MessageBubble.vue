@@ -157,6 +157,7 @@ import FunctionCallDisplay from '~/components/molecules/page-chat/FunctionCallDi
 import ThoughtProcessDisplay from '~/components/molecules/page-chat/ThoughtProcessDisplay.vue'
 import { storeToRefs } from 'pinia'
 import { Icon } from '@iconify/vue'
+import { logger } from '~/utils/logger'
 
 interface Props {
   message: ChatMessage
@@ -320,7 +321,7 @@ const handleCopy = async () => {
     await navigator.clipboard.writeText(props.message.content)
     emit('copy', props.message)
   } catch (error) {
-    console.error('Failed to copy message content:', error)
+    logger.error('Failed to copy message content:', { component: 'MessageBubble' }, error)
   }
 }
 

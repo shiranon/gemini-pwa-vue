@@ -1,5 +1,5 @@
-import { marked } from 'marked'
 import type { Tokens } from 'marked'
+import { marked } from 'marked'
 
 export interface MarkdownTextNode {
   type: 'text'
@@ -114,7 +114,7 @@ export const parseMarkdown = (content: string): MarkdownBlockNode[] => {
     const tokens = marked.lexer(content, markedOptions)
     return transformBlockTokens(tokens)
   } catch (error) {
-    console.warn('Markdown parsing failed:', error)
+    logger.warn('Markdownの解析に失敗しました:', { component: 'markdown' }, error)
     return [
       {
         type: 'paragraph',
