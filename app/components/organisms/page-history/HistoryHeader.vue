@@ -1,11 +1,11 @@
 <template>
-  <div class="border-border bg-card text-card-foreground my-3 rounded-lg border p-6 shadow-sm sm:px-6 sm:pt-6">
-    <h1 class="text-foreground mb-4 text-xl font-bold sm:text-2xl">チャット履歴</h1>
+  <div class="border-border bg-card text-card-foreground my-3 rounded-lg border p-6 shadow-sm md:px-6 md:pt-6">
+    <h1 class="text-foreground mb-4 text-xl font-bold md:text-2xl">チャット履歴</h1>
 
     <div class="mb-4 space-y-2">
       <div class="flex flex-col gap-2">
-        <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <div class="flex-1 sm:flex-none">
+        <div class="flex flex-col gap-2 md:flex-row md:items-center">
+          <div class="flex-1 md:flex-none">
             <HistorySearch
               :search-query="searchQuery"
               @update:search-query="$emit('update:searchQuery', $event)"
@@ -16,7 +16,7 @@
             :sort-order="sortOrder"
             @update:sort-order="$emit('update:sortOrder', $event)"
           />
-          <div class="hidden w-full justify-end sm:flex">
+          <div class="hidden w-full justify-end md:flex">
             <div class="flex gap-2">
               <Button
                 variant="outline"
@@ -24,7 +24,7 @@
                 @click="$emit('import-chats')"
               >
                 <Icon icon="material-symbols:upload" />
-                <span class="sm:inline">インポート</span>
+                <span class="md:inline">インポート</span>
               </Button>
               <Button
                 variant="default"
@@ -32,13 +32,13 @@
                 @click="$emit('create-new-chat')"
               >
                 <Icon icon="gridicons:add" />
-                <span class="sm:inline">新規チャット</span>
+                <span class="md:inline">新規チャット</span>
               </Button>
             </div>
           </div>
         </div>
 
-        <div class="block flex-none sm:hidden">
+        <div class="block flex-none md:hidden">
           <div class="flex gap-2">
             <Button
               variant="outline"
@@ -62,7 +62,7 @@
         </div>
       </div>
 
-      <div class="flex flex-col gap-2 sm:flex-row">
+      <div class="flex flex-col gap-2 md:flex-row">
         <HistoryFilters
           :show-archived="showArchived"
           @update:show-archived="$emit('update:showArchived', $event)"

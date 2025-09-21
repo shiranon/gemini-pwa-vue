@@ -1,6 +1,5 @@
 <template>
-  <div class="flex items-center gap-2 pt-2">
-    <span class="text-muted-foreground w-10 text-sm">表示:</span>
+  <div class="flex items-center pt-2">
     <div class="flex">
       <Button
         :variant="showArchived === false ? 'default' : 'outline'"

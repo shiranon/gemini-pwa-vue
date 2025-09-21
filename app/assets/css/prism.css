@@ -1,0 +1,145 @@
+@import "prismjs/themes/prism.css";
+
+pre.prism-code {
+  background-color: color-mix(in srgb, var(--muted) 70%, rgba(0, 0, 0, 0));
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 0.75rem 1rem;
+  overflow-x: auto;
+  font-size: 0.9em;
+  line-height: 1.6;
+}
+
+pre.prism-code code {
+  background: none;
+  color: inherit;
+  font-family: var(--message-font-family, ui-monospace, SFMono-Regular, 'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace);
+}
+
+pre.prism-code .token.comment,
+pre.prism-code .token.prolog,
+pre.prism-code .token.doctype,
+pre.prism-code .token.cdata {
+  color: var(--muted-foreground);
+}
+
+pre.prism-code .token.punctuation {
+  color: inherit;
+}
+
+pre.prism-code .token.property,
+pre.prism-code .token.tag,
+pre.prism-code .token.boolean,
+pre.prism-code .token.number,
+pre.prism-code .token.constant,
+pre.prism-code .token.symbol {
+  color: var(--chart-1);
+}
+
+pre.prism-code .token.selector,
+pre.prism-code .token.attr-name,
+pre.prism-code .token.string,
+pre.prism-code .token.char,
+pre.prism-code .token.builtin {
+  color: var(--chart-3);
+}
+
+pre.prism-code .token.operator,
+pre.prism-code .token.entity,
+pre.prism-code .token.url,
+pre.prism-code .token.variable {
+  color: var(--chart-2);
+}
+
+pre.prism-code .token.atrule,
+pre.prism-code .token.attr-value,
+pre.prism-code .token.keyword {
+  color: var(--chart-5);
+}
+
+pre.prism-code .token.function,
+pre.prism-code .token.class-name {
+  color: var(--chart-4);
+}
+
+pre.prism-code .token.regex,
+pre.prism-code .token.important {
+  color: var(--destructive);
+}
+
+.dark pre.prism-code {
+  background-color: color-mix(in srgb, var(--muted) 80%, rgba(255, 255, 255, 0));
+}
+
+.markdown-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.markdown-body p,
+.markdown-body ul,
+.markdown-body ol,
+.markdown-body pre,
+.markdown-body blockquote,
+.markdown-body figure,
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  margin: 0;
+}
+
+.markdown-body ul,
+.markdown-body ol {
+  padding-left: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.markdown-body blockquote {
+  border-left: 3px solid var(--border);
+  padding-left: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.markdown-body code {
+  background-color: color-mix(in srgb, var(--muted) 80%, rgba(0, 0, 0, 0));
+  border-radius: 0.375rem;
+  padding: 0.1rem 0.35rem;
+  font-family: var(--message-font-family, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace);
+  font-size: 0.9em;
+}
+
+.markdown-body figure {
+  background-color: color-mix(in srgb, var(--muted) 75%, rgba(0, 0, 0, 0));
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+
+.markdown-body figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.markdown-body figure .message-image__caption {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85em;
+  color: var(--muted-foreground);
+}
+
+.markdown-body a {
+  color: var(--primary);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+
+.markdown-body a:hover {
+  color: var(--primary-foreground);
+}
