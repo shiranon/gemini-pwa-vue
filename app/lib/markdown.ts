@@ -1,5 +1,6 @@
 import type { Tokens } from 'marked'
 import { marked } from 'marked'
+import { logger } from '~/utils/logger'
 
 export interface MarkdownTextNode {
   type: 'text'

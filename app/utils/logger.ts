@@ -3,22 +3,7 @@
  * 開発時、テスト時、本番時で異なるログ出力を制御
  */
 
-export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
-
-export type LogContext = {
-  component?: string
-  function?: string
-  timestamp?: boolean
-  number?: number
-  [key: string]: unknown
-}
-
-interface LoggerConfig {
-  level: LogLevel
-  enableTimestamp: boolean
-  enableContext: boolean
-  maxContextDepth: number
-}
+import type { LogContext, LoggerConfig, LogLevel } from '~/types/logger'
 
 class Logger {
   private config: LoggerConfig
@@ -182,9 +167,7 @@ class Logger {
   }
 }
 
-// シングルトンインスタンス
 export const logger = new Logger()
 
-// 便利なエクスポート
 export { Logger }
 export default logger

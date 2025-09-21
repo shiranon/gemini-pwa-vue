@@ -6,6 +6,7 @@ import type { GeminiApiSettings } from '~/types/chat'
 import type { AppSettings } from '~/types/settings'
 import { DEFAULT_SETTINGS } from '~/types/settings'
 import { clamp } from '~/utils/calc'
+import { logger } from '~/utils/logger'
 import { applyTheme, getThemePreset } from '~/utils/theme'
 
 const cloneEnabledFunctionTools = (toolNames?: string[]) => {

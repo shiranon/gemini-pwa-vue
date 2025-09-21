@@ -11,6 +11,8 @@ export interface LogContext {
   function?: string
   /** タイムスタンプを表示するか */
   timestamp?: boolean
+  /** 数値データ */
+  number?: number
   /** その他のコンテキスト情報 */
   [key: string]: unknown
 }

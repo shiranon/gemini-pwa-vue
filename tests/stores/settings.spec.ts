@@ -483,7 +483,7 @@ describe('useSettingsStore - messageAppearanceSettings', () => {
       store.updateSetting('messageImageWidthPercent', 75)
       expect(store.settings.messageImageWidthPercent).toBe(75)
 
-      // 無効な値の設定（ストアレベルでは制限されないが、フォームレベルで制限される）
+      // 無効な値の設定（ストアレベルでは制限されない）
       store.updateSetting('messageImageWidthPercent', 150)
       expect(store.settings.messageImageWidthPercent).toBe(150)
 
