@@ -4,7 +4,7 @@ import { loadSettingsProfiles as loadProfilesFromDB, saveSettingsProfiles as sav
 import type { AppSettings, SettingsProfile, SettingsProfileData } from '~/types/settings'
 import { DEFAULT_SETTINGS } from '~/types/settings'
 import { logger } from '~/utils/logger'
-import { PROFILE_SETTING_KEYS, extractProfileSettings } from '~/utils/settingsPartition'
+import { cloneProfileSettings, extractProfileSettings, mergeProfilePartial } from '~/utils/settingsPartition'
 import type { ProfileSettingKey } from '~/utils/settingsPartition'
 
 export const useSettingsProfilesStore = defineStore('settingsProfiles', () => {
@@ -25,42 +25,14 @@ export const useSettingsProfilesStore = defineStore('settingsProfiles', () => {
     })
   })
 
-  const cloneProfileSettings = (settings: Partial<Record<ProfileSettingKey, unknown>>): SettingsProfileData => {
-    const result: Record<string, unknown> = {}
-    for (const key of PROFILE_SETTING_KEYS) {
-      const value = settings[key]
-      if (key === 'enabledFunctionTools') {
-        result[key] = Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
-      } else if (value !== undefined) {
-        result[key] = value
-      }
-    }
-    if (!Array.isArray(result.enabledFunctionTools)) {
-      result.enabledFunctionTools = []
-    }
-    return result as unknown as SettingsProfileData
-  }
+  const defaultProfileSettings = extractProfileSettings(DEFAULT_SETTINGS)
 
   const extractProfileData = (settings: AppSettings): SettingsProfileData => {
-    return extractProfileSettings(settings)
+    return cloneProfileSettings(extractProfileSettings(settings))
   }
 
-  const defaultProfileSettings = cloneProfileSettings(extractProfileSettings(DEFAULT_SETTINGS))
-
   const sanitizeImportedProfileSettings = (data: Record<string, unknown>): SettingsProfileData => {
-    const base = cloneProfileSettings(defaultProfileSettings)
-    for (const key of PROFILE_SETTING_KEYS) {
-      const rawValue = data[key as string]
-      if (rawValue === undefined) {
-        continue
-      }
-      if (key === 'enabledFunctionTools' && Array.isArray(rawValue)) {
-        base.enabledFunctionTools = rawValue.filter((item): item is string => typeof item === 'string')
-        continue
-      }
-      ;(base as unknown as Record<string, unknown>)[key] = rawValue
-    }
-    return base
+    return mergeProfilePartial(defaultProfileSettings, data as Partial<Record<ProfileSettingKey, unknown>>)
   }
 
   const createProfile = async (name: string, description: string, settings: AppSettings, isDefault = false): Promise<SettingsProfile> => {

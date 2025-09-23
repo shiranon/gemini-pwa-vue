@@ -1,6 +1,6 @@
 <template>
   <div class="border-border/70 bg-card text-card-foreground flex flex-col gap-5 rounded-2xl border px-4 py-5 shadow-sm md:px-6">
-    <div class="flex flex-row items-start gap-5">
+    <div class="flex flex-col items-start gap-5 sm:flex-row">
       <div class="flex flex-1 items-start gap-4">
         <div class="bg-muted/60 text-muted-foreground border-border/60 flex h-16 w-16 items-center justify-center rounded-full border">
           <Icon
@@ -11,7 +11,10 @@
         <div class="min-w-45 flex-1">
           <p class="text-muted-foreground/80 text-xs">設定プロファイル</p>
           <div class="flex items-start gap-2">
-            <p class="text-foreground truncate text-lg font-semibold">
+            <p class="text-foreground hidden text-lg font-semibold sm:block">
+              {{ truncatedName ?? '新規プロファイル' }}
+            </p>
+            <p class="text-foreground block text-lg font-semibold sm:hidden">
               {{ selectedProfile?.name ?? '新規プロファイル' }}
             </p>
             <span
@@ -24,7 +27,7 @@
               type="button"
               class="text-muted-foreground hover:text-foreground hover:bg-muted/70 disabled:text-muted-foreground/40 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white transition disabled:cursor-not-allowed"
               :disabled="selectedProfile?.isDefault"
-              @click.stop="handleEdit"
+              @click.stop="handleEditProfile"
             >
               <Icon
                 icon="material-symbols:edit"
@@ -34,7 +37,7 @@
           </div>
           <p
             v-if="selectedProfileSummary"
-            class="text-muted-foreground mt-1 truncate text-xs"
+            class="text-muted-foreground mt-1 text-xs"
           >
             {{ selectedProfileSummary }}
           </p>
@@ -46,66 +49,73 @@
           </p>
           <p
             v-if="selectedProfile?.description"
-            class="text-muted-foreground/80 mt-1 truncate text-[11px]"
+            class="text-muted-foreground/80 mt-1 text-[11px]"
           >
             {{ selectedProfile.description }}
           </p>
         </div>
       </div>
 
-      <div class="w-auto">
-        <p class="text-muted-foreground text-xs">プロファイルを選択</p>
-        <Select
-          :model-value="selectedId"
-          @update:model-value="handleProfileChange"
-        >
-          <SelectTrigger
-            class="border-border/60 text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-primary/30 bg-background mt-1 w-full rounded-xl border px-3 py-2 transition focus:ring-2 focus:outline-none"
-            :disabled="!profiles.length"
+      <div class="flex w-full flex-1 justify-end">
+        <div class="w-2/3 sm:w-full">
+          <p class="text-muted-foreground text-xs">プロファイルを選択</p>
+          <Select
+            :model-value="selectedId"
+            @update:model-value="handleProfileChange"
           >
-            <SelectValue
-              class="w-20 justify-center"
-              :placeholder="selectPlaceholder"
+            <SelectTrigger
+              class="border-border/60 text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-primary/30 bg-background mt-1 w-full rounded-xl border px-3 py-2 transition focus:ring-2 focus:outline-none"
+              :disabled="!profiles.length"
             >
-              {{ selectedProfile?.name || selectPlaceholder }}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent class="mr-6 w-60">
-            <SelectGroup>
-              <SelectLabel class="text-xs">利用可能なプロファイル</SelectLabel>
-              <SelectItem
-                v-for="profile in profiles"
-                :key="profile.id"
-                :value="profile.id"
-                class="cursor-pointer py-2"
+              <SelectValue
+                class="justify-center"
+                :placeholder="'プロファイルを選択'"
               >
-                <div class="flex flex-col gap-1">
-                  <div class="flex items-center gap-2">
-                    <span class="font-medium">{{ profile.name }}</span>
+                <div class="hidden sm:block">
+                  {{ truncatedName }}
+                </div>
+                <div class="block sm:hidden">
+                  {{ selectedProfile?.name ?? 'プロファイルを選択' }}
+                </div>
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent class="mr-6">
+              <SelectGroup>
+                <SelectLabel class="text-xs">利用可能なプロファイル</SelectLabel>
+                <SelectItem
+                  v-for="profile in profiles"
+                  :key="profile.id"
+                  :value="profile.id"
+                  class="cursor-pointer py-2"
+                >
+                  <div class="flex flex-col gap-1">
+                    <div class="flex items-center gap-2">
+                      <span class="font-medium">{{ profile.name }}</span>
+                      <span
+                        v-if="profile.isDefault"
+                        class="bg-muted/70 text-muted-foreground rounded-full px-2 py-0.5 text-[10px]"
+                      >
+                        デフォルト
+                      </span>
+                    </div>
                     <span
-                      v-if="profile.isDefault"
-                      class="bg-muted/70 text-muted-foreground rounded-full px-2 py-0.5 text-[10px]"
+                      v-if="profile.description"
+                      class="text-muted-foreground/80 truncate text-[11px]"
                     >
-                      デフォルト
+                      {{ profile.description }}
+                    </span>
+                    <span
+                      v-if="createSummary(profile)"
+                      class="text-muted-foreground/70 text-[11px]"
+                    >
+                      {{ createSummary(profile) }}
                     </span>
                   </div>
-                  <span
-                    v-if="profile.description"
-                    class="text-muted-foreground/80 truncate text-[11px]"
-                  >
-                    {{ profile.description }}
-                  </span>
-                  <span
-                    v-if="createSummary(profile)"
-                    class="text-muted-foreground/70 text-[11px]"
-                  >
-                    {{ createSummary(profile) }}
-                  </span>
-                </div>
-              </SelectItem>
-            </SelectGroup>
-          </SelectContent>
-        </Select>
+                </SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
     </div>
 
@@ -113,7 +123,7 @@
       <Button
         variant="secondary"
         class="flex h-12 items-center justify-center gap-2 rounded-xl"
-        @click="handleCreate"
+        @click="handleCreateProfile"
       >
         <Icon
           icon="material-symbols:person-add"
@@ -126,7 +136,7 @@
         variant="secondary"
         class="flex h-12 items-center justify-center gap-2 rounded-xl"
         :disabled="!selectedProfile || selectedProfile.isDefault"
-        @click="handleDelete"
+        @click="handleDeleteProfile"
       >
         <Icon
           icon="material-symbols:person-remove"
@@ -139,7 +149,7 @@
         variant="secondary"
         class="flex h-12 items-center justify-center gap-2 rounded-xl"
         :disabled="!selectedProfile"
-        @click="handleExport"
+        @click="handleExportProfile"
       >
         <Icon
           icon="material-symbols:upload"
@@ -151,7 +161,7 @@
       <Button
         variant="secondary"
         class="flex h-12 items-center justify-center gap-2 rounded-xl"
-        @click="handleImport"
+        @click="handleImportProfile"
       >
         <Icon
           icon="material-symbols:download"
@@ -170,6 +180,7 @@ import { Icon } from '@iconify/vue'
 import { Button } from '~/components/ui/button'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '~/components/ui/select'
 import type { SettingsProfile } from '~/types/settings'
+import { truncateText } from '~/lib/format'
 
 const props = defineProps<{
   profiles: SettingsProfile[]
@@ -207,10 +218,20 @@ watch(
 
     const exists = profiles.some((profile) => profile.id === selectedId.value)
     if (!exists) {
-      const nextValue = profiles.some((profile) => profile.id === props.modelValue) ? props.modelValue : null
+      const modelValueExists = profiles.some((profile) => profile.id === props.modelValue)
+      if (modelValueExists) {
+        const nextValue = props.modelValue
+        if (selectedId.value !== nextValue) {
+          selectedId.value = nextValue
+          emit('update:modelValue', nextValue)
+        }
+        return
+      }
+      const defaultProfile = profiles.find((profile) => profile.isDefault)
+      const nextValue = defaultProfile?.id ?? null
       if (selectedId.value !== nextValue) {
         selectedId.value = nextValue
-        emit('update:modelValue', nextValue ?? null)
+        emit('update:modelValue', nextValue)
       }
     }
   }
@@ -252,12 +273,7 @@ const createSummary = (profile: SettingsProfile | null) => {
 
 const selectedProfileSummary = computed(() => createSummary(selectedProfile.value))
 
-const selectPlaceholder = computed(() => {
-  if (!props.profiles.length) {
-    return 'プロファイルがありません'
-  }
-  return 'プロファイルを選択'
-})
+const truncatedName = computed(() => truncateText(selectedProfile.value?.name ?? '', 10))
 
 const handleProfileChange = (value: AcceptableValue) => {
   if (value === null || value === undefined) {
@@ -279,29 +295,29 @@ const handleProfileChange = (value: AcceptableValue) => {
   emit('update:modelValue', profileId)
 }
 
-const handleEdit = () => {
+const handleEditProfile = () => {
   if (selectedId.value) {
     emit('edit', selectedId.value)
   }
 }
 
-const handleCreate = () => {
+const handleCreateProfile = () => {
   emit('create')
 }
 
-const handleDelete = () => {
+const handleDeleteProfile = () => {
   if (selectedId.value && !selectedProfile.value?.isDefault) {
     emit('delete', selectedId.value)
   }
 }
 
-const handleExport = () => {
+const handleExportProfile = () => {
   if (selectedId.value) {
     emit('export', selectedId.value)
   }
 }
 
-const handleImport = () => {
+const handleImportProfile = () => {
   emit('import')
 }
 </script>

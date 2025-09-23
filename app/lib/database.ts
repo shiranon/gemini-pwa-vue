@@ -22,7 +22,7 @@ import type {
 import type { AppSettings, SettingsProfileData } from '~/types/settings'
 import { DEFAULT_SETTINGS } from '~/types/settings'
 import { logger } from '~/utils/logger'
-import { PROFILE_SETTING_KEYS, extractGlobalSettings, extractProfileSettings, mergeSettingsFromSlices } from '~/utils/settingsPartition'
+import { cloneProfileSettings, extractGlobalSettings, extractProfileSettings, mergeProfilePartial, mergeSettingsFromSlices } from '~/utils/settingsPartition'
 import type { GlobalSettingsSnapshot, ProfileSettingKey } from '~/utils/settingsPartition'
 
 export const DB_NAME = 'GeminiPWADatabase'
@@ -175,32 +175,16 @@ const deserializeGlobalSettings = (data: string): GlobalSettingsSnapshot => {
   }
 }
 
-const cloneProfileSettings = (settings: Partial<Record<ProfileSettingKey, unknown>>): SettingsProfileData => {
-  const result: Record<string, unknown> = {}
-  for (const key of PROFILE_SETTING_KEYS) {
-    const value = settings[key]
-    if (key === 'enabledFunctionTools') {
-      result[key] = Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
-    } else if (value !== undefined) {
-      result[key] = value
-    }
-  }
-  if (!Array.isArray(result.enabledFunctionTools)) {
-    result.enabledFunctionTools = []
-  }
-  return result as unknown as SettingsProfileData
-}
+const defaultProfileSettings = extractProfileSettings(DEFAULT_SETTINGS)
 
 const deserializeProfileSettings = (data: string): SettingsProfileData => {
   const parsed = JSON.parse(data) as Partial<Record<ProfileSettingKey, unknown>>
-  return cloneProfileSettings(parsed)
+  return mergeProfilePartial(defaultProfileSettings, parsed)
 }
 
 const serializeProfileSettings = (settings: SettingsProfileData): string => {
-  return JSON.stringify({
-    ...settings,
-    enabledFunctionTools: Array.isArray(settings.enabledFunctionTools) ? [...settings.enabledFunctionTools] : [],
-  })
+  const cloned = cloneProfileSettings(settings)
+  return JSON.stringify(cloned)
 }
 
 const parseProfilesMetaValue = (value?: string | null): string | null => {
@@ -227,7 +211,7 @@ const ensureSystemDefaults = async (): Promise<SystemDefaultsSnapshot> => {
           backgroundImageBlob: null,
           ...parsed.global,
         },
-        profile: cloneProfileSettings(parsed.profile),
+        profile: mergeProfilePartial(defaultProfileSettings, parsed.profile),
       }
     } catch (error) {
       logger.warn('システムデフォルトの解析に失敗しました。デフォルト値で再作成します。', { component: 'database' }, error)
@@ -235,7 +219,7 @@ const ensureSystemDefaults = async (): Promise<SystemDefaultsSnapshot> => {
   }
 
   const defaultGlobal = extractGlobalSettings(DEFAULT_SETTINGS)
-  const defaultProfile = extractProfileSettings(DEFAULT_SETTINGS)
+  const defaultProfile = cloneProfileSettings(defaultProfileSettings)
 
   const payload: SystemDefaultsSnapshot = {
     global: {

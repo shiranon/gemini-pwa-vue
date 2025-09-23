@@ -250,7 +250,6 @@ const handleDeleteProfile = async (profileId: string) => {
   const confirmed = await showConfirm('このプロファイルを削除してもよろしいですか？', 'プロファイルの削除')
   if (confirmed) {
     await profilesStore.deleteProfile(profileId)
-    showAlert('プロファイルを削除しました')
   }
 }
 
@@ -299,12 +298,12 @@ const handleSaveProfile = async (data: { name: string; description: string; copy
       name: data.name,
       description: data.description,
     })
-    showAlert('プロファイルを更新しました')
   } else {
+    console.log('handleSaveProfile', data.copyCurrentSettings)
     const settingsStore = useSettingsStore()
     const settings = data.copyCurrentSettings ? settingsStore.settings : DEFAULT_SETTINGS
-    await profilesStore.createProfile(data.name, data.description, settings)
-    showAlert('プロファイルを作成しました')
+    const newProfile = await profilesStore.createProfile(data.name, data.description, settings)
+    await handleSelectProfile(newProfile.id)
   }
   profileDialogOpen.value = false
 }

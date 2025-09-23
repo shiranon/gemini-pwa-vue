@@ -4,11 +4,11 @@
       :profiles="profiles"
       :model-value="selectedProfileId"
       @update:model-value="handleProfileChange"
-      @edit="handleEdit"
-      @create="handleCreateNew"
-      @delete="handleDelete"
-      @export="handleExport"
-      @import="handleImport"
+      @edit="handleEditProfile"
+      @create="handleCreateProfile"
+      @delete="handleDeleteProfile"
+      @export="handleExportProfile"
+      @import="handleImportProfile"
     />
   </div>
 </template>
@@ -67,23 +67,23 @@ const handleProfileChange = (profileId: string | null) => {
   emit('select', profileId)
 }
 
-const handleCreateNew = () => {
+const handleCreateProfile = () => {
   emit('create')
 }
 
-const handleEdit = (profileId: string) => {
+const handleEditProfile = (profileId: string) => {
   emit('edit', profileId)
 }
 
-const handleDelete = (profileId: string) => {
+const handleDeleteProfile = (profileId: string) => {
   emit('delete', profileId)
 }
 
-const handleExport = (profileId: string) => {
+const handleExportProfile = (profileId: string) => {
   emit('export', profileId)
 }
 
-const handleImport = () => {
+const handleImportProfile = () => {
   emit('import')
 }
 </script>

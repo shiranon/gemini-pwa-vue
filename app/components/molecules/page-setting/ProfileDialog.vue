@@ -1,15 +1,11 @@
 <template>
-  <Dialog v-model="isOpen">
+  <Dialog v-model:open="isOpen">
     <DialogContent class="max-w-lg">
       <DialogHeader>
         <DialogTitle class="flex items-center gap-2">
-          <Icon
-            :icon="isEditMode ? 'material-symbols:edit' : 'material-symbols:add'"
-            class="h-5 w-5"
-          />
           {{ isEditMode ? 'プロファイルを編集' : '新規プロファイルの作成' }}
         </DialogTitle>
-        <DialogDescription class="text-muted-foreground">
+        <DialogDescription class="text-muted-foreground mt-2">
           {{
             isEditMode
               ? 'プロファイルの名前と説明を変更できます。設定内容は変更されません。'
@@ -18,7 +14,7 @@
         </DialogDescription>
       </DialogHeader>
 
-      <div class="space-y-6 py-4">
+      <div class="space-y-6">
         <div class="space-y-3">
           <Label
             for="profile-name"
@@ -29,11 +25,10 @@
           <Input
             id="profile-name"
             v-model="formData.name"
-            placeholder="例: 開発用設定、本番環境、テスト環境"
+            placeholder="例: 雑談、TRPGゲームマスター"
             class="bg-background"
             :class="!formData.name.trim() && 'border-destructive/50'"
           />
-          <p class="text-muted-foreground text-xs">プロファイルを識別するための名前を入力してください</p>
         </div>
 
         <div class="space-y-3">
@@ -46,11 +41,10 @@
           <Textarea
             id="profile-description"
             v-model="formData.description"
-            placeholder="このプロファイルの用途や特徴を記載してください（例: 開発時に使用する設定、API キーやモデル設定を含む）"
+            placeholder="このプロファイルの用途や特徴を記載してください"
             rows="3"
             class="bg-background resize-none"
           />
-          <p class="text-muted-foreground text-xs">プロファイルの用途や内容を説明します</p>
         </div>
 
         <div
@@ -62,23 +56,17 @@
             <div class="flex items-start space-x-3">
               <Checkbox
                 id="copy-current"
-                v-model:checked="copyCurrentSettings"
+                v-model="copyCurrentSettings"
               />
               <div class="space-y-1">
                 <Label
                   for="copy-current"
                   class="cursor-pointer text-sm font-medium"
                 >
-                  現在の設定をコピーする（推奨）
+                  現在の設定をコピーする
                 </Label>
-                <p class="text-muted-foreground text-xs">現在使用中の設定（APIキー、モデル、プロンプトなど）をこのプロファイルにコピーします</p>
+                <p class="text-muted-foreground text-xs">現在使用中の設定（モデル、システムプロンプトなど）をこのプロファイルにコピーします</p>
               </div>
-            </div>
-            <div
-              v-if="!copyCurrentSettings"
-              class="bg-background ml-6 rounded border border-dashed p-3"
-            >
-              <p class="text-muted-foreground text-xs">チェックを外すとデフォルト設定から開始します。後で個別に設定を調整してください。</p>
             </div>
           </div>
         </div>
@@ -144,7 +132,7 @@ const formData = ref({
   description: '',
 })
 
-const copyCurrentSettings = ref(true)
+const copyCurrentSettings = ref(false)
 
 watch(
   () => props.profile,
@@ -172,10 +160,29 @@ const handleSave = () => {
       copyCurrentSettings: !isEditMode.value && copyCurrentSettings.value,
     })
     isOpen.value = false
+    formData.value = {
+      name: '',
+      description: '',
+    }
+    copyCurrentSettings.value = false
   }
 }
 
 const handleCancel = () => {
   isOpen.value = false
+
+  if (props.profile && isEditMode.value) {
+    formData.value = {
+      name: props.profile.name,
+      description: props.profile.description || '',
+    }
+    copyCurrentSettings.value = false
+  } else {
+    formData.value = {
+      name: '',
+      description: '',
+    }
+    copyCurrentSettings.value = false
+  }
 }
 </script>
