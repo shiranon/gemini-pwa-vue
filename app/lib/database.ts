@@ -16,10 +16,14 @@ import type {
   ExportedData,
   ImportResult,
   MessageRecord,
+  SettingsProfileRecord,
   SettingsRecord,
 } from '~/types/database'
-import type { AppSettings } from '~/types/settings'
+import type { AppSettings, SettingsProfileData } from '~/types/settings'
+import { DEFAULT_SETTINGS } from '~/types/settings'
 import { logger } from '~/utils/logger'
+import { PROFILE_SETTING_KEYS, extractGlobalSettings, extractProfileSettings, mergeSettingsFromSlices } from '~/utils/settingsPartition'
+import type { GlobalSettingsSnapshot, ProfileSettingKey } from '~/utils/settingsPartition'
 
 export const DB_NAME = 'GeminiPWADatabase'
 
@@ -28,7 +32,13 @@ export const TABLES = {
   messages: 'messages',
   attachedFiles: 'attachedFiles',
   settings: 'settings',
+  settingsProfiles: 'settingsProfiles',
   appMeta: 'appMeta',
+} as const
+
+const APP_META_KEYS = {
+  profilesMeta: 'profiles-meta',
+  systemDefaults: 'system-defaults',
 } as const
 
 const asIndexKey = (value: boolean): IndexableType => (value ? 1 : 0) as IndexableType
@@ -49,6 +59,7 @@ export class GeminiDatabase extends Dexie {
   messages!: Table<MessageRecord>
   attachedFiles!: Table<AttachedFileRecord>
   settings!: Table<SettingsRecord>
+  settingsProfiles!: Table<SettingsProfileRecord, string>
   appMeta!: Table<AppMetaRecord>
 
   // Change listeners
@@ -62,6 +73,13 @@ export class GeminiDatabase extends Dexie {
       .stores({})
       .upgrade(() => {
         logger.info('データベースをバージョン2へアップグレード中...', { component: 'Database' })
+      })
+    this.version(3)
+      .stores({
+        settingsProfiles: 'id, name, createdAt, updatedAt, isDefault',
+      })
+      .upgrade(() => {
+        logger.info('プロファイル機能のためにバージョン3へアップグレード中...', { component: 'Database' })
       })
 
     this.setupHooks()
@@ -136,6 +154,108 @@ export class GeminiDatabase extends Dexie {
 
 // シングルトンインスタンス
 export const db = new GeminiDatabase()
+
+type SerializableGlobalSettings = Omit<GlobalSettingsSnapshot, 'backgroundImageBlob'>
+
+export interface SystemDefaultsSnapshot {
+  global: GlobalSettingsSnapshot
+  profile: SettingsProfileData
+}
+
+const stripNonSerializableGlobalSettings = (settings: GlobalSettingsSnapshot): SerializableGlobalSettings => {
+  const { backgroundImageBlob: _blob, ...rest } = settings
+  return rest
+}
+
+const deserializeGlobalSettings = (data: string): GlobalSettingsSnapshot => {
+  const parsed = JSON.parse(data) as SerializableGlobalSettings
+  return {
+    backgroundImageBlob: null,
+    ...parsed,
+  }
+}
+
+const cloneProfileSettings = (settings: Partial<Record<ProfileSettingKey, unknown>>): SettingsProfileData => {
+  const result: Record<string, unknown> = {}
+  for (const key of PROFILE_SETTING_KEYS) {
+    const value = settings[key]
+    if (key === 'enabledFunctionTools') {
+      result[key] = Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
+    } else if (value !== undefined) {
+      result[key] = value
+    }
+  }
+  if (!Array.isArray(result.enabledFunctionTools)) {
+    result.enabledFunctionTools = []
+  }
+  return result as unknown as SettingsProfileData
+}
+
+const deserializeProfileSettings = (data: string): SettingsProfileData => {
+  const parsed = JSON.parse(data) as Partial<Record<ProfileSettingKey, unknown>>
+  return cloneProfileSettings(parsed)
+}
+
+const serializeProfileSettings = (settings: SettingsProfileData): string => {
+  return JSON.stringify({
+    ...settings,
+    enabledFunctionTools: Array.isArray(settings.enabledFunctionTools) ? [...settings.enabledFunctionTools] : [],
+  })
+}
+
+const parseProfilesMetaValue = (value?: string | null): string | null => {
+  if (!value) return null
+  try {
+    const meta = JSON.parse(value) as { activeProfileId?: string | null }
+    return meta.activeProfileId ?? null
+  } catch (error) {
+    logger.warn('プロファイルメタの解析に失敗しました', { component: 'database' }, error)
+    return null
+  }
+}
+
+const ensureSystemDefaults = async (): Promise<SystemDefaultsSnapshot> => {
+  const record = await db.appMeta.get(APP_META_KEYS.systemDefaults)
+  if (record?.value) {
+    try {
+      const parsed = JSON.parse(record.value) as {
+        global: SerializableGlobalSettings
+        profile: SettingsProfileData
+      }
+      return {
+        global: {
+          backgroundImageBlob: null,
+          ...parsed.global,
+        },
+        profile: cloneProfileSettings(parsed.profile),
+      }
+    } catch (error) {
+      logger.warn('システムデフォルトの解析に失敗しました。デフォルト値で再作成します。', { component: 'database' }, error)
+    }
+  }
+
+  const defaultGlobal = extractGlobalSettings(DEFAULT_SETTINGS)
+  const defaultProfile = extractProfileSettings(DEFAULT_SETTINGS)
+
+  const payload: SystemDefaultsSnapshot = {
+    global: {
+      ...defaultGlobal,
+      backgroundImageBlob: null,
+    },
+    profile: cloneProfileSettings(defaultProfile),
+  }
+
+  await db.appMeta.put({
+    key: APP_META_KEYS.systemDefaults,
+    value: JSON.stringify({
+      global: stripNonSerializableGlobalSettings(defaultGlobal),
+      profile: defaultProfile,
+    }),
+    updatedAt: Date.now(),
+  })
+
+  return payload
+}
 
 export function chatSessionToRecord(session: ChatSession): ChatRecord {
   return {
@@ -440,11 +560,11 @@ export async function deleteChat(chatId: string): Promise<DatabaseOperationResul
 
 export async function saveSettings(settings: AppSettings): Promise<DatabaseOperationResult<boolean>> {
   try {
-    // Blobは永続化しない
-    const { backgroundImageBlob: _blob, ...rest } = settings
+    const globalSettings = extractGlobalSettings(settings)
+    const serializableGlobal = stripNonSerializableGlobalSettings(globalSettings)
     const settingsRecord: SettingsRecord = {
       id: 'app-settings',
-      data: JSON.stringify(rest),
+      data: JSON.stringify(serializableGlobal),
       updatedAt: Date.now(),
       version: 1,
     }
@@ -466,7 +586,7 @@ export async function saveSettings(settings: AppSettings): Promise<DatabaseOpera
 
 export async function loadSettings(): Promise<DatabaseOperationResult<AppSettings | null>> {
   try {
-    const settingsRecord = await db.settings.get('app-settings')
+    const [settingsRecord, systemDefaults] = await Promise.all([db.settings.get('app-settings'), ensureSystemDefaults()])
 
     if (!settingsRecord) {
       return {
@@ -475,14 +595,127 @@ export async function loadSettings(): Promise<DatabaseOperationResult<AppSetting
       }
     }
 
-    const settings = JSON.parse(settingsRecord.data) as AppSettings
+    const globalSettings = deserializeGlobalSettings(settingsRecord.data)
+
+    let profileSettings = cloneProfileSettings(systemDefaults.profile)
+
+    const metaRecord = await db.appMeta.get(APP_META_KEYS.profilesMeta)
+    const activeProfileId = parseProfilesMetaValue(metaRecord?.value)
+    if (activeProfileId) {
+      const activeProfileRecord = await db.settingsProfiles.get(activeProfileId)
+      if (activeProfileRecord) {
+        profileSettings = deserializeProfileSettings(activeProfileRecord.data)
+      }
+    }
+
+    const merged = mergeSettingsFromSlices(DEFAULT_SETTINGS, globalSettings, profileSettings)
 
     return {
       success: true,
-      data: settings,
+      data: merged,
     }
   } catch (error) {
     logger.error('設定の読み込みに失敗しました:', { component: 'database' }, error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+export async function loadSystemDefaults(): Promise<DatabaseOperationResult<SystemDefaultsSnapshot>> {
+  try {
+    const defaults = await ensureSystemDefaults()
+    return {
+      success: true,
+      data: defaults,
+    }
+  } catch (error) {
+    logger.error('システムデフォルトの読み込みに失敗しました:', { component: 'database' }, error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+/** 設定プロファイルを保存 */
+export async function saveSettingsProfiles(profiles: Array<import('~/types/settings').SettingsProfile>, activeProfileId: string | null): Promise<DatabaseOperationResult<boolean>> {
+  try {
+    await db.transaction('rw', [db.settingsProfiles, db.appMeta], async () => {
+      // 既存のプロファイルを削除
+      await db.settingsProfiles.clear()
+
+      // プロファイルレコードを作成
+      const profileRecords: SettingsProfileRecord[] = profiles.map((profile) => ({
+        id: profile.id,
+        name: profile.name,
+        description: profile.description,
+        data: serializeProfileSettings(profile.settings),
+        isDefault: profile.isDefault || false,
+        createdAt: profile.createdAt,
+        updatedAt: profile.updatedAt,
+      }))
+
+      // プロファイルを保存
+      if (profileRecords.length > 0) {
+        await db.settingsProfiles.bulkPut(profileRecords)
+      }
+
+      // アクティブプロファイルIDをメタデータに保存
+      await db.appMeta.put({
+        key: APP_META_KEYS.profilesMeta,
+        value: JSON.stringify({ activeProfileId }),
+        updatedAt: Date.now(),
+      })
+    })
+
+    return {
+      success: true,
+      data: true,
+    }
+  } catch (error) {
+    logger.error('プロファイルの保存に失敗しました:', { component: 'database' }, error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+/** 設定プロファイルを読み込み */
+export async function loadSettingsProfiles(): Promise<
+  DatabaseOperationResult<{
+    profiles: Array<import('~/types/settings').SettingsProfile>
+    activeProfileId: string | null
+  }>
+> {
+  try {
+    const profileRecords = await db.settingsProfiles.toArray()
+    const metaRecord = await db.appMeta.get(APP_META_KEYS.profilesMeta)
+
+    const profiles = profileRecords.map((record) => ({
+      id: record.id,
+      name: record.name,
+      description: record.description,
+      settings: deserializeProfileSettings(record.data),
+      isDefault: record.isDefault,
+      createdAt: record.createdAt,
+      updatedAt: record.updatedAt,
+    }))
+
+    let activeProfileId: string | null = null
+    activeProfileId = parseProfilesMetaValue(metaRecord?.value)
+
+    return {
+      success: true,
+      data: {
+        profiles,
+        activeProfileId,
+      },
+    }
+  } catch (error) {
+    logger.error('プロファイルの読み込みに失敗しました:', { component: 'database' }, error)
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',

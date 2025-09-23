@@ -131,6 +131,50 @@ export interface ChatAvatarSettings {
 }
 
 // ============================================================================
+// プロファイル設定型
+// ============================================================================
+
+/** 設定プロファイルに含める項目のみを定義 */
+export interface SettingsProfileData {
+  // API・モデル設定
+  modelName: string
+  systemPrompt: string
+
+  // Geminiパラメータ
+  maxTokens: number | null
+  temperature: number | null
+  topK: number | null
+  topP: number | null
+  presencePenalty: number | null
+  frequencyPenalty: number | null
+  thinkingBudget: number | null
+
+  // 高度な機能
+  geminiEnableFunctionCalling: boolean
+  functionCallingMode: 'auto' | 'any' | 'none'
+  enabledFunctionTools: string[]
+  geminiEnableGrounding: boolean
+
+  // ダミープロンプト
+  enableDummyUserPrompt: boolean
+  dummyUserPrompt: string
+  enableDummyModelPrompt: boolean
+  dummyModelPrompt: string
+  prependDummyModelToResponse: boolean
+}
+
+/** 設定プロファイル */
+export interface SettingsProfile {
+  id: string
+  name: string
+  description?: string
+  settings: SettingsProfileData
+  isDefault?: boolean
+  createdAt: number
+  updatedAt: number
+}
+
+// ============================================================================
 // 統合設定型
 // ============================================================================
 

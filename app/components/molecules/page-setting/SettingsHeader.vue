@@ -1,6 +1,6 @@
 <template>
-  <div class="border-border bg-card/95 text-card-foreground supports-[backdrop-filter]:bg-card/80 sticky top-18 z-10 rounded-lg border p-4 shadow-sm backdrop-blur">
-    <div class="flex items-center justify-between">
+  <div class="border-border/60 bg-card/95 text-card-foreground supports-[backdrop-filter]:bg-card/80 sticky top-18 z-10 rounded-2xl border p-6 shadow-md backdrop-blur">
+    <div class="flex items-center justify-between gap-4">
       <h1 class="text-foreground text-xl font-bold">設定</h1>
 
       <div class="flex items-center gap-2">

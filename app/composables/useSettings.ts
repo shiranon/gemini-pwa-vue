@@ -1,6 +1,7 @@
 import { computed, ref, watch } from 'vue'
 import { useSettingsStore } from '~/stores/settings'
 import type { AppSettings } from '~/types/settings'
+import { logger } from '~/utils/logger'
 import { areSettingsEqual } from '~/utils/settings'
 
 // ダイアログ関数の型定義
@@ -43,7 +44,6 @@ export function useSettings(dialogs: DialogFunctions) {
       saving.value = true
       settingsStore.updateSettings(localSettings.value)
       await settingsStore.saveSettings()
-      dialogs.showAlert('設定を保存しました')
     } catch (error) {
       dialogs.showAlert('設定の保存に失敗しました')
       logger.error('設定の保存エラー:', { component: 'useSettings' }, error)
@@ -57,7 +57,7 @@ export function useSettings(dialogs: DialogFunctions) {
 
     if (confirmed) {
       try {
-        settingsStore.resetToDefaults()
+        await settingsStore.resetToDefaults()
         await settingsStore.saveSettings()
         localSettings.value = cloneSettings(settingsStore.settings)
         dialogs.showAlert('設定をリセットしました')

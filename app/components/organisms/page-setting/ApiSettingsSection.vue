@@ -7,7 +7,6 @@
     <SettingItem
       name="apiKey"
       label="APIキー"
-      description="Google AI StudioからGemini APIキーを取得してください"
       required
       :show-status-indicator="true"
       :is-valid="isValidApiKey"
