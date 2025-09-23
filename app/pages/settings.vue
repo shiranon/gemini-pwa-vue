@@ -1,8 +1,8 @@
 <template>
   <div class="mx-auto mb-8 w-full max-w-5xl flex-1 items-center justify-between px-4">
     <SettingsHeader
-      :is-dirty="isDirty"
-      :saving="saving"
+      :is-dirty="globalIsDirty || profileIsDirty"
+      :saving="globalSaving || profileSaving"
       @save="handleSave"
       @reset="resetToDefaults"
     />
@@ -17,6 +17,7 @@
       @delete="handleDeleteProfile"
       @export="handleExportProfile"
       @import="handleImportProfile"
+      @update-profile-image="handleUpdateProfileImage"
     />
 
     <Form
@@ -25,53 +26,66 @@
       @submit="onSubmit"
     >
       <div class="mt-4 space-y-6">
-        <ApiSettingsSection :local-settings="localSettings" />
+        <ApiSettingsSection
+          :local-settings="localSettings as AppSettings"
+          :local-profile-settings="localProfileSettings as SettingsProfileData"
+          @update-setting="handleUpdateSetting"
+          @update-profile-setting="handleUpdateProfileSetting"
+        />
 
         <PerformanceSettingsSection
-          :local-settings="localSettings"
+          :local-settings="localSettings as AppSettings"
+          :local-profile-settings="localProfileSettings as SettingsProfileData"
           @update-setting="handleUpdateSetting"
+          @update-profile-setting="handleUpdateProfileSetting"
         />
 
         <DummyPromptSettingsSection
-          :local-settings="localSettings"
+          :local-settings="localSettings as AppSettings"
+          :local-profile-settings="localProfileSettings as SettingsProfileData"
           @update-setting="handleUpdateSetting"
+          @update-profile-setting="handleUpdateProfileSetting"
         />
 
         <FeatureSettingsSection
-          :local-settings="localSettings"
+          :local-settings="localSettings as AppSettings"
+          :local-profile-settings="localProfileSettings as SettingsProfileData"
           @update-setting="handleUpdateSetting"
+          @update-profile-setting="handleUpdateProfileSetting"
         />
 
         <ThemeSettingsSection
-          :local-settings="localSettings"
+          :local-settings="localSettings as AppSettings"
           :update-local-setting="updateLocalSetting"
         />
 
         <FunctionCallingSettingsSection
-          :local-settings="localSettings"
+          :local-settings="localSettings as AppSettings"
+          :local-profile-settings="localProfileSettings as SettingsProfileData"
           @update-setting="handleUpdateSetting"
+          @update-profile-setting="handleUpdateProfileSetting"
         />
 
         <UiSettingsSection
-          :local-settings="localSettings"
+          :local-settings="localSettings as AppSettings"
           :update-local-setting="updateLocalSetting"
         />
 
         <AvatarSettingsSection
-          :local-settings="localSettings"
+          :local-settings="localSettings as AppSettings"
           :update-local-setting="updateLocalSetting"
         />
 
         <BackgroundImageSettingsSection
-          :local-settings="localSettings"
+          :local-settings="localSettings as AppSettings"
           @update-setting="handleUpdateSetting"
         />
 
-        <ThoughtTranslationSettingsSection :local-settings="localSettings" />
+        <ThoughtTranslationSettingsSection :local-settings="localSettings as AppSettings" />
 
-        <ProofreadingSettingsSection :local-settings="localSettings" />
+        <ProofreadingSettingsSection :local-settings="localSettings as AppSettings" />
 
-        <AdvancedSettingsSection :local-settings="localSettings" />
+        <AdvancedSettingsSection :local-settings="localSettings as AppSettings" />
 
         <div
           v-if="lastSavedAt"
@@ -135,8 +149,13 @@ import AdvancedSettingsSection from '~/components/organisms/page-setting/Advance
 import DummyPromptSettingsSection from '~/components/organisms/page-setting/DummyPromptSettingsSection.vue'
 import BackgroundImageSettingsSection from '~/components/organisms/page-setting/BackgroundImageSettingsSection.vue'
 import { settingsFormSchema, type SettingsFormData } from '~/lib/validation'
-import type { AppSettings } from '~/types/settings'
+import type { AppSettings, SettingsProfileData } from '~/types/settings'
 import { DEFAULT_SETTINGS } from '~/types/settings'
+import { useSettingsProfilesStore } from '~/stores/settingsProfiles'
+import { useSettingsStore } from '~/stores/settings'
+import { useSettings } from '~/composables/useSettings'
+import { useProfileSettings } from '~/composables/useProfileSettings'
+import { logger } from '~/utils/logger'
 
 // ダイアログの状態管理
 const isAlertDialogOpen = ref(false)
@@ -193,12 +212,30 @@ const handleConfirmCancel = () => {
   confirmDescription.value = ''
 }
 
-// useSettings()にダイアログ関数を渡す
-const { localSettings, saving, isDirty, lastSavedAt, formatLastSaved, saveSettings, resetToDefaults, syncLocalSettings, updateLocalSetting } = useSettings({ showAlert, showConfirm })
+// useSettings()にダイアログ関数を渡す（グローバル設定用）
+const {
+  localSettings,
+  saving: globalSaving,
+  isDirty: globalIsDirty,
+  lastSavedAt,
+  formatLastSaved,
+  saveSettings,
+  resetToDefaults,
+  syncLocalSettings,
+  updateLocalSetting,
+} = useSettings({ showAlert, showConfirm })
+
+// useProfileSettings()（プロファイル設定用）
+const { localProfileSettings, saving: profileSaving, isDirty: profileIsDirty, hasActiveProfile, updateSetting: updateProfileSetting, saveProfileSettings } = useProfileSettings()
 
 // 設定値更新ハンドラー
 const handleUpdateSetting = (key: keyof AppSettings, value: AppSettings[keyof AppSettings]) => {
   updateLocalSetting(key, value)
+}
+
+// プロファイル設定更新ハンドラー
+const handleUpdateProfileSetting = (key: keyof SettingsProfileData, value: SettingsProfileData[keyof SettingsProfileData]) => {
+  updateProfileSetting(key, value)
 }
 
 const settingsFormSchemaTyped = toTypedSchema(settingsFormSchema)
@@ -211,7 +248,20 @@ const onSubmit = async (values: SettingsFormData) => {
 
 // 保存ボタンのハンドラー
 const handleSave = async () => {
-  await saveSettings()
+  // グローバル設定とプロファイル設定の両方を保存
+  const promises = []
+
+  if (globalIsDirty.value) {
+    promises.push(saveSettings())
+  }
+
+  if (profileIsDirty.value && hasActiveProfile.value) {
+    promises.push(saveProfileSettings())
+  }
+
+  if (promises.length > 0) {
+    await Promise.all(promises)
+  }
 }
 
 // プロファイル管理
@@ -223,12 +273,12 @@ const profileDialogOpen = ref(false)
 const profileDialogMode = ref<'create' | 'edit'>('create')
 const editingProfile = ref<import('~/types/settings').SettingsProfile | null>(null)
 
-const handleSelectProfile = async (profileId: string) => {
-  const profileSettings = profilesStore.applyProfileToSettings(profileId)
-  const settingsStore = useSettingsStore()
-  settingsStore.updateSettings(profileSettings)
-  await settingsStore.saveSettings()
+const handleSelectProfile = (profileId: string) => {
+  // プロファイルを切り替えるだけ（保存はしない）
+  profilesStore.applyProfileToSettings(profileId)
+  // ローカル設定を更新して表示を切り替える
   syncLocalSettings()
+  // プロファイル設定も自動的に読み込まれる（useProfileSettingsのwatchで）
 }
 
 const handleCreateProfile = () => {
@@ -267,6 +317,10 @@ const handleExportProfile = async (profileId: string) => {
   } catch {
     showAlert('エクスポートに失敗しました', 'エラー')
   }
+}
+
+const handleUpdateProfileImage = async (profileId: string, imageUrl: string | null) => {
+  await profilesStore.updateProfileImage(profileId, imageUrl)
 }
 
 const handleImportProfile = () => {

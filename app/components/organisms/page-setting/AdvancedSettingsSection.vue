@@ -1,4 +1,3 @@
-<!-- eslint-disable vue/no-mutating-props -->
 <template>
   <SettingSection
     title="高度な設定"
@@ -16,7 +15,7 @@
         :min="10"
         :max="200"
         :step="10"
-        @update:model-value="localSettings.streamingSpeed = $event?.[0] ?? 50"
+        @update:model-value="updateSetting('streamingSpeed', $event?.[0] ?? 50)"
       />
     </SettingItem>
 
@@ -31,15 +30,16 @@
         :min="0"
         :max="10"
         :disabled="!localSettings.enableAutoRetry"
-        @update:model-value="localSettings.maxRetries = typeof $event === 'number' ? $event : Number($event)"
+        @update:model-value="updateSetting('maxRetries', typeof $event === 'number' ? $event : Number($event))"
       />
     </SettingItem>
 
     <SettingToggle
-      v-model="localSettings.useFixedRetryDelay"
+      :model-value="localSettings.useFixedRetryDelay"
       label="固定リトライ間隔"
       description="指数バックオフではなく固定間隔でリトライ"
       :disabled="!localSettings.enableAutoRetry"
+      @update:model-value="(value: boolean) => updateSetting('useFixedRetryDelay', value)"
     />
 
     <SettingItem
@@ -56,7 +56,7 @@
         :max="60"
         :step="1"
         :disabled="!localSettings.enableAutoRetry || !localSettings.useFixedRetryDelay"
-        @update:model-value="localSettings.fixedRetryDelaySeconds = $event?.[0] ?? 5"
+        @update:model-value="updateSetting('fixedRetryDelaySeconds', $event?.[0] ?? 5)"
       />
     </SettingItem>
 
@@ -74,7 +74,7 @@
         :max="300"
         :step="10"
         :disabled="!localSettings.enableAutoRetry || localSettings.useFixedRetryDelay"
-        @update:model-value="localSettings.maxBackoffDelaySeconds = $event?.[0] ?? 60"
+        @update:model-value="updateSetting('maxBackoffDelaySeconds', $event?.[0] ?? 60)"
       />
     </SettingItem>
   </SettingSection>
@@ -92,4 +92,12 @@ export interface AdvancedSettingsSectionProps {
 }
 
 defineProps<AdvancedSettingsSectionProps>()
+
+const emit = defineEmits<{
+  'update-setting': [key: keyof AppSettings, value: AppSettings[keyof AppSettings]]
+}>()
+
+const updateSetting = (key: keyof AppSettings, value: AppSettings[keyof AppSettings]) => {
+  emit('update-setting', key, value)
+}
 </script>

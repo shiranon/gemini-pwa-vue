@@ -132,6 +132,7 @@ import { Input } from '~/components/ui/input'
 import { Slider } from '~/components/ui/slider'
 import type { AppSettings } from '~/types/settings'
 import { clamp } from '~/utils/calc'
+import { useAvatarImageUpload } from '~/composables/useImageUpload'
 
 interface Props {
   localSettings: AppSettings
@@ -139,6 +140,10 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+
+// 画像アップロード用のコンポーザブル
+const userAvatarUploader = useAvatarImageUpload()
+const assistantAvatarUploader = useAvatarImageUpload()
 
 const avatarSize = computed(() => props.localSettings.size)
 
@@ -161,54 +166,22 @@ const updateAvatarSize = (value: number) => {
 
 // ファイルアップロード処理
 const onUserAvatarUpload = async (event: Event) => {
-  const target = event.target as HTMLInputElement
-  const file = target.files?.[0]
-  if (!file) return
-
-  try {
-    const MAX_IMAGE_SIZE = 5 * 1024 * 1024 // 5MB
-    if (file.size > MAX_IMAGE_SIZE) {
-      alert('画像ファイルが大きすぎます。5MB以下のファイルを選択してください。')
-      target.value = ''
-      return
-    }
-
-    // 画像をdata URLに変換
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      const dataUrl = e.target?.result as string
-      const avatar = { ...props.localSettings.defaultUserAvatar, imageUrl: dataUrl }
-      props.updateLocalSetting('defaultUserAvatar', avatar)
-    }
-    reader.readAsDataURL(file)
-  } catch (error) {
-    alert(error instanceof Error ? error.message : '画像の読み込みに失敗しました')
+  const dataUrl = await userAvatarUploader.handleFileInput(event)
+  if (dataUrl) {
+    const avatar = { ...props.localSettings.defaultUserAvatar, imageUrl: dataUrl }
+    props.updateLocalSetting('defaultUserAvatar', avatar)
+  } else if (userAvatarUploader.error.value) {
+    alert(userAvatarUploader.error.value)
   }
 }
 
 const onAssistantAvatarUpload = async (event: Event) => {
-  const target = event.target as HTMLInputElement
-  const file = target.files?.[0]
-  if (!file) return
-
-  try {
-    const MAX_IMAGE_SIZE = 5 * 1024 * 1024 // 5MB
-    if (file.size > MAX_IMAGE_SIZE) {
-      alert('画像ファイルが大きすぎます。5MB以下のファイルを選択してください。')
-      target.value = ''
-      return
-    }
-
-    // 画像をdata URLに変換
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      const dataUrl = e.target?.result as string
-      const avatar = { ...props.localSettings.defaultAssistantAvatar, imageUrl: dataUrl }
-      props.updateLocalSetting('defaultAssistantAvatar', avatar)
-    }
-    reader.readAsDataURL(file)
-  } catch (error) {
-    alert(error instanceof Error ? error.message : '画像の読み込みに失敗しました')
+  const dataUrl = await assistantAvatarUploader.handleFileInput(event)
+  if (dataUrl) {
+    const avatar = { ...props.localSettings.defaultAssistantAvatar, imageUrl: dataUrl }
+    props.updateLocalSetting('defaultAssistantAvatar', avatar)
+  } else if (assistantAvatarUploader.error.value) {
+    alert(assistantAvatarUploader.error.value)
   }
 }
 

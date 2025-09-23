@@ -161,6 +161,9 @@ export interface SettingsProfileData {
   enableDummyModelPrompt: boolean
   dummyModelPrompt: string
   prependDummyModelToResponse: boolean
+
+  // プロファイル画像
+  profileImage?: string
 }
 
 /** 設定プロファイル */

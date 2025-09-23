@@ -9,6 +9,7 @@
       @delete="handleDeleteProfile"
       @export="handleExportProfile"
       @import="handleImportProfile"
+      @update-profile-image="handleUpdateProfileImage"
     />
   </div>
 </template>
@@ -30,6 +31,7 @@ const emit = defineEmits<{
   delete: [profileId: string]
   export: [profileId: string]
   import: []
+  'update-profile-image': [profileId: string, imageUrl: string | null]
 }>()
 
 const selectedProfileId = ref<string | null>(props.activeProfileId ?? null)
@@ -85,5 +87,9 @@ const handleExportProfile = (profileId: string) => {
 
 const handleImportProfile = () => {
   emit('import')
+}
+
+const handleUpdateProfileImage = (profileId: string, imageUrl: string | null) => {
+  emit('update-profile-image', profileId, imageUrl)
 }
 </script>

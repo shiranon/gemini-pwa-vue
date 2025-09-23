@@ -11,6 +11,7 @@ export const useSettingsProfilesStore = defineStore('settingsProfiles', () => {
   const profiles = ref<SettingsProfile[]>([])
   const activeProfileId = ref<string | null>(null)
   const isLoading = ref(false)
+  const isDirty = ref(false)
 
   const activeProfile = computed(() => {
     if (!activeProfileId.value) return null
@@ -53,7 +54,7 @@ export const useSettingsProfilesStore = defineStore('settingsProfiles', () => {
     return profile
   }
 
-  const updateProfile = async (profileId: string, updates: Partial<{ name: string; description: string; settings: AppSettings }>) => {
+  const updateProfile = async (profileId: string, updates: Partial<{ name: string; description: string; settings: AppSettings | SettingsProfileData }>) => {
     const profile = profiles.value.find((p) => p.id === profileId)
     if (!profile) {
       throw new Error(`プロファイルが見つかりません: ${profileId}`)
@@ -62,12 +63,34 @@ export const useSettingsProfilesStore = defineStore('settingsProfiles', () => {
     if (updates.name !== undefined) profile.name = updates.name
     if (updates.description !== undefined) profile.description = updates.description
     if (updates.settings) {
-      profile.settings = extractProfileData(updates.settings)
+      // settingsがAppSettingsかSettingsProfileDataかを判定
+      if ('apiKey' in updates.settings) {
+        // AppSettingsの場合
+        profile.settings = extractProfileData(updates.settings as AppSettings)
+      } else {
+        // SettingsProfileDataの場合
+        profile.settings = cloneProfileSettings(updates.settings as SettingsProfileData)
+      }
     }
     profile.updatedAt = Date.now()
 
     await saveProfiles()
     logger.info('プロファイルを更新しました', { profileId, updates })
+  }
+
+  const updateProfileImage = async (profileId: string, imageUrl: string | null) => {
+    const profile = profiles.value.find((p) => p.id === profileId)
+    if (!profile) {
+      throw new Error(`プロファイルが見つかりません: ${profileId}`)
+    }
+
+    profile.settings.profileImage = imageUrl || undefined
+    profile.updatedAt = Date.now()
+    isDirty.value = true
+
+    await saveProfiles()
+    isDirty.value = false
+    logger.info('プロファイル画像を更新しました', { profileId, hasImage: !!imageUrl })
   }
 
   const deleteProfile = async (profileId: string) => {
@@ -233,11 +256,13 @@ export const useSettingsProfilesStore = defineStore('settingsProfiles', () => {
     profiles,
     activeProfileId,
     isLoading,
+    isDirty,
     activeProfile,
     sortedProfiles,
 
     createProfile,
     updateProfile,
+    updateProfileImage,
     deleteProfile,
     duplicateProfile,
     setActiveProfile,

@@ -19,6 +19,7 @@ export const PROFILE_SETTING_KEYS = [
   'enableDummyModelPrompt',
   'dummyModelPrompt',
   'prependDummyModelToResponse',
+  'profileImage',
 ] as const satisfies readonly (keyof SettingsProfileData)[]
 
 export type ProfileSettingKey = (typeof PROFILE_SETTING_KEYS)[number]
@@ -54,8 +55,9 @@ export const mergeProfilePartial = (base: SettingsProfileData, partial: Partial<
       case 'modelName':
       case 'systemPrompt':
       case 'dummyUserPrompt':
-      case 'dummyModelPrompt': {
-        if (typeof value === 'string') {
+      case 'dummyModelPrompt':
+      case 'profileImage': {
+        if (typeof value === 'string' || value === undefined) {
           next[key] = value
         }
         break
@@ -94,7 +96,7 @@ export const mergeProfilePartial = (base: SettingsProfileData, partial: Partial<
   return next
 }
 
-export const extractProfileSettings = (settings: AppSettings): SettingsProfileData => {
+export const extractProfileSettings = (settings: AppSettings | SettingsProfileData): SettingsProfileData => {
   const {
     modelName,
     systemPrompt,
@@ -114,7 +116,8 @@ export const extractProfileSettings = (settings: AppSettings): SettingsProfileDa
     enableDummyModelPrompt,
     dummyModelPrompt,
     prependDummyModelToResponse,
-  } = settings
+    profileImage,
+  } = settings as AppSettings & SettingsProfileData
 
   return {
     modelName,
@@ -135,6 +138,7 @@ export const extractProfileSettings = (settings: AppSettings): SettingsProfileDa
     enableDummyModelPrompt,
     dummyModelPrompt,
     prependDummyModelToResponse,
+    profileImage,
   }
 }
 

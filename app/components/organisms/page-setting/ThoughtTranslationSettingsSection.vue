@@ -1,4 +1,3 @@
-<!-- eslint-disable vue/no-mutating-props -->
 <template>
   <SettingSection
     title="思考プロセス翻訳設定"
@@ -9,7 +8,7 @@
       label="思考プロセス翻訳"
       description="日本語翻訳を有効化(思考プロセス表示有効化時のみ)"
       :disabled="!localSettings.includeThoughts"
-      @update:model-value="localSettings.enableThoughtTranslation = $event"
+      @update:model-value="updateSetting('enableThoughtTranslation', $event)"
     />
 
     <SettingItem
@@ -21,7 +20,7 @@
       <Select
         :model-value="localSettings.thoughtTranslationProvider"
         :disabled="!localSettings.enableThoughtTranslation"
-        @update:model-value="localSettings.thoughtTranslationProvider = $event as 'gemini' | 'deepl'"
+        @update:model-value="updateSetting('thoughtTranslationProvider', $event as 'gemini' | 'deepl')"
       >
         <SelectTrigger>
           <SelectValue placeholder="翻訳プロバイダを選択" />
@@ -42,7 +41,7 @@
       <Select
         :model-value="localSettings.thoughtTranslationModel"
         :disabled="!localSettings.enableThoughtTranslation || localSettings.thoughtTranslationProvider !== 'gemini'"
-        @update:model-value="localSettings.thoughtTranslationModel = $event as string"
+        @update:model-value="updateSetting('thoughtTranslationModel', $event as string)"
       >
         <SelectTrigger>
           <SelectValue placeholder="翻訳用モデルを選択" />
@@ -66,9 +65,10 @@
       description="DeepLのAPIキーを入力"
     >
       <Input
-        v-model="localSettings.deeplApiKey"
+        :model-value="localSettings.deeplApiKey"
         type="password"
         placeholder="DEEPL-..."
+        @update:model-value="(value: string | number) => emit('update-setting', 'deeplApiKey', String(value))"
       />
     </SettingItem>
   </SettingSection>
@@ -90,5 +90,13 @@ export interface ThoughtTranslationSettingsSectionProps {
 
 const props = defineProps<ThoughtTranslationSettingsSectionProps>()
 
+const emit = defineEmits<{
+  'update-setting': [key: keyof AppSettings, value: AppSettings[keyof AppSettings]]
+}>()
+
 const { modelOptions } = useGeminiModelOptions(computed(() => props.localSettings.apiKey))
+
+const updateSetting = (key: keyof AppSettings, value: AppSettings[keyof AppSettings]) => {
+  emit('update-setting', key, value)
+}
 </script>

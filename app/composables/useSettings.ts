@@ -2,7 +2,8 @@ import { computed, ref, watch } from 'vue'
 import { useSettingsStore } from '~/stores/settings'
 import type { AppSettings } from '~/types/settings'
 import { logger } from '~/utils/logger'
-import { areSettingsEqual } from '~/utils/settings'
+import { extractGlobalSettings } from '~/utils/settingsPartition'
+import type { GlobalSettingKey } from '~/utils/settingsPartition'
 
 // ダイアログ関数の型定義
 interface DialogFunctions {
@@ -11,104 +12,115 @@ interface DialogFunctions {
 }
 
 /**
- * 設定ページ用のコンポーザブル
- * 設定の管理、バリデーション、保存・リセット機能を提供
+ * グローバル設定専用のコンポーザブル
+ * プロファイルに依存しない設定のみを扱う
  */
 export function useSettings(dialogs: DialogFunctions) {
   const settingsStore = useSettingsStore()
 
-  const cloneSettings = (settings: AppSettings): AppSettings => ({
-    ...settings,
-    enabledFunctionTools: [...(settings.enabledFunctionTools ?? [])],
-  })
+  // ローカルのグローバル設定
+  const localSettings = ref<AppSettings>({ ...settingsStore.settings })
 
-  const localSettings = ref<AppSettings>(cloneSettings(settingsStore.settings))
+  // 保存中フラグ
   const saving = ref(false)
 
-  const isDirty = computed(() => !areSettingsEqual(localSettings.value, settingsStore.settings))
+  // ダーティフラグ：設定が変更されたか
+  const isDirty = computed(() => {
+    const currentGlobal = extractGlobalSettings(settingsStore.settings)
+    const localGlobal = extractGlobalSettings(localSettings.value)
 
-  const isValidApiKey = computed(() => {
-    return localSettings.value.apiKey.length > 0
+    for (const key of Object.keys(currentGlobal) as GlobalSettingKey[]) {
+      const currentValue = currentGlobal[key]
+      const localValue = localGlobal[key]
+
+      if (typeof currentValue === 'object' && currentValue !== null) {
+        if (JSON.stringify(currentValue) !== JSON.stringify(localValue)) {
+          return true
+        }
+      } else if (currentValue !== localValue) {
+        return true
+      }
+    }
+    return false
   })
 
+  // APIキー検証
+  const isValidApiKey = computed(() => {
+    return localSettings.value.apiKey?.length > 0
+  })
+
+  // 最終保存時刻
   const lastSavedAt = computed(() => settingsStore.lastSavedAt)
 
+  // 最終保存時刻フォーマット
   const formatLastSaved = computed(() => {
     if (!lastSavedAt.value) return ''
     const date = new Date(lastSavedAt.value)
     return date.toLocaleString('ja-JP')
   })
 
+  /**
+   * グローバル設定を更新
+   */
+  const updateLocalSetting = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
+    localSettings.value = { ...localSettings.value, [key]: value }
+    logger.debug(`グローバル設定を更新: ${key}`, { value })
+  }
+
+  /**
+   * グローバル設定を保存
+   */
   const saveSettings = async () => {
     try {
       saving.value = true
       settingsStore.updateSettings(localSettings.value)
-      await settingsStore.saveSettings()
+      await settingsStore.saveSettings(true) // プロファイル更新をスキップ
+      logger.info('グローバル設定を保存しました')
     } catch (error) {
       dialogs.showAlert('設定の保存に失敗しました')
-      logger.error('設定の保存エラー:', { component: 'useSettings' }, error)
+      logger.error('グローバル設定の保存エラー', { component: 'useSettings' }, error)
+      throw error
     } finally {
       saving.value = false
     }
   }
 
+  /**
+   * デフォルト設定にリセット
+   */
   const resetToDefaults = async () => {
     const confirmed = await dialogs.showConfirm('すべての設定がデフォルト値に戻ります。この操作は取り消せません。', '設定をリセットしますか？', 'デフォルトにリセットされます。')
 
     if (confirmed) {
       try {
         await settingsStore.resetToDefaults()
-        await settingsStore.saveSettings()
-        localSettings.value = cloneSettings(settingsStore.settings)
+        await settingsStore.saveSettings(true) // プロファイル更新をスキップ
+        syncLocalSettings()
         dialogs.showAlert('設定をリセットしました')
       } catch (error) {
         dialogs.showAlert('設定のリセットに失敗しました')
-        logger.error('設定のリセットエラー:', { component: 'useSettings' }, error)
+        logger.error('設定のリセットエラー', { component: 'useSettings' }, error)
       }
     }
   }
 
+  /**
+   * ストア設定と同期
+   */
   const syncLocalSettings = () => {
-    localSettings.value = cloneSettings(settingsStore.settings)
+    localSettings.value = { ...settingsStore.settings }
   }
 
-  const updateLocalSetting = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
-    if (key === 'enabledFunctionTools' && Array.isArray(value)) {
-      localSettings.value = { ...localSettings.value, [key]: [...value] }
-    } else {
-      localSettings.value = { ...localSettings.value, [key]: value }
-    }
-  }
-
+  // ストア設定の変更を監視して同期
   watch(
     () => settingsStore.settings,
     (newSettings) => {
-      // 無限ループを避けるため、実際に変更があった場合のみ更新
-      if (JSON.stringify(localSettings.value) !== JSON.stringify(newSettings)) {
-        localSettings.value = cloneSettings(newSettings)
-      }
+      localSettings.value = { ...newSettings }
     },
     { deep: true }
   )
 
-  watch(
-    () => localSettings.value.geminiEnableFunctionCalling,
-    (newValue, oldValue) => {
-      if (newValue !== oldValue && newValue && localSettings.value.geminiEnableGrounding) {
-        localSettings.value.geminiEnableGrounding = false
-      }
-    }
-  )
-
-  watch(
-    () => localSettings.value.geminiEnableGrounding,
-    (newValue, oldValue) => {
-      if (newValue !== oldValue && newValue && localSettings.value.geminiEnableFunctionCalling) {
-        localSettings.value.geminiEnableFunctionCalling = false
-      }
-    }
-  )
-
+  // Thought Translation の制御
   watch(
     () => localSettings.value.includeThoughts,
     (newValue, oldValue) => {
@@ -119,17 +131,18 @@ export function useSettings(dialogs: DialogFunctions) {
   )
 
   return {
-    localSettings,
-    saving,
+    // 状態
+    localSettings: readonly(localSettings),
+    saving: readonly(saving),
+    isDirty: readonly(isDirty),
+    isValidApiKey: readonly(isValidApiKey),
+    lastSavedAt: readonly(lastSavedAt),
+    formatLastSaved: readonly(formatLastSaved),
 
-    isDirty,
-    isValidApiKey,
-    lastSavedAt,
-    formatLastSaved,
-
+    // 操作
+    updateLocalSetting,
     saveSettings,
     resetToDefaults,
     syncLocalSettings,
-    updateLocalSetting,
   }
 }

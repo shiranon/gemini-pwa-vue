@@ -2,11 +2,27 @@
   <div class="border-border/70 bg-card text-card-foreground flex flex-col gap-5 rounded-2xl border px-4 py-5 shadow-sm md:px-6">
     <div class="flex flex-col items-start gap-5 sm:flex-row">
       <div class="flex flex-1 items-start gap-4">
-        <div class="bg-muted/60 text-muted-foreground border-border/60 flex h-16 w-16 items-center justify-center rounded-full border">
+        <div
+          class="bg-muted/60 text-muted-foreground border-border/60 group relative flex h-16 w-16 cursor-pointer items-center justify-center overflow-hidden rounded-full border"
+          @click="handleImageUpload"
+        >
+          <img
+            v-if="selectedProfile?.settings.profileImage"
+            :src="selectedProfile.settings.profileImage"
+            :alt="selectedProfile.name"
+            class="h-full w-full object-cover"
+          />
           <Icon
+            v-else
             icon="material-symbols:account-circle"
             class="h-9 w-9"
           />
+          <div class="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
+            <Icon
+              icon="material-symbols:camera-alt"
+              class="h-5 w-5 text-white"
+            />
+          </div>
         </div>
         <div class="min-w-45 flex-1">
           <p class="text-muted-foreground/80 text-xs">設定プロファイル</p>
@@ -36,10 +52,10 @@
             </Button>
           </div>
           <p
-            v-if="selectedProfileSummary"
+            v-if="selectedProfile?.settings.modelName"
             class="text-muted-foreground mt-1 text-xs"
           >
-            {{ selectedProfileSummary }}
+            {{ selectedProfile.settings.modelName }}
           </p>
           <p
             v-else
@@ -105,10 +121,10 @@
                       {{ profile.description }}
                     </span>
                     <span
-                      v-if="createSummary(profile)"
+                      v-if="profile.settings.modelName"
                       class="text-muted-foreground/70 text-[11px]"
                     >
-                      {{ createSummary(profile) }}
+                      {{ profile.settings.modelName }}
                     </span>
                   </div>
                 </SelectItem>
@@ -181,6 +197,7 @@ import { Button } from '~/components/ui/button'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '~/components/ui/select'
 import type { SettingsProfile } from '~/types/settings'
 import { truncateText } from '~/lib/format'
+import { useProfileImageUpload } from '~/composables/useImageUpload'
 
 const props = defineProps<{
   profiles: SettingsProfile[]
@@ -194,9 +211,14 @@ const emit = defineEmits<{
   delete: [profileId: string]
   export: [profileId: string]
   import: []
+  'update-profile-image': [profileId: string, imageUrl: string | null]
 }>()
 
 const selectedId = ref<string | null>(props.modelValue ?? null)
+const fileInputRef = ref<HTMLInputElement>()
+
+// プロファイル画像用のアップローダー
+const profileImageUploader = useProfileImageUpload()
 
 watch(
   () => props.modelValue,
@@ -240,38 +262,6 @@ watch(
 const selectedProfile = computed(() => {
   return props.profiles.find((profile) => profile.id === selectedId.value) ?? null
 })
-
-const formatDecimal = (value: number | null) => {
-  if (value === null || value === undefined) {
-    return ''
-  }
-  if (Number.isInteger(value)) {
-    return value.toString()
-  }
-  return value.toFixed(2)
-}
-
-const createSummary = (profile: SettingsProfile | null) => {
-  if (!profile) {
-    return ''
-  }
-  const parts: string[] = []
-  const { modelName, temperature, topP } = profile.settings
-  if (modelName) {
-    parts.push(modelName)
-  }
-  const formattedTemperature = formatDecimal(temperature)
-  if (formattedTemperature) {
-    parts.push(`T: ${formattedTemperature}`)
-  }
-  const formattedTopP = formatDecimal(topP)
-  if (formattedTopP) {
-    parts.push(`P: ${formattedTopP}`)
-  }
-  return parts.join(' / ')
-}
-
-const selectedProfileSummary = computed(() => createSummary(selectedProfile.value))
 
 const truncatedName = computed(() => truncateText(selectedProfile.value?.name ?? '', 10))
 
@@ -319,5 +309,30 @@ const handleExportProfile = () => {
 
 const handleImportProfile = () => {
   emit('import')
+}
+
+const handleImageUpload = () => {
+  if (!selectedProfile.value) return
+
+  if (!fileInputRef.value) {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'image/jpeg,image/png,image/gif,image/webp'
+    input.onchange = handleFileSelect
+    input.click()
+  } else {
+    fileInputRef.value.click()
+  }
+}
+
+const handleFileSelect = async (event: Event) => {
+  if (!selectedProfile.value) return
+
+  const imageUrl = await profileImageUploader.handleFileInput(event)
+  if (imageUrl) {
+    emit('update-profile-image', selectedProfile.value.id, imageUrl)
+  } else if (profileImageUploader.error.value) {
+    alert(profileImageUploader.error.value)
+  }
 }
 </script>

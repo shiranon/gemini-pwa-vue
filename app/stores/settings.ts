@@ -8,7 +8,7 @@ import type { AppSettings } from '~/types/settings'
 import { DEFAULT_SETTINGS } from '~/types/settings'
 import { clamp } from '~/utils/calc'
 import { logger } from '~/utils/logger'
-import { mergeSettingsFromSlices } from '~/utils/settingsPartition'
+import { mergeSettingsFromSlices, extractProfileSettings } from '~/utils/settingsPartition'
 import { applyTheme, getThemePreset } from '~/utils/theme'
 
 const cloneEnabledFunctionTools = (toolNames?: string[]) => {
@@ -357,19 +357,26 @@ export const useSettingsStore = defineStore('settings', () => {
     isDirty.value = true
   }
 
-  const saveSettings = async () => {
+  const saveSettings = async (skipProfileUpdate = false) => {
     try {
       isLoading.value = true
       const result = await saveSettingsToDB(settings.value)
 
       if (result.success) {
-        try {
-          const profilesStore = useSettingsProfilesStore()
-          if (profilesStore.activeProfileId) {
-            await profilesStore.updateProfile(profilesStore.activeProfileId, { settings: settings.value })
+        // プロファイル更新はオプションにする（デフォルトは更新しない）
+        if (!skipProfileUpdate) {
+          try {
+            const profilesStore = useSettingsProfilesStore()
+            if (profilesStore.activeProfileId) {
+              // プロファイル設定のみを更新（グローバル設定は含めない）
+              const profileSettings = extractProfileSettings(settings.value)
+              await profilesStore.updateProfile(profilesStore.activeProfileId, {
+                settings: { ...profilesStore.activeProfile?.settings, ...profileSettings } as AppSettings,
+              })
+            }
+          } catch (profileError) {
+            logger.warn('アクティブプロファイルの更新に失敗しました', { component: 'useSettingsStore' }, profileError)
           }
-        } catch (profileError) {
-          logger.warn('アクティブプロファイルの更新に失敗しました', { component: 'useSettingsStore' }, profileError)
         }
         lastSavedAt.value = Date.now()
         isDirty.value = false

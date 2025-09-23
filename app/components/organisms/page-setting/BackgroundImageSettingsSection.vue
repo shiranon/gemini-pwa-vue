@@ -148,6 +148,7 @@ import { Slider } from '~/components/ui/slider'
 import type { AppSettings } from '~/types/settings'
 import { clamp, toPercent } from '~/utils/calc'
 import { normalizeHex, hexToRgba } from '~/utils/color'
+import { useBackgroundImageUpload } from '~/composables/useImageUpload'
 
 interface Props {
   localSettings: AppSettings
@@ -161,8 +162,9 @@ const emit = defineEmits<{
 const fileInput = ref<HTMLInputElement>()
 const previewUrl = ref<string | null>(null)
 
-const MAX_IMAGE_SIZE = 5 * 1024 * 1024 // 5MB
-const maxSizeMB = computed(() => Math.round(MAX_IMAGE_SIZE / 1024 / 1024))
+// 画像アップロード用のコンポーザブル
+const backgroundUploader = useBackgroundImageUpload()
+const maxSizeMB = computed(() => Math.round(backgroundUploader.maxSize / 1024 / 1024))
 
 watch(
   () => props.localSettings.backgroundImageDataUrl,
@@ -172,25 +174,13 @@ watch(
   { immediate: true }
 )
 
-const onFileChange = (e: Event) => {
-  const target = e.target as HTMLInputElement
-  const file = target.files?.[0]
-  if (!file) return
-
-  if (file.size > MAX_IMAGE_SIZE) {
-    alert(`画像サイズが大きすぎます。${maxSizeMB.value}MB以下の画像を選択してください。`)
-    target.value = ''
-    return
+const onFileChange = async (e: Event) => {
+  const dataUrl = await backgroundUploader.handleFileInput(e)
+  if (dataUrl) {
+    emit('update-setting', 'backgroundImageDataUrl', dataUrl)
+  } else if (backgroundUploader.error.value) {
+    alert(backgroundUploader.error.value)
   }
-
-  const reader = new FileReader()
-  reader.onload = () => {
-    const result = reader.result
-    if (typeof result === 'string') {
-      emit('update-setting', 'backgroundImageDataUrl', result)
-    }
-  }
-  reader.readAsDataURL(file)
 }
 
 const removeImage = () => {
