@@ -3,8 +3,11 @@
     <SettingsHeader
       :is-dirty="globalIsDirty || profileIsDirty"
       :saving="globalSaving || profileSaving"
+      :profiles="profiles"
+      :selected-profile-id="activeProfileId"
       @save="handleSave"
       @reset="resetToDefaults"
+      @update:selected-profile-id="(value) => value && handleSelectProfile(value)"
     />
 
     <ProfileSelector
