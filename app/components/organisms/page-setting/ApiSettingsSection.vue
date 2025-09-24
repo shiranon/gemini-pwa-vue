@@ -1,4 +1,3 @@
-<!-- eslint-disable vue/no-mutating-props -->
 <template>
   <SettingSection
     title="API設定"
@@ -7,7 +6,6 @@
     <SettingItem
       name="apiKey"
       label="APIキー"
-      description="Google AI StudioからGemini APIキーを取得してください"
       required
       :show-status-indicator="true"
       :is-valid="isValidApiKey"
@@ -15,12 +13,13 @@
       invalid-message="APIキーが必要です"
     >
       <Input
-        v-model="localSettings.apiKey"
+        :model-value="localSettings.apiKey"
         type="password"
         placeholder="AIzaSy..."
         :class="{
           'border-destructive': !isValidApiKey,
         }"
+        @update:model-value="(value: string | number) => emit('update-setting', 'apiKey', String(value))"
       />
     </SettingItem>
 
@@ -28,7 +27,10 @@
       name="modelName"
       label="モデル名"
     >
-      <Select v-model="localSettings.modelName">
+      <Select
+        :model-value="localProfileSettings.modelName"
+        @update:model-value="(value: AcceptableValue) => updateProfileSetting('modelName', String(value || ''))"
+      >
         <SelectTrigger>
           <SelectValue placeholder="モデルを選択" />
         </SelectTrigger>
@@ -51,9 +53,10 @@
         description="AIの役割や振る舞いを定義します"
       >
         <Textarea
-          v-model="localSettings.systemPrompt"
+          :model-value="localProfileSettings.systemPrompt"
           placeholder="あなたはTRPGのゲームマスターです..."
           :rows="6"
+          @update:model-value="(value: string | number) => updateProfileSetting('systemPrompt', String(value))"
         />
       </SettingItem>
     </div>
@@ -62,7 +65,8 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { AppSettings } from '~/types/settings'
+import type { AcceptableValue } from 'reka-ui'
+import type { AppSettings, SettingsProfileData } from '~/types/settings'
 import SettingSection from '~/components/molecules/page-setting/SettingSection.vue'
 import SettingItem from '~/components/molecules/page-setting/SettingItem.vue'
 import { Input } from '~/components/ui/input'
@@ -72,9 +76,19 @@ import { useGeminiModelOptions } from '~/composables/useGeminiModelOptions'
 
 export interface ApiSettingsSectionProps {
   localSettings: AppSettings
+  localProfileSettings: SettingsProfileData
 }
 
 const props = defineProps<ApiSettingsSectionProps>()
+
+const emit = defineEmits<{
+  'update-setting': [key: keyof AppSettings, value: AppSettings[keyof AppSettings]]
+  'update-profile-setting': [key: keyof SettingsProfileData, value: SettingsProfileData[keyof SettingsProfileData]]
+}>()
+
+const updateProfileSetting = (key: keyof SettingsProfileData, value: SettingsProfileData[keyof SettingsProfileData]) => {
+  emit('update-profile-setting', key, value)
+}
 
 const isValidApiKey = computed(() => {
   return props.localSettings.apiKey.length > 0

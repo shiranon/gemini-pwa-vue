@@ -1,4 +1,3 @@
-<!-- eslint-disable vue/no-mutating-props -->
 <template>
   <SettingSection
     title="Function Calling設定"
@@ -7,27 +6,24 @@
   >
     <div class="flex flex-col gap-4">
       <SettingToggle
-        :model-value="props.localSettings.geminiEnableFunctionCalling"
+        :model-value="props.localProfileSettings.geminiEnableFunctionCalling"
         label="Function Calling"
         description="AI関数呼び出し機能"
-        @update:model-value="(value: boolean) => updateSetting('geminiEnableFunctionCalling', value)"
+        @update:model-value="(value: boolean) => updateProfileSetting('geminiEnableFunctionCalling', value)"
       />
 
-      <div
-        v-if="props.localSettings.geminiEnableFunctionCalling"
-        class="mt-4 space-y-3"
-      >
+      <div class="mt-4 space-y-3">
         <div class="border-border text-muted-foreground border-t-1 pt-2 text-xs">関数呼び出しモード</div>
 
         <div class="flex flex-col gap-2">
           <label class="flex cursor-pointer items-center space-x-3">
             <input
-              :checked="props.localSettings.functionCallingMode === 'auto'"
+              :checked="props.localProfileSettings.functionCallingMode === 'auto'"
               type="radio"
               name="functionCallingMode"
               value="AUTO"
               class="text-primary focus:ring-primary h-4 w-4 border-gray-300"
-              @change="updateSetting('functionCallingMode', 'auto')"
+              @change="updateProfileSetting('functionCallingMode', 'auto')"
             />
             <div class="flex-1">
               <div class="text-sm font-medium">AUTO（自動）</div>
@@ -36,12 +32,12 @@
           </label>
           <label class="flex cursor-pointer items-center space-x-3">
             <input
-              :checked="props.localSettings.functionCallingMode === 'any'"
+              :checked="props.localProfileSettings.functionCallingMode === 'any'"
               type="radio"
               name="functionCallingMode"
               value="any"
               class="text-primary focus:ring-primary h-4 w-4 border-gray-300"
-              @change="updateSetting('functionCallingMode', 'any')"
+              @change="updateProfileSetting('functionCallingMode', 'any')"
             />
             <div class="flex-1">
               <div class="text-sm font-medium">ANY（強制関数呼び出し）</div>
@@ -50,12 +46,12 @@
           </label>
           <label class="flex cursor-pointer items-center space-x-3">
             <input
-              :checked="props.localSettings.functionCallingMode === 'none'"
+              :checked="props.localProfileSettings.functionCallingMode === 'none'"
               type="radio"
               name="functionCallingMode"
               value="none"
               class="text-primary focus:ring-primary h-4 w-4 border-gray-300"
-              @change="updateSetting('functionCallingMode', 'none')"
+              @change="updateProfileSetting('functionCallingMode', 'none')"
             />
             <div class="flex-1">
               <div class="text-sm font-medium">NONE</div>
@@ -141,19 +137,21 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useFunctionCalling } from '~/composables/useFunctionCalling'
-import type { AppSettings } from '~/types/settings'
+import type { AppSettings, SettingsProfileData } from '~/types/settings'
 import SettingSection from '~/components/molecules/page-setting/SettingSection.vue'
 import SettingToggle from '~/components/molecules/page-setting/SettingToggle.vue'
 import { computeNextEnabledFunctionTools } from '~/utils/selection'
 
 export interface FunctionCallingSettingsSectionProps {
   localSettings: AppSettings
+  localProfileSettings: SettingsProfileData
 }
 
 const props = defineProps<FunctionCallingSettingsSectionProps>()
 
 const emit = defineEmits<{
   'update-setting': [key: keyof AppSettings, value: AppSettings[keyof AppSettings]]
+  'update-profile-setting': [key: keyof SettingsProfileData, value: SettingsProfileData[keyof SettingsProfileData]]
 }>()
 
 const { functionRegistry } = useFunctionCalling()
@@ -180,17 +178,17 @@ const toolOptions = computed<ToolOption[]>(() => {
   }))
 })
 
-const selectedToolNames = computed(() => props.localSettings.enabledFunctionTools ?? [])
+const selectedToolNames = computed(() => props.localProfileSettings.enabledFunctionTools ?? [])
 const selectedToolNameSet = computed(() => new Set(selectedToolNames.value))
 const selectedCount = computed(() => selectedToolNames.value.length)
 
-const updateSetting = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
-  emit('update-setting', key, value)
+const updateProfileSetting = (key: keyof SettingsProfileData, value: SettingsProfileData[keyof SettingsProfileData]) => {
+  emit('update-profile-setting', key, value)
 }
 
 const handleToolToggle = (toolName: string, enabled: boolean) => {
   const orderedNames = toolOptions.value.map((tool) => tool.name)
   const nextSelection = computeNextEnabledFunctionTools(selectedToolNames.value, toolName, enabled, orderedNames)
-  emit('update-setting', 'enabledFunctionTools', nextSelection as AppSettings['enabledFunctionTools'])
+  emit('update-profile-setting', 'enabledFunctionTools', nextSelection)
 }
 </script>

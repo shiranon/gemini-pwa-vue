@@ -1,12 +1,14 @@
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { useFunctionCalling } from '~/composables/useFunctionCalling'
-import { loadSettings as loadSettingsFromDB, saveSettings as saveSettingsToDB } from '~/lib/database'
+import { loadSettings as loadSettingsFromDB, loadSystemDefaults as loadSystemDefaultsFromDB, saveSettings as saveSettingsToDB } from '~/lib/database'
+import { useSettingsProfilesStore } from '~/stores/settingsProfiles'
 import type { GeminiApiSettings } from '~/types/chat'
 import type { AppSettings } from '~/types/settings'
 import { DEFAULT_SETTINGS } from '~/types/settings'
 import { clamp } from '~/utils/calc'
 import { logger } from '~/utils/logger'
+import { mergeSettingsFromSlices, extractProfileSettings } from '~/utils/settingsPartition'
 import { applyTheme, getThemePreset } from '~/utils/theme'
 
 const cloneEnabledFunctionTools = (toolNames?: string[]) => {
@@ -332,17 +334,50 @@ export const useSettingsStore = defineStore('settings', () => {
     updateSetting('overlayColor', hex)
   }
 
-  const resetToDefaults = () => {
-    settings.value = createSettingsState()
+  const resetToDefaults = async () => {
+    try {
+      // テスト環境では純粋なDEFAULT_SETTINGSを使用
+      if (import.meta.env.NODE_ENV === 'test') {
+        settings.value = createSettingsState()
+        isDirty.value = true
+        return
+      }
+
+      const result = await loadSystemDefaultsFromDB()
+      if (result.success && result.data) {
+        const mergedDefaults = mergeSettingsFromSlices(DEFAULT_SETTINGS, result.data.global, result.data.profile)
+        settings.value = createSettingsState(mergedDefaults)
+      } else {
+        settings.value = createSettingsState()
+      }
+    } catch (error) {
+      logger.error('システムデフォルトの読み込みに失敗しました。デフォルト値を使用します。', { component: 'useSettingsStore' }, error)
+      settings.value = createSettingsState()
+    }
     isDirty.value = true
   }
 
-  const saveSettings = async () => {
+  const saveSettings = async (skipProfileUpdate = false) => {
     try {
       isLoading.value = true
       const result = await saveSettingsToDB(settings.value)
 
       if (result.success) {
+        // プロファイル更新はオプションにする（デフォルトは更新しない）
+        if (!skipProfileUpdate) {
+          try {
+            const profilesStore = useSettingsProfilesStore()
+            if (profilesStore.activeProfileId) {
+              // プロファイル設定のみを更新（グローバル設定は含めない）
+              const profileSettings = extractProfileSettings(settings.value)
+              await profilesStore.updateProfile(profilesStore.activeProfileId, {
+                settings: { ...profilesStore.activeProfile?.settings, ...profileSettings } as AppSettings,
+              })
+            }
+          } catch (profileError) {
+            logger.warn('アクティブプロファイルの更新に失敗しました', { component: 'useSettingsStore' }, profileError)
+          }
+        }
         lastSavedAt.value = Date.now()
         isDirty.value = false
       } else {

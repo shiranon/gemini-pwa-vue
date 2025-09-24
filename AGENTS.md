@@ -4,7 +4,7 @@
 Core Nuxt code lives in `app/`. Define routes in `app/pages/`, keep shared UI in PascalCase components under `app/components/`, and colocate business logic in `app/composables/` and `app/stores/` (e.g., `app/stores/thing.ts` exporting `useThingStore`). App-wide helpers belong in `app/utils/`, PWA tuning in `app/pwa-assets.config.ts`, and service worker code under `app/service-worker/`. Server middleware and API endpoints reside in `server/`, while static assets go in `public/`. Mirror each significant module with a partner spec under `tests/` (for example, `tests/composables/useFeature.spec.ts`).
 
 ## Build, Test, and Development Commands
-Run `bun install` once to lock dependencies. Use `bun dev` to launch Nuxt at http://localhost:8888. `bun run build` outputs the production bundle to `.output/`; preview it with `bun run preview`. Generate a static bundle through `bun run generate`. Enforce quality gates with `bun run lint`, `bun run typecheck`, and execute the Vitest suite via `bun test` before handoff.
+Run `bun install` once to lock dependencies. Use `bun dev` to launch Nuxt at http://localhost:8888. `bun run build` outputs the production bundle to `.output/`; preview it with `bun run preview`. Generate a static bundle through `bun run generate`. Enforce quality gates with `bun run lint`, `bun run typecheck`, and execute the Vitest suite via `bun test` before handoff (you may skip `bun test` during active development iterations).
 
 ## Coding Style & Naming Conventions
 Write TypeScript with 2-space indentation. Vue SFCs should use `<script setup lang="ts">`. Components follow PascalCase (`AppHeader.vue`), composables use `useThing.ts`, Pinia stores expose `useThingStore`, and utilities export lowerCamelCase helpers. Tailwind CSS v4 classes stay atomic and descriptive. Respect ESLint 9 and Prettier defaults; disable rules only with explicit justification.
@@ -19,4 +19,4 @@ Adopt Conventional Commits (`feat:`, `fix:`, `refactor:`). Titles should describ
 Keep secrets in `.env` and expose client-safe values through `NUXT_PUBLIC_*`, mirroring them in `runtimeConfig`. When touching the service worker or PWA assets, update `app/pwa-assets.config.ts` alongside any bundle changes and review caching impacts.
 
 ## Agent-Specific Instructions
-Keep diffs minimal, favor additive updates, and leave unrelated user changes untouched. Always run `bun run lint --fix`, `bun run typecheck`, and relevant tests before handoff. Stop and confirm with the user if unexpected modifications appear outside your changes.
+Keep diffs minimal, favor additive updates, and leave unrelated user changes untouched. Always run `bun run lint --fix`, `bun run typecheck`, and relevant tests before handoff; `bun test` can be deferred until handoff if it slows down development loops. Stop and confirm with the user if unexpected modifications appear outside your changes.

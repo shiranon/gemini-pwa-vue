@@ -1,4 +1,3 @@
-<!-- eslint-disable vue/no-mutating-props -->
 <template>
   <SettingSection
     title="校正機能設定"
@@ -8,7 +7,7 @@
       :model-value="localSettings.enableProofreading"
       label="校正機能"
       description="文章校正機能を有効化"
-      @update:model-value="localSettings.enableProofreading = $event"
+      @update:model-value="updateSetting('enableProofreading', $event)"
     />
 
     <SettingItem
@@ -20,7 +19,7 @@
       <Select
         :model-value="localSettings.proofreadingModelName"
         :disabled="!localSettings.enableProofreading"
-        @update:model-value="localSettings.proofreadingModelName = $event as string"
+        @update:model-value="updateSetting('proofreadingModelName', $event as string)"
       >
         <SelectTrigger>
           <SelectValue placeholder="モデルを選択" />
@@ -49,7 +48,7 @@
           placeholder="文章を校正してください..."
           :rows="3"
           :disabled="!localSettings.enableProofreading"
-          @update:model-value="localSettings.proofreadingSystemInstruction = $event as string"
+          @update:model-value="updateSetting('proofreadingSystemInstruction', $event as string)"
         />
       </SettingItem>
     </div>
@@ -87,5 +86,13 @@ export interface ProofreadingSettingsSectionProps {
 
 const props = defineProps<ProofreadingSettingsSectionProps>()
 
+const emit = defineEmits<{
+  'update-setting': [key: keyof AppSettings, value: AppSettings[keyof AppSettings]]
+}>()
+
 const { modelOptions } = useGeminiModelOptions(computed(() => props.localSettings.apiKey))
+
+const updateSetting = (key: keyof AppSettings, value: AppSettings[keyof AppSettings]) => {
+  emit('update-setting', key, value)
+}
 </script>

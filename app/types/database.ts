@@ -99,6 +99,34 @@ export interface SettingsRecord {
   version: number
 }
 
+/** 設定プロファイルレコード型 */
+export interface SettingsProfileRecord {
+  /** プロファイルID */
+  id: string
+  /** プロファイル名 */
+  name: string
+  /** 説明 */
+  description?: string
+  /** 設定データ（JSON文字列） */
+  data: string
+  /** デフォルトプロファイルフラグ */
+  isDefault: boolean
+  /** 作成日時 */
+  createdAt: number
+  /** 更新日時 */
+  updatedAt: number
+}
+
+/** プロファイル管理メタデータ */
+export interface ProfilesMetaRecord {
+  /** 常に'profiles-meta' */
+  id: 'profiles-meta'
+  /** アクティブなプロファイルID */
+  activeProfileId: string | null
+  /** 更新日時 */
+  updatedAt: number
+}
+
 /** アプリメタデータテーブルのレコード */
 export interface AppMetaRecord {
   /** メタデータキー（プライマリキー） */

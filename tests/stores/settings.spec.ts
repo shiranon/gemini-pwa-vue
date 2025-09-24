@@ -157,13 +157,13 @@ describe('useSettingsStore - messageAppearanceSettings', () => {
       })
     })
 
-    it('設定リセット時にデフォルト値に戻る', () => {
+    it('設定リセット時にデフォルト値に戻る', async () => {
       // カスタム設定を適用
       store.updateSetting('messageFontSize', 20)
       store.updateSetting('userBubbleColor', '#ff0000')
 
       // リセット
-      store.resetToDefaults()
+      await store.resetToDefaults()
 
       const settings = store.messageAppearanceSettings
       expect(settings.messageFontSize).toBe(DEFAULT_SETTINGS.messageFontSize)

@@ -1,10 +1,27 @@
 <template>
   <div class="mx-auto mb-8 w-full max-w-5xl flex-1 items-center justify-between px-4">
     <SettingsHeader
-      :is-dirty="isDirty"
-      :saving="saving"
+      :is-dirty="globalIsDirty || profileIsDirty"
+      :saving="globalSaving || profileSaving"
+      :profiles="profiles"
+      :selected-profile-id="activeProfileId"
       @save="handleSave"
       @reset="resetToDefaults"
+      @update:selected-profile-id="(value) => value && handleSelectProfile(value)"
+    />
+
+    <ProfileSelector
+      class="mt-4"
+      :profiles="profiles"
+      :active-profile-id="activeProfileId"
+      @select="handleSelectProfile"
+      @create="handleCreateProfile"
+      @edit="handleEditProfile"
+      @delete="handleDeleteProfile"
+      @reset="handleResetProfile"
+      @export="handleExportProfile"
+      @import="handleImportProfile"
+      @update-profile-image="handleUpdateProfileImage"
     />
 
     <Form
@@ -13,53 +30,66 @@
       @submit="onSubmit"
     >
       <div class="mt-4 space-y-6">
-        <ApiSettingsSection :local-settings="localSettings" />
+        <ApiSettingsSection
+          :local-settings="localSettings as AppSettings"
+          :local-profile-settings="localProfileSettings as SettingsProfileData"
+          @update-setting="handleUpdateSetting"
+          @update-profile-setting="handleUpdateProfileSetting"
+        />
 
         <PerformanceSettingsSection
-          :local-settings="localSettings"
+          :local-settings="localSettings as AppSettings"
+          :local-profile-settings="localProfileSettings as SettingsProfileData"
           @update-setting="handleUpdateSetting"
+          @update-profile-setting="handleUpdateProfileSetting"
         />
 
         <DummyPromptSettingsSection
-          :local-settings="localSettings"
+          :local-settings="localSettings as AppSettings"
+          :local-profile-settings="localProfileSettings as SettingsProfileData"
           @update-setting="handleUpdateSetting"
+          @update-profile-setting="handleUpdateProfileSetting"
         />
 
         <FeatureSettingsSection
-          :local-settings="localSettings"
+          :local-settings="localSettings as AppSettings"
+          :local-profile-settings="localProfileSettings as SettingsProfileData"
           @update-setting="handleUpdateSetting"
+          @update-profile-setting="handleUpdateProfileSetting"
         />
 
         <ThemeSettingsSection
-          :local-settings="localSettings"
+          :local-settings="localSettings as AppSettings"
           :update-local-setting="updateLocalSetting"
         />
 
         <FunctionCallingSettingsSection
-          :local-settings="localSettings"
+          :local-settings="localSettings as AppSettings"
+          :local-profile-settings="localProfileSettings as SettingsProfileData"
           @update-setting="handleUpdateSetting"
+          @update-profile-setting="handleUpdateProfileSetting"
         />
 
         <UiSettingsSection
-          :local-settings="localSettings"
+          :local-settings="localSettings as AppSettings"
           :update-local-setting="updateLocalSetting"
         />
 
         <AvatarSettingsSection
-          :local-settings="localSettings"
+          :local-settings="localSettings as AppSettings"
           :update-local-setting="updateLocalSetting"
         />
 
         <BackgroundImageSettingsSection
-          :local-settings="localSettings"
+          :local-settings="localSettings as AppSettings"
           @update-setting="handleUpdateSetting"
         />
 
-        <ThoughtTranslationSettingsSection :local-settings="localSettings" />
+        <ThoughtTranslationSettingsSection :local-settings="localSettings as AppSettings" />
 
-        <ProofreadingSettingsSection :local-settings="localSettings" />
+        <ProofreadingSettingsSection :local-settings="localSettings as AppSettings" />
 
-        <AdvancedSettingsSection :local-settings="localSettings" />
+        <AdvancedSettingsSection :local-settings="localSettings as AppSettings" />
 
         <div
           v-if="lastSavedAt"
@@ -90,6 +120,13 @@
       @confirm="handleConfirmOk"
       @cancel="handleConfirmCancel"
     />
+
+    <ProfileDialog
+      v-model="profileDialogOpen"
+      :profile="editingProfile"
+      :mode="profileDialogMode"
+      @save="handleSaveProfile"
+    />
   </div>
 </template>
 
@@ -101,6 +138,8 @@ import { toTypedSchema } from '@vee-validate/zod'
 import AlertDialog from '~/components/molecules/dialogs/AlertDialog.vue'
 import ConfirmDialog from '~/components/molecules/dialogs/ConfirmDialog.vue'
 import SettingsHeader from '~/components/molecules/page-setting/SettingsHeader.vue'
+import ProfileDialog from '~/components/molecules/page-setting/ProfileDialog.vue'
+import ProfileSelector from '~/components/molecules/page-setting/ProfileSelector.vue'
 import ApiSettingsSection from '~/components/organisms/page-setting/ApiSettingsSection.vue'
 import PerformanceSettingsSection from '~/components/organisms/page-setting/PerformanceSettingsSection.vue'
 import ThoughtTranslationSettingsSection from '~/components/organisms/page-setting/ThoughtTranslationSettingsSection.vue'
@@ -114,7 +153,13 @@ import AdvancedSettingsSection from '~/components/organisms/page-setting/Advance
 import DummyPromptSettingsSection from '~/components/organisms/page-setting/DummyPromptSettingsSection.vue'
 import BackgroundImageSettingsSection from '~/components/organisms/page-setting/BackgroundImageSettingsSection.vue'
 import { settingsFormSchema, type SettingsFormData } from '~/lib/validation'
-import type { AppSettings } from '~/types/settings'
+import type { AppSettings, SettingsProfileData } from '~/types/settings'
+import { DEFAULT_SETTINGS } from '~/types/settings'
+import { useSettingsProfilesStore } from '~/stores/settingsProfiles'
+import { useSettingsStore } from '~/stores/settings'
+import { useSettings } from '~/composables/useSettings'
+import { useProfileSettings } from '~/composables/useProfileSettings'
+import { logger } from '~/utils/logger'
 
 // ダイアログの状態管理
 const isAlertDialogOpen = ref(false)
@@ -171,12 +216,38 @@ const handleConfirmCancel = () => {
   confirmDescription.value = ''
 }
 
-// useSettings()にダイアログ関数を渡す
-const { localSettings, saving, isDirty, lastSavedAt, formatLastSaved, saveSettings, resetToDefaults, syncLocalSettings, updateLocalSetting } = useSettings({ showAlert, showConfirm })
+// useSettings()にダイアログ関数を渡す（グローバル設定用）
+const {
+  localSettings,
+  saving: globalSaving,
+  isDirty: globalIsDirty,
+  lastSavedAt,
+  formatLastSaved,
+  saveSettings,
+  resetToDefaults,
+  syncLocalSettings,
+  updateLocalSetting,
+} = useSettings({ showAlert, showConfirm })
+
+// useProfileSettings()（プロファイル設定用）
+const {
+  localProfileSettings,
+  saving: profileSaving,
+  isDirty: profileIsDirty,
+  hasActiveProfile,
+  updateSetting: updateProfileSetting,
+  saveProfileSettings,
+  resetToDefaults: resetProfileToDefaults,
+} = useProfileSettings()
 
 // 設定値更新ハンドラー
 const handleUpdateSetting = (key: keyof AppSettings, value: AppSettings[keyof AppSettings]) => {
   updateLocalSetting(key, value)
+}
+
+// プロファイル設定更新ハンドラー
+const handleUpdateProfileSetting = (key: keyof SettingsProfileData, value: SettingsProfileData[keyof SettingsProfileData]) => {
+  updateProfileSetting(key, value)
 }
 
 const settingsFormSchemaTyped = toTypedSchema(settingsFormSchema)
@@ -189,7 +260,139 @@ const onSubmit = async (values: SettingsFormData) => {
 
 // 保存ボタンのハンドラー
 const handleSave = async () => {
-  await saveSettings()
+  // グローバル設定とプロファイル設定の両方を保存
+  const promises = []
+
+  if (globalIsDirty.value) {
+    promises.push(saveSettings())
+  }
+
+  if (profileIsDirty.value && hasActiveProfile.value) {
+    promises.push(saveProfileSettings())
+  }
+
+  if (promises.length > 0) {
+    await Promise.all(promises)
+  }
+}
+
+// プロファイル管理
+const profilesStore = useSettingsProfilesStore()
+const profiles = computed(() => profilesStore.sortedProfiles)
+const activeProfileId = computed(() => profilesStore.activeProfileId)
+
+const profileDialogOpen = ref(false)
+const profileDialogMode = ref<'create' | 'edit'>('create')
+const editingProfile = ref<import('~/types/settings').SettingsProfile | null>(null)
+
+const handleSelectProfile = (profileId: string) => {
+  // プロファイルを切り替えるだけ（保存はしない）
+  profilesStore.applyProfileToSettings(profileId)
+  // ローカル設定を更新して表示を切り替える
+  syncLocalSettings()
+  // プロファイル設定も自動的に読み込まれる（useProfileSettingsのwatchで）
+}
+
+const handleCreateProfile = () => {
+  profileDialogMode.value = 'create'
+  editingProfile.value = null
+  profileDialogOpen.value = true
+}
+
+const handleEditProfile = (profileId: string) => {
+  const profile = profiles.value.find((p) => p.id === profileId)
+  if (profile) {
+    profileDialogMode.value = 'edit'
+    editingProfile.value = profile
+    profileDialogOpen.value = true
+  }
+}
+
+const handleDeleteProfile = async (profileId: string) => {
+  const confirmed = await showConfirm('このプロファイルを削除してもよろしいですか？', 'プロファイルの削除')
+  if (confirmed) {
+    await profilesStore.deleteProfile(profileId)
+  }
+}
+
+const handleResetProfile = async (profileId: string) => {
+  const profile = profiles.value.find((p) => p.id === profileId)
+  if (!profile) return
+
+  const confirmed = await showConfirm(`「${profile.name}」の設定をデフォルト値にリセットしてもよろしいですか？\n\nこの操作は取り消せません。`, 'プロファイル設定のリセット')
+
+  if (confirmed) {
+    try {
+      // プロファイル設定をデフォルトにリセット
+      resetProfileToDefaults()
+
+      // リセットされた設定を保存
+      await saveProfileSettings()
+
+      showAlert('プロファイル設定をデフォルト値にリセットしました', 'リセット完了')
+    } catch (error) {
+      logger.error('プロファイル設定のリセットに失敗', { component: 'settings' }, error)
+      showAlert('リセットに失敗しました', 'エラー')
+    }
+  }
+}
+
+const handleExportProfile = async (profileId: string) => {
+  try {
+    const jsonData = profilesStore.exportProfile(profileId)
+    const blob = new Blob([jsonData], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    const profile = profiles.value.find((p) => p.id === profileId)
+    a.href = url
+    a.download = `profile-${profile?.name || 'export'}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  } catch {
+    showAlert('エクスポートに失敗しました', 'エラー')
+  }
+}
+
+const handleUpdateProfileImage = async (profileId: string, imageUrl: string | null) => {
+  await profilesStore.updateProfileImage(profileId, imageUrl)
+}
+
+const handleImportProfile = () => {
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = '.json'
+  input.onchange = async (e: Event) => {
+    const file = (e.target as HTMLInputElement).files?.[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onload = async (event) => {
+        try {
+          const jsonData = event.target?.result as string
+          await profilesStore.importProfile(jsonData)
+          showAlert('プロファイルをインポートしました')
+        } catch {
+          showAlert('インポートに失敗しました', 'エラー')
+        }
+      }
+      reader.readAsText(file)
+    }
+  }
+  input.click()
+}
+
+const handleSaveProfile = async (data: { name: string; description: string; copyCurrentSettings: boolean }) => {
+  if (profileDialogMode.value === 'edit' && editingProfile.value) {
+    await profilesStore.updateProfile(editingProfile.value.id, {
+      name: data.name,
+      description: data.description,
+    })
+  } else {
+    const settingsStore = useSettingsStore()
+    const settings = data.copyCurrentSettings ? settingsStore.settings : DEFAULT_SETTINGS
+    const newProfile = await profilesStore.createProfile(data.name, data.description, settings)
+    await handleSelectProfile(newProfile.id)
+  }
+  profileDialogOpen.value = false
 }
 
 // ライフサイクル
@@ -197,6 +400,9 @@ onMounted(async () => {
   // settingsStoreの初期化を待つ
   const settingsStore = useSettingsStore()
   await settingsStore.initialize()
+
+  // プロファイルストアの初期化
+  await profilesStore.initialize()
 
   // 初期化後にlocalSettingsを同期
   syncLocalSettings()
