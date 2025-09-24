@@ -56,6 +56,9 @@ export default defineNuxtConfig({
   typescript: {
     tsConfig: {
       exclude: ['service-worker'],
+      compilerOptions: {
+        types: ['bun-types', 'web'],
+      },
     },
     typeCheck: true,
   },

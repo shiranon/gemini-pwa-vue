@@ -6,6 +6,7 @@
 import { defineStore } from 'pinia'
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { useChatQuery, useDatabase } from '~/composables/useDatabase'
+import { summarizeChatHistory } from '~/composables/useSummary'
 import type { ApiError, AssistantMessage, AttachedFile, ChatInputState, ChatSession, Message, MessageDisplayState, StreamingState, UserMessage } from '~/types/chat'
 import type { FunctionCall, FunctionCallResult } from '~/types/function-calling'
 import { logger } from '~/utils/logger'
@@ -742,9 +743,12 @@ export const useChatStore = defineStore('chat', () => {
     stopAutoSave()
   })
 
-  /** 現在のメッセージリストを取得 */
+  /** 現在のメッセージリストを取得（要約フラグを考慮） */
   const currentMessages = computed(() => {
-    return visibleMessages.value.map((msg) => ({
+    // 要約フラグがあるメッセージ以降の履歴のみを取得
+    const messagesToSend = getMessagesAfterLastSummary()
+
+    return messagesToSend.map((msg) => ({
       role: msg.role,
       content: msg.content,
       timestamp: msg.createdAt,
@@ -817,6 +821,80 @@ export const useChatStore = defineStore('chat', () => {
 
   const resetCurrentChat = () => {
     clearChat()
+  }
+
+  /** 最後の要約メッセージ以降のメッセージを取得（要約メッセージも含む） */
+  const getMessagesAfterLastSummary = (): Message[] => {
+    const messages = visibleMessages.value
+
+    // 最後の要約メッセージのインデックスを探す
+    let lastSummaryIndex = -1
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const message = messages[i]
+      if (message && message.role === 'assistant' && (message as AssistantMessage).isSummary) {
+        lastSummaryIndex = i
+        break
+      }
+    }
+
+    // 要約メッセージ以降のメッセージを返す（要約メッセージも含む）
+    return lastSummaryIndex >= 0 ? messages.slice(lastSummaryIndex) : messages
+  }
+
+  const summarizeMessages = async (messages: Message[]): Promise<boolean> => {
+    if (!currentSession.value || !settingsStore.settings.enableSummary) {
+      return false
+    }
+
+    try {
+      logger.info('[ChatStore] 要約処理を開始', { messageCount: messages.length })
+
+      // 要約対象のメッセージを準備
+      const messagesToSummarize = messages.map((msg) => ({
+        role: msg.role,
+        content: msg.content,
+      }))
+
+      // 要約を実行
+      const summaryContent = await summarizeChatHistory(messagesToSummarize, {
+        apiKey: settingsStore.settings.apiKey,
+        model: settingsStore.settings.summaryModelName,
+        systemInstruction: settingsStore.settings.summarySystemInstruction,
+      })
+
+      if (!summaryContent) {
+        logger.warn('[ChatStore] 要約結果が空です')
+        return false
+      }
+
+      // 要約メッセージを作成
+      const summaryMessage: AssistantMessage = {
+        id: database.generateMessageId(),
+        role: 'assistant',
+        content: summaryContent,
+        createdAt: Date.now(),
+        isSummary: true,
+      }
+
+      // 要約メッセージを追加
+      addAssistantMessage(summaryMessage.content, summaryMessage)
+
+      // 要約対象のメッセージに要約フラグを設定
+      for (const message of messages) {
+        if (message.role === 'assistant') {
+          ;(message as AssistantMessage).isSummary = true
+        }
+      }
+
+      // セッションを保存
+      await saveSession()
+
+      logger.info('[ChatStore] 要約処理が完了しました')
+      return true
+    } catch (error) {
+      logger.error('[ChatStore] 要約処理でエラーが発生しました:', { component: 'useChatStore' }, error)
+      return false
+    }
   }
 
   return {
@@ -904,6 +982,7 @@ export const useChatStore = defineStore('chat', () => {
     updateMessage,
     setSending,
     resetCurrentChat,
+    summarizeMessages,
 
     isSaving: readonly(isSaving),
     lastSaveTime: readonly(lastSaveTime),

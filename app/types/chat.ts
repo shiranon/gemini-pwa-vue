@@ -43,6 +43,7 @@ export interface AssistantMessage extends BaseMessage {
   citations?: Citation[]
   originalContent?: string
   isProofread?: boolean
+  isSummary?: boolean
   error?: boolean
 }
 

@@ -15,6 +15,7 @@ export function serializeAssistantExtras(message: Message): Partial<MessageRecor
     citations?: unknown
     originalContent?: string
     isProofread?: boolean
+    isSummary?: boolean
   }
 
   const toJson = (v: unknown): string | undefined => {
@@ -34,6 +35,7 @@ export function serializeAssistantExtras(message: Message): Partial<MessageRecor
     citations: toJson(m.citations),
     originalContent: m.originalContent,
     isProofread: m.isProofread ?? false,
+    isSummary: m.isSummary ?? false,
   }
 }
 
@@ -59,5 +61,6 @@ export function deserializeAssistantExtras(record: MessageRecord): Partial<Messa
     citations: parseJson<any>(record.citations) as any,
     originalContent: record.originalContent as any,
     isProofread: record.isProofread as any,
+    isSummary: record.isSummary as any,
   }
 }

@@ -61,13 +61,22 @@
           class="border-input focus:border-primary focus:ring-primary min-h-[80px] flex-1 resize-none rounded-lg border p-4 text-lg focus:ring-2 focus:outline-none"
           @keydown="handleKeydown"
         />
-        <Button
-          :disabled="isSending || !inputText.trim()"
-          class="px-6"
-          @click="sendMessage"
-        >
-          {{ isSending ? '送信中...' : '送信' }}
-        </Button>
+        <div class="flex flex-col gap-2">
+          <Button
+            :disabled="isSending || !inputText.trim()"
+            class="p-2 text-lg"
+            @click="sendMessage"
+          >
+            {{ isSending ? '送信中...' : '送信' }}
+          </Button>
+          <Button
+            :disabled="isSending || !canSummarize"
+            class="p-2 text-lg"
+            @click="summarizeChat"
+          >
+            {{ isSummarizing ? '要約中...' : '要約' }}
+          </Button>
+        </div>
       </div>
     </div>
     <RetryConfirmDialog
@@ -92,7 +101,7 @@ import SystemPromptEditor from '~/components/molecules/page-chat/SystemPromptEdi
 import RetryConfirmDialog from '~/components/molecules/dialogs/RetryConfirmDialog.vue'
 import { Button } from '~/components/ui/button'
 import { hexToRgba } from '~/utils/color'
-import type { ApiError, ChatMessage, AttachedFile, Message } from '~/types/chat'
+import type { ApiError, ChatMessage, AttachedFile, Message, AssistantMessage } from '~/types/chat'
 import { toast } from 'vue-sonner'
 import { logger } from '~/utils/logger'
 
@@ -119,7 +128,20 @@ const overlayColorStyle = computed(() => {
   return hexToRgba(hex, settingsStore.settings.overlayOpacity)
 })
 
-const messages = computed(() => chatStore.currentMessages)
+const messages = computed(() =>
+  chatStore.visibleMessages.map((msg) => ({
+    role: msg.role,
+    content: msg.content,
+    timestamp: msg.createdAt,
+    error: msg.role === 'assistant' && (msg as AssistantMessage).error,
+    streaming: false,
+    thoughts: msg.role === 'assistant' ? (msg as AssistantMessage).thoughts : undefined,
+    translatedThoughts: msg.role === 'assistant' ? (msg as AssistantMessage).translatedThoughts : undefined,
+    functionCalls: msg.role === 'assistant' ? (msg as AssistantMessage).functionCalls : undefined,
+    functionResults: msg.role === 'assistant' ? (msg as AssistantMessage).functionResults : undefined,
+    isStreamingComplete: true,
+  }))
+)
 const retryDialogTargetMessage = computed(() => chatStore.retryTargetMessage as Message | null)
 const retryDialogResendMessage = computed(() => chatStore.retryResendMessage as Message | null)
 const isSending = computed(() => geminiStore.isSending)
@@ -254,6 +276,47 @@ const handleKeydown = (e: KeyboardEvent) => {
 
 const clearChat = () => {
   chatStore.resetCurrentChat()
+}
+
+const isSummarizing = ref(false)
+
+const canSummarize = computed(() => {
+  return settingsStore.settings.enableSummary && chatStore.visibleMessages.length > 0 && !isSummarizing.value
+})
+
+const summarizeChat = async () => {
+  if (!canSummarize.value) return
+
+  try {
+    isSummarizing.value = true
+
+    // 要約対象のメッセージを取得（要約フラグがあるメッセージ以降）
+    const messagesToSummarize = chatStore.visibleMessages.filter((msg) => {
+      if (msg.role === 'assistant') {
+        return !(msg as AssistantMessage).isSummary
+      }
+      return true
+    })
+
+    if (messagesToSummarize.length === 0) {
+      toast.info('要約するメッセージがありません')
+      return
+    }
+
+    // 要約処理を実行
+    const summary = await chatStore.summarizeMessages(messagesToSummarize)
+
+    if (summary) {
+      toast.success('チャットを要約しました')
+    } else {
+      toast.error('要約に失敗しました')
+    }
+  } catch (error) {
+    logger.error('要約処理でエラーが発生しました:', { component: 'ChatInterface' }, error)
+    toast.error('要約処理でエラーが発生しました')
+  } finally {
+    isSummarizing.value = false
+  }
 }
 
 const handleMessageEdit = async (editedMessage: ChatMessage) => {

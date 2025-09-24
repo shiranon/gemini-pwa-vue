@@ -54,6 +54,13 @@ export interface ProofreadingSettings {
   proofreadingSystemInstruction: string
 }
 
+/** 要約機能設定 */
+export interface SummarySettings {
+  enableSummary: boolean
+  summaryModelName: string
+  summarySystemInstruction: string
+}
+
 // ============================================================================
 // UI設定型
 // ============================================================================
@@ -188,6 +195,7 @@ export interface AppSettings
     ThoughtTranslationSettings,
     RetrySettings,
     ProofreadingSettings,
+    SummarySettings,
     ThemeSettings,
     BackgroundImageSettings,
     NavigationSettings,
@@ -249,6 +257,12 @@ export const DEFAULT_SETTINGS: AppSettings = {
   proofreadingModelName: 'gemini-2.5-flash',
   proofreadingSystemInstruction:
     'あなたはプロの編集者です。受け取った文章の過剰な読点を抑制し、日本語として違和感のない読点の使用量に校正してください。承知しました等の応答は行わず、校正後の文章のみ出力して下さい。読点の抑制以外の編集は禁止です。読点以外の文章には絶対に手を付けないで下さい。',
+
+  // 要約機能
+  enableSummary: false,
+  summaryModelName: 'gemini-2.5-flash',
+  summarySystemInstruction:
+    'あなたはプロの編集者です。与えられた会話履歴を簡潔で分かりやすい300文字程度の要約にまとめてください。重要なポイントや決定事項などを明確に示してください。要約のみを出力し、余計な説明や補足は絶対に出力しないで下さい。',
 
   // テーマとスタイル
   themePreset: 'default',

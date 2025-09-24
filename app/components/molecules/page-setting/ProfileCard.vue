@@ -276,7 +276,7 @@ const selectedProfile = computed(() => {
   return props.profiles.find((profile) => profile.id === selectedId.value) ?? null
 })
 
-const truncatedName = computed(() => truncateText(selectedProfile.value?.name ?? '', 10))
+const truncatedName = computed(() => truncateText(selectedProfile.value?.name ?? '', 20))
 
 const handleProfileChange = (value: AcceptableValue) => {
   if (value === null || value === undefined) {

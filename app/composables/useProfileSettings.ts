@@ -103,7 +103,9 @@ export function useProfileSettings() {
       }
     }
 
-    logger.debug(`プロファイル設定を更新: ${key}`, { value })
+    if (typeof logger.debug === 'function') {
+      logger.debug(`プロファイル設定を更新: ${key}`, { value })
+    }
   }
 
   /**
@@ -192,7 +194,9 @@ export function useProfileSettings() {
     (newValue, oldValue) => {
       if (newValue !== oldValue && newValue && localProfileSettings.value.geminiEnableGrounding) {
         updateSetting('geminiEnableGrounding', false)
-        logger.debug('Function Calling有効化によりGroundingを無効化')
+        if (typeof logger.debug === 'function') {
+          logger.debug('Function Calling有効化によりGroundingを無効化')
+        }
       }
     }
   )
@@ -202,7 +206,9 @@ export function useProfileSettings() {
     (newValue, oldValue) => {
       if (newValue !== oldValue && newValue && localProfileSettings.value.geminiEnableFunctionCalling) {
         updateSetting('geminiEnableFunctionCalling', false)
-        logger.debug('Grounding有効化によりFunction Callingを無効化')
+        if (typeof logger.debug === 'function') {
+          logger.debug('Grounding有効化によりFunction Callingを無効化')
+        }
       }
     }
   )
