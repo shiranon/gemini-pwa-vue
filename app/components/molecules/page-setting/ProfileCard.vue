@@ -135,7 +135,7 @@
       </div>
     </div>
 
-    <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <div class="grid grid-cols-2 gap-3 sm:grid-cols-5">
       <Button
         variant="secondary"
         class="flex h-12 items-center justify-center gap-2 rounded-xl"
@@ -159,6 +159,19 @@
           class="h-5 w-5"
         />
         削除
+      </Button>
+
+      <Button
+        variant="secondary"
+        class="flex h-12 items-center justify-center gap-2 rounded-xl"
+        :disabled="!selectedProfile"
+        @click="handleResetProfile"
+      >
+        <Icon
+          icon="material-symbols:refresh"
+          class="h-5 w-5"
+        />
+        リセット
       </Button>
 
       <Button
@@ -209,13 +222,13 @@ const emit = defineEmits<{
   edit: [profileId: string]
   create: []
   delete: [profileId: string]
+  reset: [profileId: string]
   export: [profileId: string]
   import: []
   'update-profile-image': [profileId: string, imageUrl: string | null]
 }>()
 
 const selectedId = ref<string | null>(props.modelValue ?? null)
-const fileInputRef = ref<HTMLInputElement>()
 
 // プロファイル画像用のアップローダー
 const profileImageUploader = useProfileImageUpload()
@@ -301,6 +314,12 @@ const handleDeleteProfile = () => {
   }
 }
 
+const handleResetProfile = () => {
+  if (selectedId.value) {
+    emit('reset', selectedId.value)
+  }
+}
+
 const handleExportProfile = () => {
   if (selectedId.value) {
     emit('export', selectedId.value)
@@ -311,24 +330,10 @@ const handleImportProfile = () => {
   emit('import')
 }
 
-const handleImageUpload = () => {
+const handleImageUpload = async () => {
   if (!selectedProfile.value) return
 
-  if (!fileInputRef.value) {
-    const input = document.createElement('input')
-    input.type = 'file'
-    input.accept = 'image/jpeg,image/png,image/gif,image/webp'
-    input.onchange = handleFileSelect
-    input.click()
-  } else {
-    fileInputRef.value.click()
-  }
-}
-
-const handleFileSelect = async (event: Event) => {
-  if (!selectedProfile.value) return
-
-  const imageUrl = await profileImageUploader.handleFileInput(event)
+  const imageUrl = await profileImageUploader.selectFile()
   if (imageUrl) {
     emit('update-profile-image', selectedProfile.value.id, imageUrl)
   } else if (profileImageUploader.error.value) {

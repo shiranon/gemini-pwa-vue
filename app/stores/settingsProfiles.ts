@@ -259,6 +259,7 @@ export const useSettingsProfilesStore = defineStore('settingsProfiles', () => {
     isDirty,
     activeProfile,
     sortedProfiles,
+    defaultProfileSettings,
 
     createProfile,
     updateProfile,

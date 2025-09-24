@@ -7,6 +7,7 @@
       @edit="handleEditProfile"
       @create="handleCreateProfile"
       @delete="handleDeleteProfile"
+      @reset="handleResetProfile"
       @export="handleExportProfile"
       @import="handleImportProfile"
       @update-profile-image="handleUpdateProfileImage"
@@ -29,6 +30,7 @@ const emit = defineEmits<{
   create: []
   edit: [profileId: string]
   delete: [profileId: string]
+  reset: [profileId: string]
   export: [profileId: string]
   import: []
   'update-profile-image': [profileId: string, imageUrl: string | null]
@@ -79,6 +81,10 @@ const handleEditProfile = (profileId: string) => {
 
 const handleDeleteProfile = (profileId: string) => {
   emit('delete', profileId)
+}
+
+const handleResetProfile = (profileId: string) => {
+  emit('reset', profileId)
 }
 
 const handleExportProfile = (profileId: string) => {

@@ -1,4 +1,4 @@
-import { computed, ref, watch } from 'vue'
+import { computed, readonly, ref, watch } from 'vue'
 import { useSettingsProfilesStore } from '~/stores/settingsProfiles'
 import type { SettingsProfileData } from '~/types/settings'
 import { logger } from '~/utils/logger'
@@ -153,6 +153,28 @@ export function useProfileSettings() {
     logger.info('プロファイル設定の変更を破棄しました')
   }
 
+  /**
+   * プロファイル設定をデフォルト値にリセット
+   */
+  const resetToDefaults = () => {
+    if (!profilesStore.activeProfile) {
+      logger.warn('リセットするアクティブプロファイルがありません')
+      return
+    }
+
+    // デフォルトプロファイル設定を取得
+    const defaultSettings = profilesStore.defaultProfileSettings
+
+    localProfileSettings.value = {
+      ...defaultSettings,
+      enabledFunctionTools: [...defaultSettings.enabledFunctionTools],
+    }
+
+    logger.info('プロファイル設定をデフォルト値にリセットしました', {
+      profileId: profilesStore.activeProfile.id,
+    })
+  }
+
   // アクティブプロファイルが変更されたら設定を読み込む
   watch(
     () => profilesStore.activeProfile,
@@ -169,7 +191,7 @@ export function useProfileSettings() {
     () => localProfileSettings.value.geminiEnableFunctionCalling,
     (newValue, oldValue) => {
       if (newValue !== oldValue && newValue && localProfileSettings.value.geminiEnableGrounding) {
-        localProfileSettings.value.geminiEnableGrounding = false
+        updateSetting('geminiEnableGrounding', false)
         logger.debug('Function Calling有効化によりGroundingを無効化')
       }
     }
@@ -179,7 +201,7 @@ export function useProfileSettings() {
     () => localProfileSettings.value.geminiEnableGrounding,
     (newValue, oldValue) => {
       if (newValue !== oldValue && newValue && localProfileSettings.value.geminiEnableFunctionCalling) {
-        localProfileSettings.value.geminiEnableFunctionCalling = false
+        updateSetting('geminiEnableFunctionCalling', false)
         logger.debug('Grounding有効化によりFunction Callingを無効化')
       }
     }
@@ -196,6 +218,7 @@ export function useProfileSettings() {
     updateSetting,
     saveProfileSettings,
     resetChanges,
+    resetToDefaults,
     loadFromActiveProfile,
   }
 }

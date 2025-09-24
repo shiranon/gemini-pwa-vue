@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { readonly, ref } from 'vue'
 
 export interface ImageUploadOptions {
   maxSize?: number // バイト単位
@@ -88,11 +88,28 @@ export function useImageUpload(options: ImageUploadOptions = {}) {
     error.value = null
   }
 
+  const selectFile = (): Promise<string | null> => {
+    return new Promise((resolve) => {
+      const input = document.createElement('input')
+      input.type = 'file'
+      input.accept = allowedTypes.join(',')
+      input.onchange = async (event) => {
+        const result = await handleFileInput(event)
+        resolve(result)
+      }
+      input.oncancel = () => {
+        resolve(null)
+      }
+      input.click()
+    })
+  }
+
   return {
     isUploading: readonly(isUploading),
     error: readonly(error),
     uploadImage,
     handleFileInput,
+    selectFile,
     removeImage,
     clearError,
     maxSize,

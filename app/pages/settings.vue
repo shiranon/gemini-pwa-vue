@@ -18,6 +18,7 @@
       @create="handleCreateProfile"
       @edit="handleEditProfile"
       @delete="handleDeleteProfile"
+      @reset="handleResetProfile"
       @export="handleExportProfile"
       @import="handleImportProfile"
       @update-profile-image="handleUpdateProfileImage"
@@ -229,7 +230,15 @@ const {
 } = useSettings({ showAlert, showConfirm })
 
 // useProfileSettings()（プロファイル設定用）
-const { localProfileSettings, saving: profileSaving, isDirty: profileIsDirty, hasActiveProfile, updateSetting: updateProfileSetting, saveProfileSettings } = useProfileSettings()
+const {
+  localProfileSettings,
+  saving: profileSaving,
+  isDirty: profileIsDirty,
+  hasActiveProfile,
+  updateSetting: updateProfileSetting,
+  saveProfileSettings,
+  resetToDefaults: resetProfileToDefaults,
+} = useProfileSettings()
 
 // 設定値更新ハンドラー
 const handleUpdateSetting = (key: keyof AppSettings, value: AppSettings[keyof AppSettings]) => {
@@ -306,6 +315,28 @@ const handleDeleteProfile = async (profileId: string) => {
   }
 }
 
+const handleResetProfile = async (profileId: string) => {
+  const profile = profiles.value.find((p) => p.id === profileId)
+  if (!profile) return
+
+  const confirmed = await showConfirm(`「${profile.name}」の設定をデフォルト値にリセットしてもよろしいですか？\n\nこの操作は取り消せません。`, 'プロファイル設定のリセット')
+
+  if (confirmed) {
+    try {
+      // プロファイル設定をデフォルトにリセット
+      resetProfileToDefaults()
+
+      // リセットされた設定を保存
+      await saveProfileSettings()
+
+      showAlert('プロファイル設定をデフォルト値にリセットしました', 'リセット完了')
+    } catch (error) {
+      logger.error('プロファイル設定のリセットに失敗', { component: 'settings' }, error)
+      showAlert('リセットに失敗しました', 'エラー')
+    }
+  }
+}
+
 const handleExportProfile = async (profileId: string) => {
   try {
     const jsonData = profilesStore.exportProfile(profileId)
@@ -356,7 +387,6 @@ const handleSaveProfile = async (data: { name: string; description: string; copy
       description: data.description,
     })
   } else {
-    console.log('handleSaveProfile', data.copyCurrentSettings)
     const settingsStore = useSettingsStore()
     const settings = data.copyCurrentSettings ? settingsStore.settings : DEFAULT_SETTINGS
     const newProfile = await profilesStore.createProfile(data.name, data.description, settings)
