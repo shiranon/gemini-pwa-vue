@@ -83,7 +83,7 @@ export async function generateRandomString(args: FunctionCallArgs, context: Func
     return result
   } catch (error) {
     logger.info(`[Function Calling] generateRandomStringでエラーが発生しました:`, { component: 'generateRandomString' }, error)
-    throw new Error(`ランダム文字列生成中にエラーが発生しました: ${(error as Error).message}`)
+    return { error: `ランダム文字列生成中にエラーが発生しました: ${(error as Error).message}` }
   }
 }
 

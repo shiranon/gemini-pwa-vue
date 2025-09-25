@@ -24,6 +24,9 @@ describe('manageCharacterStatus', () => {
 
       const result = await manageCharacterStatus(args, mockContext)
 
+      expect('error' in result).toBe(false)
+      if ('error' in result) return
+
       expect(result.characterName).toBe('テストキャラ')
       expect(result.statusKey).toBe('HP')
       expect(result.action).toBe('set')
@@ -41,6 +44,9 @@ describe('manageCharacterStatus', () => {
       }
 
       const result = await manageCharacterStatus(args, mockContext)
+
+      expect('error' in result).toBe(false)
+      if ('error' in result) return
 
       expect(result.action).toBe('increase')
       expect(result.oldValue).toBe(0) // 未設定の場合は0から開始
@@ -69,6 +75,9 @@ describe('manageCharacterStatus', () => {
 
       const result = await manageCharacterStatus(args, mockContext)
 
+      expect('error' in result).toBe(false)
+      if ('error' in result) return
+
       expect(result.oldValue).toBe(50)
       expect(result.newValue).toBe(60)
       expect(result.message).toContain('テストキャラのATKが10上昇し、60になりました')
@@ -95,6 +104,9 @@ describe('manageCharacterStatus', () => {
 
       const result = await manageCharacterStatus(args, mockContext)
 
+      expect('error' in result).toBe(false)
+      if ('error' in result) return
+
       expect(result.action).toBe('decrease')
       expect(result.oldValue).toBe(100)
       expect(result.newValue).toBe(75)
@@ -110,6 +122,9 @@ describe('manageCharacterStatus', () => {
       }
 
       const result = await manageCharacterStatus(args, mockContext)
+
+      expect('error' in result).toBe(false)
+      if ('error' in result) return
 
       expect(result.oldValue).toBe(0) // 未設定の場合は0から開始
       expect(result.newValue).toBe(-10)
@@ -136,6 +151,9 @@ describe('manageCharacterStatus', () => {
 
       const result = await manageCharacterStatus(args, mockContext)
 
+      expect('error' in result).toBe(false)
+      if ('error' in result) return
+
       expect(result.action).toBe('get')
       expect(result.value).toBe(30)
       expect(result.message).toContain('テストキャラの現在のDEFは30です')
@@ -149,6 +167,9 @@ describe('manageCharacterStatus', () => {
       }
 
       const result = await manageCharacterStatus(args, mockContext)
+
+      expect('error' in result).toBe(false)
+      if ('error' in result) return
 
       expect(result.action).toBe('get')
       expect(result.value).toBe(0) // 未設定の場合は0
@@ -215,6 +236,13 @@ describe('manageCharacterStatus', () => {
         mockContext
       )
 
+      expect('error' in hpResult).toBe(false)
+      if ('error' in hpResult) return
+      expect('error' in mpResult).toBe(false)
+      if ('error' in mpResult) return
+      expect('error' in atkResult).toBe(false)
+      if ('error' in atkResult) return
+
       expect(hpResult.value).toBe(100)
       expect(mpResult.value).toBe(50)
       expect(atkResult.value).toBe(25)
@@ -230,6 +258,9 @@ describe('manageCharacterStatus', () => {
 
       const result = await manageCharacterStatus(args, mockContext)
 
+      expect('error' in result).toBe(false)
+      if ('error' in result) return
+
       expect(result.newValue).toBe(-10)
       expect(result.message).toContain('テストキャラのHPを-10に設定しました')
     })
@@ -244,72 +275,105 @@ describe('manageCharacterStatus', () => {
 
       const result = await manageCharacterStatus(args, mockContext)
 
+      expect('error' in result).toBe(false)
+      if ('error' in result) return
+
       expect(result.newValue).toBe(12.5)
     })
   })
 
   describe('異常系', () => {
-    it('characterNameが未指定の場合はエラーを投げる', async () => {
+    it('characterNameが未指定の場合はエラーを返す', async () => {
       const args: FunctionCallArgs = {
         action: 'set',
         statusKey: 'HP',
         value: 100,
       }
 
-      await expect(manageCharacterStatus(args, mockContext)).rejects.toThrow("引数 'characterName', 'action', 'statusKey' は必須です。")
+      const result = await manageCharacterStatus(args, mockContext)
+
+      expect('error' in result).toBe(true)
+      if ('error' in result) {
+        expect(result.error).toBe("引数 'characterName', 'action', 'statusKey' は必須です。")
+      }
     })
 
-    it('actionが未指定の場合はエラーを投げる', async () => {
+    it('actionが未指定の場合はエラーを返す', async () => {
       const args: FunctionCallArgs = {
         characterName: 'テストキャラ',
         statusKey: 'HP',
         value: 100,
       }
 
-      await expect(manageCharacterStatus(args, mockContext)).rejects.toThrow("引数 'characterName', 'action', 'statusKey' は必須です。")
+      const result = await manageCharacterStatus(args, mockContext)
+
+      expect('error' in result).toBe(true)
+      if ('error' in result) {
+        expect(result.error).toBe("引数 'characterName', 'action', 'statusKey' は必須です。")
+      }
     })
 
-    it('statusKeyが未指定の場合はエラーを投げる', async () => {
+    it('statusKeyが未指定の場合はエラーを返す', async () => {
       const args: FunctionCallArgs = {
         characterName: 'テストキャラ',
         action: 'set',
         value: 100,
       }
 
-      await expect(manageCharacterStatus(args, mockContext)).rejects.toThrow("引数 'characterName', 'action', 'statusKey' は必須です。")
+      const result = await manageCharacterStatus(args, mockContext)
+
+      expect('error' in result).toBe(true)
+      if ('error' in result) {
+        expect(result.error).toBe("引数 'characterName', 'action', 'statusKey' は必須です。")
+      }
     })
 
-    it('setアクションでvalueが未指定の場合はエラーを投げる', async () => {
+    it('setアクションでvalueが未指定の場合はエラーを返す', async () => {
       const args: FunctionCallArgs = {
         characterName: 'テストキャラ',
         action: 'set',
         statusKey: 'HP',
       }
 
-      await expect(manageCharacterStatus(args, mockContext)).rejects.toThrow("アクション 'set' には数値型の 'value' が必要です。")
+      const result = await manageCharacterStatus(args, mockContext)
+
+      expect('error' in result).toBe(true)
+      if ('error' in result) {
+        expect(result.error).toBe("アクション 'set' には数値型の 'value' が必要です。")
+      }
     })
 
-    it('increaseアクションでvalueが未指定の場合はエラーを投げる', async () => {
+    it('increaseアクションでvalueが未指定の場合はエラーを返す', async () => {
       const args: FunctionCallArgs = {
         characterName: 'テストキャラ',
         action: 'increase',
         statusKey: 'HP',
       }
 
-      await expect(manageCharacterStatus(args, mockContext)).rejects.toThrow("アクション 'increase' には数値型の 'value' が必要です。")
+      const result = await manageCharacterStatus(args, mockContext)
+
+      expect('error' in result).toBe(true)
+      if ('error' in result) {
+        expect(result.error).toBe("アクション 'increase' には数値型の 'value' が必要です。")
+      }
     })
 
-    it('decreaseアクションでvalueが未指定の場合はエラーを投げる', async () => {
+    it('decreaseアクションでvalueが未指定の場合はエラーを返す', async () => {
       const args: FunctionCallArgs = {
         characterName: 'テストキャラ',
         action: 'decrease',
         statusKey: 'HP',
       }
 
-      await expect(manageCharacterStatus(args, mockContext)).rejects.toThrow("アクション 'decrease' には数値型の 'value' が必要です。")
+      const result = await manageCharacterStatus(args, mockContext)
+
+      expect('error' in result).toBe(true)
+      if ('error' in result) {
+        expect(result.error).toBe("アクション 'decrease' には数値型の 'value' が必要です。")
+      }
     })
 
-    it('setアクションでvalueが数値でない場合はエラーを投げる', async () => {
+    it('setアクションでvalueが数値でない場合はエラーを返す', async () => {
       const args: FunctionCallArgs = {
         characterName: 'テストキャラ',
         action: 'set',
@@ -317,10 +381,15 @@ describe('manageCharacterStatus', () => {
         value: 'not_a_number',
       }
 
-      await expect(manageCharacterStatus(args, mockContext)).rejects.toThrow("アクション 'set' には数値型の 'value' が必要です。")
+      const result = await manageCharacterStatus(args, mockContext)
+
+      expect('error' in result).toBe(true)
+      if ('error' in result) {
+        expect(result.error).toBe("アクション 'set' には数値型の 'value' が必要です。")
+      }
     })
 
-    it('無効なアクションを指定した場合はエラーを投げる', async () => {
+    it('無効なアクションを指定した場合はエラーを返す', async () => {
       const args: FunctionCallArgs = {
         characterName: 'テストキャラ',
         action: 'invalid_action',
@@ -328,7 +397,12 @@ describe('manageCharacterStatus', () => {
         value: 100,
       }
 
-      await expect(manageCharacterStatus(args, mockContext)).rejects.toThrow('無効なアクションです: invalid_action')
+      const result = await manageCharacterStatus(args, mockContext)
+
+      expect('error' in result).toBe(true)
+      if ('error' in result) {
+        expect(result.error).toBe('無効なアクションです: invalid_action')
+      }
     })
   })
 
@@ -346,6 +420,9 @@ describe('manageCharacterStatus', () => {
       }
 
       const result = await manageCharacterStatus(args, contextWithoutMemory)
+
+      expect('error' in result).toBe(false)
+      if ('error' in result) return
 
       expect(result.characterName).toBe('テストキャラ')
       expect(contextWithoutMemory.persistentMemory).toBeDefined()
@@ -393,6 +470,11 @@ describe('manageCharacterStatus', () => {
         },
         mockContext
       )
+
+      expect('error' in result1).toBe(false)
+      if ('error' in result1) return
+      expect('error' in result2).toBe(false)
+      if ('error' in result2) return
 
       expect(result1.value).toBe(100)
       expect(result2.value).toBe(80)
@@ -448,6 +530,11 @@ describe('manageCharacterStatus', () => {
         },
         mockContext
       )
+
+      expect('error' in hpResult).toBe(false)
+      if ('error' in hpResult) return
+      expect('error' in mpResult).toBe(false)
+      if ('error' in mpResult) return
 
       expect(hpResult.value).toBe(80)
       expect(mpResult.value).toBe(50)

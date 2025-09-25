@@ -43,13 +43,18 @@ const timers = new Map<string, { endTime: number; duration: number }>()
 export async function manageTimer(
   args: FunctionCallArgs,
   context: FunctionExecutionContext
-): Promise<{
-  action: string
-  timerName: string
-  status: string
-  remainingTime?: number
-  duration?: number
-}> {
+): Promise<
+  | {
+      action: string
+      timerName: string
+      status: string
+      remainingTime?: number
+      duration?: number
+    }
+  | {
+      error: string
+    }
+> {
   logger.info(`[Function Calling] manageTimerが呼び出されました。コンテキスト:`, { component: 'manageTimer' }, context)
 
   const action = args.action as string
@@ -59,14 +64,14 @@ export async function manageTimer(
   if (!timerName) {
     const errorMsg = 'タイマー名(timerName)は必須です。'
     logger.info(`[Function Calling] manageTimer: ${errorMsg}`, { component: 'manageTimer' })
-    throw new Error(errorMsg)
+    return { error: errorMsg }
   }
 
   try {
     switch (action) {
       case 'start': {
         if (typeof durationMinutes !== 'number' || durationMinutes <= 0) {
-          throw new Error('タイマーを開始するには、0より大きい分数(durationMinutes)が必要です。')
+          return { error: 'タイマーを開始するには、0より大きい分数(durationMinutes)が必要です。' }
         }
         const endTime = Date.now() + durationMinutes * 60 * 1000
         timers.set(timerName, { endTime, duration: durationMinutes })
@@ -82,7 +87,7 @@ export async function manageTimer(
       case 'check': {
         const timer = timers.get(timerName)
         if (!timer) {
-          throw new Error(`タイマー "${timerName}" が見つかりません。`)
+          return { error: `タイマー "${timerName}" が見つかりません。` }
         }
         const remainingTime = Math.max(0, timer.endTime - Date.now())
         const remainingMinutes = Math.ceil(remainingTime / (60 * 1000))
@@ -99,7 +104,7 @@ export async function manageTimer(
 
       case 'stop': {
         if (!timers.has(timerName)) {
-          throw new Error(`タイマー "${timerName}" が見つかりません。`)
+          return { error: `タイマー "${timerName}" が見つかりません。` }
         }
         timers.delete(timerName)
         logger.info(`[Function Calling] manageTimer: タイマー停止: ${timerName}`, { component: 'manageTimer' })
@@ -111,11 +116,11 @@ export async function manageTimer(
       }
 
       default:
-        throw new Error(`無効なアクションです: ${action}`)
+        return { error: `無効なアクションです: ${action}` }
     }
   } catch (error) {
     logger.info(`[Function Calling] manageTimerでエラーが発生しました:`, { component: 'manageTimer' }, error)
-    throw new Error(`タイマー操作中にエラーが発生しました: ${(error as Error).message}`)
+    return { error: `タイマー操作中にエラーが発生しました: ${(error as Error).message}` }
   }
 }
 

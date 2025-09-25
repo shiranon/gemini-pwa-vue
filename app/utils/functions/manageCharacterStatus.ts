@@ -43,15 +43,20 @@ import { logger } from '~/utils/logger'
 export async function manageCharacterStatus(
   args: FunctionCallArgs,
   context: FunctionExecutionContext
-): Promise<{
-  characterName: string
-  statusKey: string
-  action: string
-  value?: number
-  oldValue?: number
-  newValue?: number
-  message: string
-}> {
+): Promise<
+  | {
+      characterName: string
+      statusKey: string
+      action: string
+      value?: number
+      oldValue?: number
+      newValue?: number
+      message: string
+    }
+  | {
+      error: string
+    }
+> {
   logger.info(`[Function Calling] manageCharacterStatusが呼び出されました。コンテキスト:`, { component: 'manageCharacterStatus' }, context)
 
   const characterName = args.characterName as string
@@ -62,13 +67,13 @@ export async function manageCharacterStatus(
   if (!characterName || !action || !statusKey) {
     const errorMsg = "引数 'characterName', 'action', 'statusKey' は必須です。"
     logger.info(`[Function Calling] manageCharacterStatus: ${errorMsg}`, { component: 'manageCharacterStatus' })
-    throw new Error(errorMsg)
+    return { error: errorMsg }
   }
 
   if (['set', 'increase', 'decrease'].includes(action) && typeof value !== 'number') {
     const errorMsg = `アクション '${action}' には数値型の 'value' が必要です。`
     logger.info(`[Function Calling] manageCharacterStatus: ${errorMsg}`, { component: 'manageCharacterStatus' })
-    throw new Error(errorMsg)
+    return { error: errorMsg }
   }
 
   try {
@@ -146,11 +151,11 @@ export async function manageCharacterStatus(
       }
 
       default:
-        throw new Error(`無効なアクションです: ${action}`)
+        return { error: `無効なアクションです: ${action}` }
     }
   } catch (error) {
     logger.info(`[Function Calling] manageCharacterStatusでエラーが発生しました:`, { component: 'manageCharacterStatus' }, error)
-    throw new Error(`キャラクターステータス操作中にエラーが発生しました: ${(error as Error).message}`)
+    return { error: `キャラクターステータス操作中にエラーが発生しました: ${(error as Error).message}` }
   }
 }
 

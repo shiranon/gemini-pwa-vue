@@ -119,7 +119,7 @@ export async function manageStyleProfile(
     }
   } catch (error) {
     logger.info(`[Function Calling] manageStyleProfileでエラーが発生しました:`, { component: 'manageStyleProfile' }, error)
-    throw new Error(`スタイルプロファイルの管理中にエラーが発生しました: ${(error as Error).message}`)
+    return { error: `スタイルプロファイルの管理中にエラーが発生しました: ${(error as Error).message}` }
   }
 }
 

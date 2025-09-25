@@ -23,10 +23,13 @@ describe('manageTimer', () => {
 
       const result = await manageTimer(args, mockContext)
 
-      expect(result.action).toBe('start')
-      expect(result.timerName).toBe('test-timer')
-      expect(result.status).toBe('開始しました')
-      expect(result.duration).toBe(5)
+      expect('error' in result).toBe(false)
+      if (!('error' in result)) {
+        expect(result.action).toBe('start')
+        expect(result.timerName).toBe('test-timer')
+        expect(result.status).toBe('開始しました')
+        expect(result.duration).toBe(5)
+      }
     })
 
     it('開始したタイマーの状態を確認できる', async () => {
@@ -47,12 +50,15 @@ describe('manageTimer', () => {
 
       const result = await manageTimer(args, mockContext)
 
-      expect(result.action).toBe('check')
-      expect(result.timerName).toBe('test-timer')
-      expect(result.status).toBe('実行中')
-      expect(result.remainingTime).toBeGreaterThan(0)
-      expect(result.remainingTime).toBeLessThanOrEqual(10)
-      expect(result.duration).toBe(10)
+      expect('error' in result).toBe(false)
+      if (!('error' in result)) {
+        expect(result.action).toBe('check')
+        expect(result.timerName).toBe('test-timer')
+        expect(result.status).toBe('実行中')
+        expect(result.remainingTime).toBeGreaterThan(0)
+        expect(result.remainingTime).toBeLessThanOrEqual(10)
+        expect(result.duration).toBe(10)
+      }
     })
 
     it('タイマーを停止できる', async () => {
@@ -73,9 +79,12 @@ describe('manageTimer', () => {
 
       const result = await manageTimer(args, mockContext)
 
-      expect(result.action).toBe('stop')
-      expect(result.timerName).toBe('test-timer')
-      expect(result.status).toBe('停止しました')
+      expect('error' in result).toBe(false)
+      if (!('error' in result)) {
+        expect(result.action).toBe('stop')
+        expect(result.timerName).toBe('test-timer')
+        expect(result.status).toBe('停止しました')
+      }
     })
 
     it('複数のタイマーを同時に管理できる', async () => {
@@ -115,10 +124,14 @@ describe('manageTimer', () => {
         mockContext
       )
 
-      expect(result1.timerName).toBe('timer1')
-      expect(result1.duration).toBe(5)
-      expect(result2.timerName).toBe('timer2')
-      expect(result2.duration).toBe(10)
+      expect('error' in result1).toBe(false)
+      expect('error' in result2).toBe(false)
+      if (!('error' in result1) && !('error' in result2)) {
+        expect(result1.timerName).toBe('timer1')
+        expect(result1.duration).toBe(5)
+        expect(result2.timerName).toBe('timer2')
+        expect(result2.duration).toBe(10)
+      }
     })
 
     it('短い期間のタイマーを開始できる', async () => {
@@ -130,10 +143,13 @@ describe('manageTimer', () => {
 
       const result = await manageTimer(args, mockContext)
 
-      expect(result.action).toBe('start')
-      expect(result.timerName).toBe('short-timer')
-      expect(result.status).toBe('開始しました')
-      expect(result.duration).toBe(0.1)
+      expect('error' in result).toBe(false)
+      if (!('error' in result)) {
+        expect(result.action).toBe('start')
+        expect(result.timerName).toBe('short-timer')
+        expect(result.status).toBe('開始しました')
+        expect(result.duration).toBe(0.1)
+      }
     })
 
     it('長い期間のタイマーを開始できる', async () => {
@@ -145,68 +161,101 @@ describe('manageTimer', () => {
 
       const result = await manageTimer(args, mockContext)
 
-      expect(result.action).toBe('start')
-      expect(result.timerName).toBe('long-timer')
-      expect(result.status).toBe('開始しました')
-      expect(result.duration).toBe(1440)
+      expect('error' in result).toBe(false)
+      if (!('error' in result)) {
+        expect(result.action).toBe('start')
+        expect(result.timerName).toBe('long-timer')
+        expect(result.status).toBe('開始しました')
+        expect(result.duration).toBe(1440)
+      }
     })
   })
 
   describe('異常系', () => {
-    it('timerNameが未指定の場合はエラーを投げる', async () => {
+    it('timerNameが未指定の場合はエラーを返す', async () => {
       const args: FunctionCallArgs = {
         action: 'start',
         durationMinutes: 5,
       }
 
-      await expect(manageTimer(args, mockContext)).rejects.toThrow('タイマー名(timerName)は必須です。')
+      const result = await manageTimer(args, mockContext)
+
+      expect('error' in result).toBe(true)
+      if ('error' in result) {
+        expect(result.error).toBe('タイマー名(timerName)は必須です。')
+      }
     })
 
-    it('startアクションでdurationMinutesが0の場合はエラーを投げる', async () => {
+    it('startアクションでdurationMinutesが0の場合はエラーを返す', async () => {
       const args: FunctionCallArgs = {
         action: 'start',
         timerName: 'test-timer',
         durationMinutes: 0,
       }
 
-      await expect(manageTimer(args, mockContext)).rejects.toThrow('タイマーを開始するには、0より大きい分数(durationMinutes)が必要です。')
+      const result = await manageTimer(args, mockContext)
+
+      expect('error' in result).toBe(true)
+      if ('error' in result) {
+        expect(result.error).toBe('タイマーを開始するには、0より大きい分数(durationMinutes)が必要です。')
+      }
     })
 
-    it('startアクションでdurationMinutesが負の数の場合はエラーを投げる', async () => {
+    it('startアクションでdurationMinutesが負の数の場合はエラーを返す', async () => {
       const args: FunctionCallArgs = {
         action: 'start',
         timerName: 'test-timer',
         durationMinutes: -1,
       }
 
-      await expect(manageTimer(args, mockContext)).rejects.toThrow('タイマーを開始するには、0より大きい分数(durationMinutes)が必要です。')
+      const result = await manageTimer(args, mockContext)
+
+      expect('error' in result).toBe(true)
+      if ('error' in result) {
+        expect(result.error).toBe('タイマーを開始するには、0より大きい分数(durationMinutes)が必要です。')
+      }
     })
 
-    it('存在しないタイマーを確認しようとした場合はエラーを投げる', async () => {
+    it('存在しないタイマーを確認しようとした場合はエラーを返す', async () => {
       const args: FunctionCallArgs = {
         action: 'check',
         timerName: 'non-existent-timer',
       }
 
-      await expect(manageTimer(args, mockContext)).rejects.toThrow('タイマー "non-existent-timer" が見つかりません。')
+      const result = await manageTimer(args, mockContext)
+
+      expect('error' in result).toBe(true)
+      if ('error' in result) {
+        expect(result.error).toBe('タイマー "non-existent-timer" が見つかりません。')
+      }
     })
 
-    it('存在しないタイマーを停止しようとした場合はエラーを投げる', async () => {
+    it('存在しないタイマーを停止しようとした場合はエラーを返す', async () => {
       const args: FunctionCallArgs = {
         action: 'stop',
         timerName: 'non-existent-timer',
       }
 
-      await expect(manageTimer(args, mockContext)).rejects.toThrow('タイマー "non-existent-timer" が見つかりません。')
+      const result = await manageTimer(args, mockContext)
+
+      expect('error' in result).toBe(true)
+      if ('error' in result) {
+        expect(result.error).toBe('タイマー "non-existent-timer" が見つかりません。')
+      }
     })
 
-    it('無効なアクションを指定した場合はエラーを投げる', async () => {
+    it('無効なアクションを指定した場合はエラーを返す', async () => {
       const args: FunctionCallArgs = {
         action: 'invalid_action',
         timerName: 'test-timer',
       }
 
-      await expect(manageTimer(args, mockContext)).rejects.toThrow('無効なアクションです: invalid_action')
+      const result = await manageTimer(args, mockContext)
+
+      expect('error' in result).toBe(true)
+      if ('error' in result) {
+        expect(result.error).toBe('無効なアクションです: invalid_action')
+      }
     })
   })
 
@@ -232,15 +281,18 @@ describe('manageTimer', () => {
       )
 
       // 停止したタイマーを確認しようとする
-      await expect(
-        manageTimer(
-          {
-            action: 'check',
-            timerName: 'test-timer',
-          },
-          mockContext
-        )
-      ).rejects.toThrow('タイマー "test-timer" が見つかりません。')
+      const result = await manageTimer(
+        {
+          action: 'check',
+          timerName: 'test-timer',
+        },
+        mockContext
+      )
+
+      expect('error' in result).toBe(true)
+      if ('error' in result) {
+        expect(result.error).toBe('タイマー "test-timer" が見つかりません。')
+      }
     })
 
     it('停止したタイマーは再度停止できない', async () => {
@@ -264,15 +316,18 @@ describe('manageTimer', () => {
       )
 
       // 停止したタイマーを再度停止しようとする
-      await expect(
-        manageTimer(
-          {
-            action: 'stop',
-            timerName: 'test-timer',
-          },
-          mockContext
-        )
-      ).rejects.toThrow('タイマー "test-timer" が見つかりません。')
+      const result = await manageTimer(
+        {
+          action: 'stop',
+          timerName: 'test-timer',
+        },
+        mockContext
+      )
+
+      expect('error' in result).toBe(true)
+      if ('error' in result) {
+        expect(result.error).toBe('タイマー "test-timer" が見つかりません。')
+      }
     })
   })
 
@@ -296,8 +351,11 @@ describe('manageTimer', () => {
         mockContext
       )
 
-      expect(result.remainingTime).toBeLessThanOrEqual(10)
-      expect(result.remainingTime).toBeGreaterThan(0)
+      expect('error' in result).toBe(false)
+      if (!('error' in result)) {
+        expect(result.remainingTime).toBeLessThanOrEqual(10)
+        expect(result.remainingTime).toBeGreaterThan(0)
+      }
     })
 
     it('残り時間は分単位で切り上げられる', async () => {
@@ -319,8 +377,11 @@ describe('manageTimer', () => {
         mockContext
       )
 
-      expect(result.remainingTime).toBeGreaterThan(0)
-      expect(Number.isInteger(result.remainingTime)).toBe(true)
+      expect('error' in result).toBe(false)
+      if (!('error' in result)) {
+        expect(result.remainingTime).toBeGreaterThan(0)
+        expect(Number.isInteger(result.remainingTime)).toBe(true)
+      }
     })
   })
 

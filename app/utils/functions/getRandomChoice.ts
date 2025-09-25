@@ -47,7 +47,7 @@ export async function getRandomChoice(args: FunctionCallArgs, context: FunctionE
     return result
   } catch (error) {
     logger.info(`[Function Calling] getRandomChoiceでエラーが発生しました:`, { component: 'getRandomChoice' }, error)
-    throw new Error(`ランダム選択中にエラーが発生しました: ${(error as Error).message}`)
+    return { error: `ランダム選択中にエラーが発生しました: ${(error as Error).message}` }
   }
 }
 

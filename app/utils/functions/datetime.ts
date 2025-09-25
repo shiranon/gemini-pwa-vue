@@ -24,12 +24,17 @@ import { logger } from '~/utils/logger'
 export async function getCurrentDateTime(
   args: FunctionCallArgs,
   context: FunctionExecutionContext
-): Promise<{
-  date: string
-  weekday: string
-  time: string
-  timezone: string
-}> {
+): Promise<
+  | {
+      date: string
+      weekday: string
+      time: string
+      timezone: string
+    }
+  | {
+      error: string
+    }
+> {
   logger.info(`[Function Calling] getCurrentDateTimeが呼び出されました。コンテキスト:`, { component: 'getCurrentDateTime' }, context)
 
   try {
@@ -67,7 +72,7 @@ export async function getCurrentDateTime(
     return result
   } catch (error) {
     logger.info(`[Function Calling] getCurrentDateTimeでエラーが発生しました:`, { component: 'getCurrentDateTime' }, error)
-    throw new Error(`時刻の取得中にエラーが発生しました: ${(error as Error).message}`)
+    return { error: `時刻の取得中にエラーが発生しました: ${(error as Error).message}` }
   }
 }
 

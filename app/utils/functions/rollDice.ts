@@ -39,20 +39,25 @@ import { logger } from '~/utils/logger'
 export async function rollDice(
   args: FunctionCallArgs,
   context: FunctionExecutionContext
-): Promise<{
-  expression: string
-  rolls: number[]
-  sum: number
-  modifier: string
-  total: number
-}> {
+): Promise<
+  | {
+      expression: string
+      rolls: number[]
+      sum: number
+      modifier: string
+      total: number
+    }
+  | {
+      error: string
+    }
+> {
   logger.info(`[Function Calling] rollDiceが呼び出されました。コンテキスト:`, { component: 'rollDice' }, context)
 
   const expression = args.expression as string
   if (!expression) {
     const errorMsg = 'ダイス式が指定されていません。'
     logger.info(`[Function Calling] rollDice: ${errorMsg}`, { component: 'rollDice' })
-    throw new Error(errorMsg)
+    return { error: errorMsg }
   }
 
   const diceRegex = /^(?<count>\d+)d(?<sides>\d+)(?:(?<modifierOp>[+-])(?<modifierVal>\d+))?$/i
@@ -61,7 +66,7 @@ export async function rollDice(
   if (!match) {
     const errorMsg = '無効なダイス形式です。「(個数)d(面数)+(補正値)」の形式で指定してください。(例: 1d6, 2d10+5)'
     logger.info(`[Function Calling] rollDice: ${errorMsg}`, { component: 'rollDice' })
-    throw new Error(errorMsg)
+    return { error: errorMsg }
   }
 
   const { count, sides, modifierOp, modifierVal } = match.groups!
@@ -70,13 +75,13 @@ export async function rollDice(
   const numModifier = modifierVal ? Number.parseInt(modifierVal, 10) : 0
 
   if (numCount < 1 || numCount > 100) {
-    throw new Error('ダイスの個数は1個から100個までです。')
+    return { error: 'ダイスの個数は1個から100個までです。' }
   }
   if (numSides < 1 || numSides > 1000) {
-    throw new Error('ダイスの面数は1面から1000面までです。')
+    return { error: 'ダイスの面数は1面から1000面までです。' }
   }
   if (numModifier > 10000) {
-    throw new Error('補正値は10000までです。')
+    return { error: '補正値は10000までです。' }
   }
 
   try {
@@ -107,7 +112,7 @@ export async function rollDice(
     return result
   } catch (error) {
     logger.info(`[Function Calling] rollDiceで予期せぬエラー:`, { component: 'rollDice' }, error)
-    throw new Error(`ダイスロール中に予期せぬエラーが発生しました: ${(error as Error).message}`)
+    return { error: `ダイスロール中に予期せぬエラーが発生しました: ${(error as Error).message}` }
   }
 }
 
