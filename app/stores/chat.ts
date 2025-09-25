@@ -745,8 +745,9 @@ export const useChatStore = defineStore('chat', () => {
 
   /** 現在のメッセージリストを取得（要約フラグを考慮） */
   const currentMessages = computed(() => {
-    // 要約フラグがあるメッセージ以降の履歴のみを取得
-    const messagesToSend = getMessagesAfterLastSummary()
+    // 要約機能が有効な場合は要約フラグがあるメッセージ以降の履歴のみを取得
+    // 無効な場合は全てのメッセージを取得
+    const messagesToSend = settingsStore.settings.enableSummary ? getMessagesAfterLastSummary() : visibleMessages.value
 
     return messagesToSend.map((msg) => ({
       role: msg.role,

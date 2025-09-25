@@ -285,18 +285,16 @@ const canSummarize = computed(() => {
 })
 
 const summarizeChat = async () => {
-  if (!canSummarize.value) return
+  if (!canSummarize.value || isSummarizing.value) return // 二重実行防止
 
   try {
     isSummarizing.value = true
 
+    // 型ガードを使用してパフォーマンスを最適化
+    const isAssistantMessage = (msg: Message): msg is AssistantMessage => msg.role === 'assistant'
+
     // 要約対象のメッセージを取得（要約フラグがあるメッセージ以降）
-    const messagesToSummarize = chatStore.visibleMessages.filter((msg) => {
-      if (msg.role === 'assistant') {
-        return !(msg as AssistantMessage).isSummary
-      }
-      return true
-    })
+    const messagesToSummarize = chatStore.visibleMessages.filter((msg) => !isAssistantMessage(msg) || !msg.isSummary)
 
     if (messagesToSummarize.length === 0) {
       toast.info('要約するメッセージがありません')

@@ -211,6 +211,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 import type { SettingsProfile } from '~/types/settings'
 import { truncateText } from '~/lib/format'
 import { useProfileImageUpload } from '~/composables/useImageUpload'
+import { PROFILE_NAME_MAX_LENGTH } from '~/constants/ui'
 
 const props = defineProps<{
   profiles: SettingsProfile[]
@@ -276,7 +277,7 @@ const selectedProfile = computed(() => {
   return props.profiles.find((profile) => profile.id === selectedId.value) ?? null
 })
 
-const truncatedName = computed(() => truncateText(selectedProfile.value?.name ?? '', 20))
+const truncatedName = computed(() => truncateText(selectedProfile.value?.name ?? '', PROFILE_NAME_MAX_LENGTH))
 
 const handleProfileChange = (value: AcceptableValue) => {
   if (value === null || value === undefined) {
