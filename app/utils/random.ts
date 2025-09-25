@@ -26,10 +26,26 @@ export function getRandomElement<T>(array: T[]): T | undefined {
 
 /**
  * 配列からランダムに複数の要素を選択（重複なし）
+ * countが配列長の半分以上の場合、Fisher-Yatesシャッフルを使用してパフォーマンスを向上
  */
 export function getRandomElements<T>(array: T[], count: number): T[] {
+  if (count <= 0) return []
   if (count >= array.length) return [...array]
 
+  // countが配列長の半分以上の場合、シャッフルしてから切り取る方が効率的
+  if (count >= array.length / 2) {
+    const shuffled = [...array]
+
+    // Fisher-Yates shuffle (partial)
+    for (let i = 0; i < count; i++) {
+      const j = i + getRandomIndex(shuffled.length - i)
+      ;[shuffled[i], shuffled[j]] = [shuffled[j]!, shuffled[i]!]
+    }
+
+    return shuffled.slice(0, count)
+  }
+
+  // countが少ない場合は従来の方法（Set使用）
   const result: T[] = []
   const indices = new Set<number>()
 
