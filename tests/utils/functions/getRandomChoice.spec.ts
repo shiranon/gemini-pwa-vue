@@ -248,12 +248,12 @@ describe('getRandomChoice', () => {
   describe('ランダム性のテスト', () => {
     it('複数回実行して異なる結果が得られる', async () => {
       const args: FunctionCallArgs = {
-        choiceList: ['A', 'B', 'C', 'D', 'E'],
+        choiceList: Array.from({ length: 100 }, (_, i) => `option${i}`),
         choiceCount: 1,
       }
 
       const results = []
-      for (let i = 0; i < 10; i++) {
+      for (let i = 0; i < 50; i++) {
         const result = await getRandomChoice(args, mockContext)
         if ('success' in result) {
           results.push(result.results[0])
@@ -262,26 +262,26 @@ describe('getRandomChoice', () => {
         }
       }
 
-      // 全て異なる結果が得られることを確認（確率的に）
+      // 100個の選択肢から50回選ぶので、少なくとも30個以上は異なるはず
       const uniqueResults = new Set(results)
-      expect(uniqueResults.size).toBeGreaterThan(1)
+      expect(uniqueResults.size).toBeGreaterThanOrEqual(30)
     })
 
     it('複数個選択した場合、それぞれがランダム', async () => {
       const args: FunctionCallArgs = {
-        choiceList: ['A', 'B', 'C', 'D', 'E'],
-        choiceCount: 3,
+        choiceList: Array.from({ length: 50 }, (_, i) => `item${i}`),
+        choiceCount: 10,
       }
 
       const result = await getRandomChoice(args, mockContext)
 
       if ('success' in result) {
         expect(result.success).toBe(true)
-        expect(result.results).toHaveLength(3)
+        expect(result.results).toHaveLength(10)
 
-        // 全て異なる結果が得られることを確認（確率的に）
+        // 50個から10個選ぶので、少なくとも大部分は異なるはず
         const uniqueResults = new Set(result.results)
-        expect(uniqueResults.size).toBeGreaterThan(1)
+        expect(uniqueResults.size).toBeGreaterThanOrEqual(7)
       } else {
         fail('Expected success result but got error result')
       }

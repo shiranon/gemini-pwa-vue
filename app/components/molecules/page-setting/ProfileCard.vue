@@ -211,7 +211,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 import type { SettingsProfile } from '~/types/settings'
 import { truncateText } from '~/lib/format'
 import { useProfileImageUpload } from '~/composables/useImageUpload'
-import { PROFILE_NAME_MAX_LENGTH } from '~/constants/ui'
+import { PROFILE_NAME_MAX_LENGTH } from '~/constants/constants'
 
 const props = defineProps<{
   profiles: SettingsProfile[]

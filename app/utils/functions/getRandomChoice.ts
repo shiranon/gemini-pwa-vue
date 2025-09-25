@@ -1,6 +1,9 @@
 import { Type } from '@google/genai'
 import type { FunctionCallArgs, FunctionDeclaration, FunctionExecutionContext } from '~/types/function-calling'
 import { logger } from '~/utils/logger'
+import { getRandomIndex } from '~/utils/random'
+import { isNonEmptyArray, isPositiveInteger, isIntegerInRange } from '~/utils/validation'
+import { LIMITS } from '~/constants/constants'
 
 /**
  * 提供されたリストの中からランダムに項目を選択する関数
@@ -25,21 +28,21 @@ export async function getRandomChoice(args: FunctionCallArgs, context: FunctionE
 
   const { choiceList, choiceCount = 1 } = args as { choiceList: unknown[]; choiceCount?: number }
 
-  if (!Array.isArray(choiceList) || choiceList.length === 0) {
+  if (!isNonEmptyArray(choiceList)) {
     return { error: "引数 'choiceList' は空でない配列である必要があります。" }
   }
-  if (typeof choiceCount !== 'number' || !Number.isInteger(choiceCount) || choiceCount < 1) {
+  if (!isPositiveInteger(choiceCount)) {
     return { error: "引数 'choiceCount' は1以上の整数である必要があります。" }
   }
-  if (choiceCount > 100) {
-    return { error: '一度に選択できる個数は100個までです。' }
+  if (!isIntegerInRange(choiceCount, 1, LIMITS.MAX_CHOICE_COUNT)) {
+    return { error: `一度に選択できる個数は${LIMITS.MAX_CHOICE_COUNT}個までです。` }
   }
 
   try {
     const results = []
     for (let i = 0; i < choiceCount; i++) {
-      const randomIndex = Math.floor(Math.random() * choiceList.length)
-      results.push(choiceList[randomIndex])
+      const index = getRandomIndex(choiceList.length)
+      results.push(choiceList[index])
     }
 
     const result = { success: true, results: results }

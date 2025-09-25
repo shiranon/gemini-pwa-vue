@@ -1,6 +1,9 @@
 import { Type } from '@google/genai'
 import type { FunctionCallArgs, FunctionDeclaration, FunctionExecutionContext } from '~/types/function-calling'
 import { logger } from '~/utils/logger'
+import { getRandomInt } from '~/utils/random'
+import { isInteger, isPositiveInteger, isIntegerInRange } from '~/utils/validation'
+import { LIMITS } from '~/constants/constants'
 
 /**
  * 指定された範囲内のランダムな整数を生成する関数
@@ -40,24 +43,23 @@ export async function getRandomInteger(
   const { min, max, count = 1 } = args
 
   // 引数の検証
-  if (typeof min !== 'number' || typeof max !== 'number' || !Number.isInteger(min) || !Number.isInteger(max)) {
+  if (!isInteger(min) || !isInteger(max)) {
     return { error: "引数 'min' と 'max' は整数である必要があります。" }
   }
   if (min > max) {
     return { error: "引数 'min' は 'max' 以下である必要があります。" }
   }
-  if (typeof count !== 'number' || !Number.isInteger(count) || count < 1) {
+  if (!isPositiveInteger(count)) {
     return { error: "引数 'count' は1以上の整数である必要があります。" }
   }
-  if (count > 100) {
-    return { error: '一度に生成できる個数は100個までです。' }
+  if (!isIntegerInRange(count, 1, LIMITS.MAX_INTEGER_COUNT)) {
+    return { error: `一度に生成できる個数は${LIMITS.MAX_INTEGER_COUNT}個までです。` }
   }
 
   try {
     const results: number[] = []
     for (let i = 0; i < count; i++) {
-      const randomNumber = Math.floor(Math.random() * (max - min + 1)) + min
-      results.push(randomNumber)
+      results.push(getRandomInt(min, max))
     }
 
     const result = { success: true, results }
