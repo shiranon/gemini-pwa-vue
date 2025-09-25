@@ -1,6 +1,9 @@
 import { Type } from '@google/genai'
 import type { FunctionCallArgs, FunctionDeclaration, FunctionExecutionContext } from '~/types/function-calling'
 import { logger } from '~/utils/logger'
+import { getRandomString } from '~/utils/random'
+import { isPositiveInteger, isIntegerInRange } from '~/utils/validation'
+import { LIMITS, CHARSETS } from '~/constants/constants'
 
 /**
  * 指定された条件でランダムな文字列を生成する関数
@@ -39,29 +42,24 @@ export async function generateRandomString(args: FunctionCallArgs, context: Func
     useSymbols?: boolean
   }
 
-  if (typeof stringLength !== 'number' || !Number.isInteger(stringLength) || stringLength < 1) {
+  if (!isPositiveInteger(stringLength)) {
     return { error: "引数 'stringLength' は1以上の整数である必要があります。" }
   }
-  if (stringLength > 128) {
-    return { error: '一度に生成できる文字列の長さは128文字までです。' }
+  if (!isIntegerInRange(stringLength, 1, LIMITS.MAX_STRING_LENGTH)) {
+    return { error: `一度に生成できる文字列の長さは${LIMITS.MAX_STRING_LENGTH}文字までです。` }
   }
-  if (typeof stringCount !== 'number' || !Number.isInteger(stringCount) || stringCount < 1) {
+  if (!isPositiveInteger(stringCount)) {
     return { error: "引数 'stringCount' は1以上の整数である必要があります。" }
   }
-  if (stringCount > 100) {
-    return { error: '一度に生成できる個数は100個までです。' }
+  if (!isIntegerInRange(stringCount, 1, LIMITS.MAX_STRING_COUNT)) {
+    return { error: `一度に生成できる個数は${LIMITS.MAX_STRING_COUNT}個までです。` }
   }
 
-  const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-  const lower = 'abcdefghijklmnopqrstuvwxyz'
-  const numbers = '0123456789'
-  const symbols = '!@#$%^&*()_+-=[]{}|;:,.<>?'
-
   let charSet = ''
-  if (useUppercase) charSet += upper
-  if (useLowercase) charSet += lower
-  if (useNumbers) charSet += numbers
-  if (useSymbols) charSet += symbols
+  if (useUppercase) charSet += CHARSETS.UPPERCASE
+  if (useLowercase) charSet += CHARSETS.LOWERCASE
+  if (useNumbers) charSet += CHARSETS.DIGITS
+  if (useSymbols) charSet += CHARSETS.SYMBOLS
 
   if (charSet.length === 0) {
     return { error: '少なくとも1種類の文字セット（大文字、小文字、数字、記号）を有効にする必要があります。' }
@@ -70,12 +68,7 @@ export async function generateRandomString(args: FunctionCallArgs, context: Func
   try {
     const results = []
     for (let i = 0; i < stringCount; i++) {
-      let randomString = ''
-      for (let j = 0; j < stringLength; j++) {
-        const randomIndex = Math.floor(Math.random() * charSet.length)
-        randomString += charSet[randomIndex]
-      }
-      results.push(randomString)
+      results.push(getRandomString(stringLength, charSet))
     }
 
     const result = { success: true, results: results }
@@ -83,7 +76,7 @@ export async function generateRandomString(args: FunctionCallArgs, context: Func
     return result
   } catch (error) {
     logger.info(`[Function Calling] generateRandomStringでエラーが発生しました:`, { component: 'generateRandomString' }, error)
-    throw new Error(`ランダム文字列生成中にエラーが発生しました: ${(error as Error).message}`)
+    return { error: `ランダム文字列生成中にエラーが発生しました: ${(error as Error).message}` }
   }
 }
 

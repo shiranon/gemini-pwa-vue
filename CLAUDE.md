@@ -243,7 +243,7 @@ tests/
 - **NO @apply directive** - prepare for v4 removal
 - Component-scoped styles avoided
 - Utility classes in templates
-- Prettier formatting with 200 character line width
+- Prettier formatting with Tailwind CSS plugin
 
 ### Git Hooks (Lefthook)
 Pre-commit hooks run in parallel:

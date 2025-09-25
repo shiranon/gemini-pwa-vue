@@ -5,6 +5,9 @@
 import { Type } from '@google/genai'
 import type { FunctionCallArgs, FunctionDeclaration, FunctionExecutionContext } from '~/types/function-calling'
 import { logger } from '~/utils/logger'
+import { getRandomInt } from '~/utils/random'
+import { isIntegerInRange } from '~/utils/validation'
+import { LIMITS } from '~/constants/constants'
 
 /**
  * ダイスロールを実行する関数
@@ -39,20 +42,25 @@ import { logger } from '~/utils/logger'
 export async function rollDice(
   args: FunctionCallArgs,
   context: FunctionExecutionContext
-): Promise<{
-  expression: string
-  rolls: number[]
-  sum: number
-  modifier: string
-  total: number
-}> {
+): Promise<
+  | {
+      expression: string
+      rolls: number[]
+      sum: number
+      modifier: string
+      total: number
+    }
+  | {
+      error: string
+    }
+> {
   logger.info(`[Function Calling] rollDiceが呼び出されました。コンテキスト:`, { component: 'rollDice' }, context)
 
   const expression = args.expression as string
   if (!expression) {
     const errorMsg = 'ダイス式が指定されていません。'
     logger.info(`[Function Calling] rollDice: ${errorMsg}`, { component: 'rollDice' })
-    throw new Error(errorMsg)
+    return { error: errorMsg }
   }
 
   const diceRegex = /^(?<count>\d+)d(?<sides>\d+)(?:(?<modifierOp>[+-])(?<modifierVal>\d+))?$/i
@@ -61,29 +69,30 @@ export async function rollDice(
   if (!match) {
     const errorMsg = '無効なダイス形式です。「(個数)d(面数)+(補正値)」の形式で指定してください。(例: 1d6, 2d10+5)'
     logger.info(`[Function Calling] rollDice: ${errorMsg}`, { component: 'rollDice' })
-    throw new Error(errorMsg)
+    return { error: errorMsg }
   }
 
   const { count, sides, modifierOp, modifierVal } = match.groups!
   const numCount = Number.parseInt(count!, 10)
   const numSides = Number.parseInt(sides!, 10)
   const numModifier = modifierVal ? Number.parseInt(modifierVal, 10) : 0
+  const finalModifier = modifierOp === '-' ? -numModifier : numModifier
 
-  if (numCount < 1 || numCount > 100) {
-    throw new Error('ダイスの個数は1個から100個までです。')
+  if (!isIntegerInRange(numCount, 1, LIMITS.MAX_DICE_COUNT)) {
+    return { error: `ダイスの個数は1個から${LIMITS.MAX_DICE_COUNT}個までです。` }
   }
-  if (numSides < 1 || numSides > 1000) {
-    throw new Error('ダイスの面数は1面から1000面までです。')
+  if (!isIntegerInRange(numSides, 1, LIMITS.MAX_DICE_SIDES)) {
+    return { error: `ダイスの面数は1面から${LIMITS.MAX_DICE_SIDES}面までです。` }
   }
-  if (numModifier > 10000) {
-    throw new Error('補正値は10000までです。')
+  if (Math.abs(finalModifier) > LIMITS.MAX_DICE_MODIFIER) {
+    return { error: `補正値は${LIMITS.MAX_DICE_MODIFIER}までです。` }
   }
 
   try {
     const rolls: number[] = []
     let sum = 0
     for (let i = 0; i < numCount; i++) {
-      const roll = Math.floor(Math.random() * numSides) + 1
+      const roll = getRandomInt(1, numSides)
       rolls.push(roll)
       sum += roll
     }
@@ -107,7 +116,7 @@ export async function rollDice(
     return result
   } catch (error) {
     logger.info(`[Function Calling] rollDiceで予期せぬエラー:`, { component: 'rollDice' }, error)
-    throw new Error(`ダイスロール中に予期せぬエラーが発生しました: ${(error as Error).message}`)
+    return { error: `ダイスロール中に予期せぬエラーが発生しました: ${(error as Error).message}` }
   }
 }
 

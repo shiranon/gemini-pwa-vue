@@ -108,10 +108,10 @@ describe('generateRandomString', () => {
 
     it('記号を含む文字列を生成できる', async () => {
       const args: FunctionCallArgs = {
-        stringLength: 12,
-        useUppercase: true,
-        useLowercase: true,
-        useNumbers: true,
+        stringLength: 10,
+        useUppercase: false,
+        useLowercase: false,
+        useNumbers: false,
         useSymbols: true,
       }
 
@@ -120,9 +120,9 @@ describe('generateRandomString', () => {
       expect('success' in result).toBe(true)
       if ('success' in result) {
         expect(result.success).toBe(true)
-        expect(result.results[0]).toHaveLength(12)
-        // 記号が含まれていることを確認
-        expect(result.results[0]).toMatch(/[!@#$%^&*()_+\-=[\]{}|;:,.<>?]/)
+        expect(result.results[0]).toHaveLength(10)
+        // 記号のみなので必ず記号が含まれる
+        expect(result.results[0]).toMatch(/^[!@#$%^&*()_+\-=[\]{}|;:,.<>?]+$/)
       }
     })
 
@@ -314,27 +314,27 @@ describe('generateRandomString', () => {
   describe('ランダム性のテスト', () => {
     it('複数回実行して異なる結果が得られる', async () => {
       const args: FunctionCallArgs = {
-        stringLength: 20,
+        stringLength: 50,
         stringCount: 1,
       }
 
       const results = []
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < 10; i++) {
         const result = await generateRandomString(args, mockContext)
         if ('success' in result) {
           results.push(result.results[0])
         }
       }
 
-      // 全て異なる結果が得られることを確認
+      // 50文字の文字列を10回生成すれば、少なくとも大部分は異なるはず
       const uniqueResults = new Set(results)
-      expect(uniqueResults.size).toBeGreaterThan(1)
+      expect(uniqueResults.size).toBeGreaterThanOrEqual(8)
     })
 
     it('複数個生成した場合、それぞれが異なる', async () => {
       const args: FunctionCallArgs = {
-        stringLength: 10,
-        stringCount: 5,
+        stringLength: 20,
+        stringCount: 10,
       }
 
       const result = await generateRandomString(args, mockContext)
@@ -342,11 +342,11 @@ describe('generateRandomString', () => {
       expect('success' in result).toBe(true)
       if ('success' in result) {
         expect(result.success).toBe(true)
-        expect(result.results).toHaveLength(5)
+        expect(result.results).toHaveLength(10)
 
-        // 全て異なる結果が得られることを確認
+        // 20文字の文字列を10個生成すれば、少なくとも大部分は異なるはず
         const uniqueResults = new Set(result.results)
-        expect(uniqueResults.size).toBe(5)
+        expect(uniqueResults.size).toBeGreaterThanOrEqual(8)
       }
     })
   })

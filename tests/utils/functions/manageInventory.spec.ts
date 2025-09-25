@@ -24,13 +24,16 @@ describe('manageInventory', () => {
 
       const result = await manageInventory(args, mockContext)
 
-      expect(result.characterName).toBe('テストキャラ')
-      expect(result.action).toBe('add')
-      expect(result.itemName).toBe('剣')
-      expect(result.quantity).toBe(1)
-      expect(result.currentQuantity).toBe(0)
-      expect(result.newQuantity).toBe(1)
-      expect(result.message).toContain('テストキャラは「剣」を1個手に入れた')
+      expect('error' in result).toBe(false)
+      if (!('error' in result)) {
+        expect(result.characterName).toBe('テストキャラ')
+        expect(result.action).toBe('add')
+        expect(result.itemName).toBe('剣')
+        expect(result.quantity).toBe(1)
+        expect(result.currentQuantity).toBe(0)
+        expect(result.newQuantity).toBe(1)
+        expect(result.message).toContain('テストキャラは「剣」を1個手に入れた')
+      }
     })
 
     it('複数個のアイテムを追加できる', async () => {
@@ -42,6 +45,9 @@ describe('manageInventory', () => {
       }
 
       const result = await manageInventory(args, mockContext)
+
+      expect('error' in result).toBe(false)
+      if ('error' in result) return
 
       expect(result.quantity).toBe(5)
       expect(result.currentQuantity).toBe(0)
@@ -71,6 +77,9 @@ describe('manageInventory', () => {
 
       const result = await manageInventory(args, mockContext)
 
+      expect('error' in result).toBe(false)
+      if ('error' in result) return
+
       expect(result.currentQuantity).toBe(2)
       expect(result.newQuantity).toBe(5)
       expect(result.message).toContain('テストキャラは「剣」を3個手に入れた')
@@ -96,6 +105,9 @@ describe('manageInventory', () => {
       }
 
       const result = await manageInventory(args, mockContext)
+
+      expect('error' in result).toBe(false)
+      if ('error' in result) return
 
       expect(result.action).toBe('remove')
       expect(result.quantity).toBe(2)
@@ -126,6 +138,9 @@ describe('manageInventory', () => {
 
       const result = await manageInventory(args, mockContext)
 
+      expect('error' in result).toBe(false)
+      if ('error' in result) return
+
       expect(result.quantity).toBe(5)
       expect(result.currentQuantity).toBe(3)
       expect(result.newQuantity).toBe(0)
@@ -142,6 +157,9 @@ describe('manageInventory', () => {
       }
 
       const result = await manageInventory(args, mockContext)
+
+      expect('error' in result).toBe(false)
+      if ('error' in result) return
 
       expect(result.action).toBe('remove')
       expect(result.quantity).toBe(1)
@@ -170,6 +188,9 @@ describe('manageInventory', () => {
 
       const result = await manageInventory(args, mockContext)
 
+      expect('error' in result).toBe(false)
+      if ('error' in result) return
+
       expect(result.action).toBe('check')
       expect(result.currentQuantity).toBe(2)
       expect(result.message).toContain('テストキャラは「盾」を2個持っています')
@@ -183,6 +204,9 @@ describe('manageInventory', () => {
       }
 
       const result = await manageInventory(args, mockContext)
+
+      expect('error' in result).toBe(false)
+      if ('error' in result) return
 
       expect(result.action).toBe('check')
       expect(result.currentQuantity).toBe(0)
@@ -198,40 +222,58 @@ describe('manageInventory', () => {
 
       const result = await manageInventory(args, mockContext)
 
+      expect('error' in result).toBe(false)
+      if ('error' in result) return
+
       expect(result.quantity).toBe(1)
       expect(result.newQuantity).toBe(1)
     })
   })
 
   describe('異常系', () => {
-    it('characterNameが未指定の場合はエラーを投げる', async () => {
+    it('characterNameが未指定の場合はエラーを返す', async () => {
       const args: FunctionCallArgs = {
         action: 'add',
         itemName: '剣',
         quantity: 1,
       }
 
-      await expect(manageInventory(args, mockContext)).rejects.toThrow("引数 'characterName', 'action', 'itemName' は必須です。")
+      const result = await manageInventory(args, mockContext)
+
+      expect('error' in result).toBe(true)
+      if ('error' in result) {
+        expect(result.error).toBe("引数 'characterName', 'action', 'itemName' は必須です。")
+      }
     })
 
-    it('actionが未指定の場合はエラーを投げる', async () => {
+    it('actionが未指定の場合はエラーを返す', async () => {
       const args: FunctionCallArgs = {
         characterName: 'テストキャラ',
         itemName: '剣',
         quantity: 1,
       }
 
-      await expect(manageInventory(args, mockContext)).rejects.toThrow("引数 'characterName', 'action', 'itemName' は必須です。")
+      const result = await manageInventory(args, mockContext)
+
+      expect('error' in result).toBe(true)
+      if ('error' in result) {
+        expect(result.error).toBe("引数 'characterName', 'action', 'itemName' は必須です。")
+      }
     })
 
-    it('itemNameが未指定の場合はエラーを投げる', async () => {
+    it('itemNameが未指定の場合はエラーを返す', async () => {
       const args: FunctionCallArgs = {
         characterName: 'テストキャラ',
         action: 'add',
         quantity: 1,
       }
 
-      await expect(manageInventory(args, mockContext)).rejects.toThrow("引数 'characterName', 'action', 'itemName' は必須です。")
+      const result = await manageInventory(args, mockContext)
+
+      expect('error' in result).toBe(true)
+      if ('error' in result) {
+        expect(result.error).toBe("引数 'characterName', 'action', 'itemName' は必須です。")
+      }
     })
 
     it('addアクションでquantityが0の場合はデフォルト値1が使われる', async () => {
@@ -244,13 +286,16 @@ describe('manageInventory', () => {
 
       const result = await manageInventory(args, mockContext)
 
+      expect('error' in result).toBe(false)
+      if ('error' in result) return
+
       expect(result.action).toBe('add')
       expect(result.quantity).toBe(1) // デフォルト値1が使われる
       expect(result.newQuantity).toBe(1)
       expect(result.message).toContain('テストキャラは「剣」を1個手に入れた')
     })
 
-    it('addアクションでquantityが負の数の場合はエラーを投げる', async () => {
+    it('addアクションでquantityが負の数の場合はエラーを返す', async () => {
       const args: FunctionCallArgs = {
         characterName: 'テストキャラ',
         action: 'add',
@@ -258,7 +303,12 @@ describe('manageInventory', () => {
         quantity: -1,
       }
 
-      await expect(manageInventory(args, mockContext)).rejects.toThrow("アクション 'add' には1以上の数値型の 'quantity' が必要です。")
+      const result = await manageInventory(args, mockContext)
+
+      expect('error' in result).toBe(true)
+      if ('error' in result) {
+        expect(result.error).toBe("アクション 'add' には1以上の数値型の 'quantity' が必要です。")
+      }
     })
 
     it('removeアクションでquantityが0の場合はデフォルト値1が使われる', async () => {
@@ -271,13 +321,16 @@ describe('manageInventory', () => {
 
       const result = await manageInventory(args, mockContext)
 
+      expect('error' in result).toBe(false)
+      if ('error' in result) return
+
       expect(result.action).toBe('remove')
       expect(result.quantity).toBe(1) // デフォルト値1が使われる
       expect(result.removedQuantity).toBe(0) // 所持していないので0個削除
       expect(result.message).toContain('テストキャラは「剣」を持っていないため使えなかった')
     })
 
-    it('無効なアクションを指定した場合はエラーを投げる', async () => {
+    it('無効なアクションを指定した場合はエラーを返す', async () => {
       const args: FunctionCallArgs = {
         characterName: 'テストキャラ',
         action: 'invalid_action',
@@ -285,7 +338,12 @@ describe('manageInventory', () => {
         quantity: 1,
       }
 
-      await expect(manageInventory(args, mockContext)).rejects.toThrow('無効なアクションです: invalid_action')
+      const result = await manageInventory(args, mockContext)
+
+      expect('error' in result).toBe(true)
+      if ('error' in result) {
+        expect(result.error).toBe('無効なアクションです: invalid_action')
+      }
     })
   })
 
@@ -303,6 +361,9 @@ describe('manageInventory', () => {
       }
 
       const result = await manageInventory(args, contextWithoutMemory)
+
+      expect('error' in result).toBe(false)
+      if ('error' in result) return
 
       expect(result.characterName).toBe('テストキャラ')
       expect(contextWithoutMemory.persistentMemory).toBeDefined()
@@ -351,6 +412,11 @@ describe('manageInventory', () => {
         mockContext
       )
 
+      expect('error' in result1).toBe(false)
+      if ('error' in result1) return
+      expect('error' in result2).toBe(false)
+      if ('error' in result2) return
+
       expect(result1.currentQuantity).toBe(2)
       expect(result2.currentQuantity).toBe(3)
     })
@@ -378,6 +444,9 @@ describe('manageInventory', () => {
         mockContext
       )
 
+      expect('error' in result).toBe(false)
+      if ('error' in result) return
+
       expect(result.newQuantity).toBe(0)
       expect(result.removedQuantity).toBe(2)
 
@@ -390,6 +459,9 @@ describe('manageInventory', () => {
         },
         mockContext
       )
+
+      expect('error' in checkResult).toBe(false)
+      if ('error' in checkResult) return
 
       expect(checkResult.currentQuantity).toBe(0)
     })

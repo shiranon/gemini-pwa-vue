@@ -43,16 +43,21 @@ import { logger } from '~/utils/logger'
 export async function manageInventory(
   args: FunctionCallArgs,
   context: FunctionExecutionContext
-): Promise<{
-  characterName: string
-  action: string
-  itemName: string
-  quantity?: number
-  currentQuantity?: number
-  newQuantity?: number
-  removedQuantity?: number
-  message: string
-}> {
+): Promise<
+  | {
+      characterName: string
+      action: string
+      itemName: string
+      quantity?: number
+      currentQuantity?: number
+      newQuantity?: number
+      removedQuantity?: number
+      message: string
+    }
+  | {
+      error: string
+    }
+> {
   logger.info(`[Function Calling] manageInventoryが呼び出されました。コンテキスト:`, { component: 'manageInventory' }, context)
 
   const characterName = args.characterName as string
@@ -63,13 +68,13 @@ export async function manageInventory(
   if (!characterName || !action || !itemName) {
     const errorMsg = "引数 'characterName', 'action', 'itemName' は必須です。"
     logger.info(`[Function Calling] manageInventory: ${errorMsg}`, { component: 'manageInventory' })
-    throw new Error(errorMsg)
+    return { error: errorMsg }
   }
 
   if (['add', 'remove'].includes(action) && (typeof quantity !== 'number' || quantity <= 0)) {
     const errorMsg = `アクション '${action}' には1以上の数値型の 'quantity' が必要です。`
     logger.info(`[Function Calling] manageInventory: ${errorMsg}`, { component: 'manageInventory' })
-    throw new Error(errorMsg)
+    return { error: errorMsg }
   }
 
   try {
@@ -160,11 +165,11 @@ export async function manageInventory(
       }
 
       default:
-        throw new Error(`無効なアクションです: ${action}`)
+        return { error: `無効なアクションです: ${action}` }
     }
   } catch (error) {
     logger.info(`[Function Calling] manageInventoryでエラーが発生しました:`, { component: 'manageInventory' }, error)
-    throw new Error(`インベントリ操作中にエラーが発生しました: ${(error as Error).message}`)
+    return { error: `インベントリ操作中にエラーが発生しました: ${(error as Error).message}` }
   }
 }
 
