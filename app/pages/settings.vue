@@ -44,14 +44,19 @@
           @update-profile-setting="handleUpdateProfileSetting"
         />
 
-        <DummyPromptSettingsSection
+        <FeatureSettingsSection
           :local-settings="localSettings as AppSettings"
           :local-profile-settings="localProfileSettings as SettingsProfileData"
           @update-setting="handleUpdateSetting"
           @update-profile-setting="handleUpdateProfileSetting"
         />
 
-        <FeatureSettingsSection
+        <AdvancedSettingsSection
+          :local-settings="localSettings as AppSettings"
+          @update-setting="handleUpdateSetting"
+        />
+
+        <DummyPromptSettingsSection
           :local-settings="localSettings as AppSettings"
           :local-profile-settings="localProfileSettings as SettingsProfileData"
           @update-setting="handleUpdateSetting"
@@ -85,11 +90,20 @@
           @update-setting="handleUpdateSetting"
         />
 
-        <ThoughtTranslationSettingsSection :local-settings="localSettings as AppSettings" />
+        <ThoughtTranslationSettingsSection
+          :local-settings="localSettings as AppSettings"
+          @update-setting="handleUpdateSetting"
+        />
 
-        <ProofreadingSettingsSection :local-settings="localSettings as AppSettings" />
+        <ProofreadingSettingsSection
+          :local-settings="localSettings as AppSettings"
+          @update-setting="handleUpdateSetting"
+        />
 
-        <AdvancedSettingsSection :local-settings="localSettings as AppSettings" />
+        <SummarySettingsSection
+          :local-settings="localSettings as AppSettings"
+          @update-setting="handleUpdateSetting"
+        />
 
         <div
           v-if="lastSavedAt"
@@ -144,6 +158,7 @@ import ApiSettingsSection from '~/components/organisms/page-setting/ApiSettingsS
 import PerformanceSettingsSection from '~/components/organisms/page-setting/PerformanceSettingsSection.vue'
 import ThoughtTranslationSettingsSection from '~/components/organisms/page-setting/ThoughtTranslationSettingsSection.vue'
 import ProofreadingSettingsSection from '~/components/organisms/page-setting/ProofreadingSettingsSection.vue'
+import SummarySettingsSection from '~/components/organisms/page-setting/SummarySettingsSection.vue'
 import FeatureSettingsSection from '~/components/organisms/page-setting/FeatureSettingsSection.vue'
 import FunctionCallingSettingsSection from '~/components/organisms/page-setting/FunctionCallingSettingsSection.vue'
 import ThemeSettingsSection from '~/components/organisms/page-setting/ThemeSettingsSection.vue'

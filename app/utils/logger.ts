@@ -88,6 +88,10 @@ class Logger {
    * 開発時のみ出力されるデバッグログ
    */
   debug(message: string, context?: LogContext, ...args: unknown[]): void {
+    // テスト環境では何もしない（ログレベルがwarnのため）
+    if (this.environment === 'test') {
+      return
+    }
     this.log('debug', message, context, ...args)
   }
 

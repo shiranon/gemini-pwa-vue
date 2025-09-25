@@ -22,8 +22,8 @@ import type {
 import type { AppSettings, SettingsProfileData } from '~/types/settings'
 import { DEFAULT_SETTINGS } from '~/types/settings'
 import { logger } from '~/utils/logger'
-import { cloneProfileSettings, extractGlobalSettings, extractProfileSettings, mergeProfilePartial, mergeSettingsFromSlices } from '~/utils/settingsPartition'
 import type { GlobalSettingsSnapshot, ProfileSettingKey } from '~/utils/settingsPartition'
+import { cloneProfileSettings, extractGlobalSettings, extractProfileSettings, mergeProfilePartial, mergeSettingsFromSlices } from '~/utils/settingsPartition'
 
 export const DB_NAME = 'GeminiPWADatabase'
 
@@ -80,6 +80,21 @@ export class GeminiDatabase extends Dexie {
       })
       .upgrade(() => {
         logger.info('プロファイル機能のためにバージョン3へアップグレード中...', { component: 'Database' })
+      })
+    this.version(4)
+      .stores({})
+      .upgrade(async (tx) => {
+        logger.info('要約機能のためにバージョン4へアップグレード中...', { component: 'Database' })
+
+        // 既存のメッセージにisSummaryフラグを追加
+        const messages = await tx.table('messages').toArray()
+        const updatedMessages = messages.map((msg: MessageRecord) => ({
+          ...msg,
+          isSummary: false,
+        }))
+
+        await tx.table('messages').bulkPut(updatedMessages)
+        logger.info(`要約フラグを追加しました: ${updatedMessages.length}件のメッセージ`, { component: 'Database' })
       })
 
     this.setupHooks()
@@ -278,6 +293,7 @@ export function messageToRecord(message: Message, chatId: string, order: number)
     updatedAt: message.updatedAt,
     order,
     isProofread: false,
+    isSummary: false,
   }
 
   if (message.role === 'assistant') {

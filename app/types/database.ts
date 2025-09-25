@@ -57,6 +57,8 @@ export interface MessageRecord {
   originalContent?: string
   /** 校正フラグ */
   isProofread: boolean
+  /** 要約フラグ */
+  isSummary: boolean
   /** 作成日時 */
   createdAt: number
   /** 更新日時 */
@@ -422,6 +424,7 @@ export type MessageToRecord = Omit<Message, 'attachments'> & {
   functionResults?: string
   citations?: string
   isProofread: boolean
+  isSummary: boolean
   order: number
 }
 

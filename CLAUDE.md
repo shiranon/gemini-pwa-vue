@@ -16,7 +16,9 @@ A Nuxt 3 Progressive Web App for Gemini AI chat interactions, specifically desig
 - `bun run typecheck` - Run TypeScript type checking
 - `bun run lint` - Run ESLint
 - `bun lint --fix` - Auto-fix ESLint issues
-- `bun run test` - Run Vitest tests with TZ=Asia/Tokyo
+- `bun format:fix` - Format code with Prettier
+- `bun run test` - Run all Vitest tests with TZ=Asia/Tokyo
+- `bun test [file]` - Run specific test file (e.g., `bun test rollDice.spec.ts`)
 - `bun run check-all` - Run lint --fix, typecheck, and test in sequence
 - `bun run generate` - Generate static site
 - `bun run preview` - Preview production build on http://localhost:8880
@@ -143,6 +145,7 @@ TRPG-specific utilities for game mechanics:
 - `generateRandomString` - Random string generation
 - `datetime` - Date/time utilities
 - `timer` - Timer functionality
+- `summarize` - Chat summarization functionality
 
 ### Data Flow Patterns
 
@@ -215,6 +218,12 @@ tests/
     └── [other function tests]
 ```
 
+### Running Tests
+- Run all tests: `bun test`
+- Run specific test file: `bun test [filename]` (e.g., `bun test rollDice.spec.ts`)
+- Tests run with TZ=Asia/Tokyo timezone for consistency
+- Vitest configuration in `vitest.config.ts`
+
 ## Code Standards
 
 ### Component Patterns
@@ -234,6 +243,7 @@ tests/
 - **NO @apply directive** - prepare for v4 removal
 - Component-scoped styles avoided
 - Utility classes in templates
+- Prettier formatting with 200 character line width
 
 ### Git Hooks (Lefthook)
 Pre-commit hooks run in parallel:
@@ -299,6 +309,7 @@ Pre-commit hooks run in parallel:
 After code changes, always run:
 ```bash
 bun lint --fix    # Auto-fix linting issues
+bun format:fix    # Format code with Prettier
 bun typecheck     # Verify TypeScript types
 bun test          # Run unit tests
 bun run build     # Confirm production build
