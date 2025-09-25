@@ -1,9 +1,10 @@
 import { computed, ref, watch } from 'vue'
 import { useSettingsStore } from '~/stores/settings'
 import type { AppSettings } from '~/types/settings'
+import { deepEqual } from '~/utils/comparison'
 import { logger } from '~/utils/logger'
-import { extractGlobalSettings } from '~/utils/settingsPartition'
 import type { GlobalSettingKey } from '~/utils/settingsPartition'
+import { extractGlobalSettings } from '~/utils/settingsPartition'
 
 // ダイアログ関数の型定義
 interface DialogFunctions {
@@ -33,11 +34,7 @@ export function useSettings(dialogs: DialogFunctions) {
       const currentValue = currentGlobal[key]
       const localValue = localGlobal[key]
 
-      if (typeof currentValue === 'object' && currentValue !== null) {
-        if (JSON.stringify(currentValue) !== JSON.stringify(localValue)) {
-          return true
-        }
-      } else if (currentValue !== localValue) {
+      if (!deepEqual(currentValue, localValue)) {
         return true
       }
     }
