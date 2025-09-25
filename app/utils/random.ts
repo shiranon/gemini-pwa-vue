@@ -64,9 +64,8 @@ export function getRandomElements<T>(array: T[], count: number): T[] {
  * ランダムな文字列を生成
  */
 export function getRandomString(length: number, charset: string = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'): string {
-  let result = ''
-  for (let i = 0; i < length; i++) {
-    result += charset.charAt(getRandomIndex(charset.length))
-  }
-  return result
+  const chars = Array(length)
+    .fill(0)
+    .map(() => charset.charAt(getRandomIndex(charset.length)))
+  return chars.join('')
 }

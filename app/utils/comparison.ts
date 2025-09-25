@@ -33,12 +33,12 @@
  */
 
 /**
- * 2つの値を深く比較する
+ * 2つの値を深く比較する（循環参照に対応）
  * @param a 比較対象の値A
  * @param b 比較対象の値B
  * @returns 値が等しいかどうか
  */
-export function deepEqual<T>(a: T, b: T): boolean {
+export function deepEqual<T>(a: T, b: T, visited = new WeakSet<object>()): boolean {
   // 同じ参照の場合は true
   if (a === b) return true
 
@@ -51,11 +51,17 @@ export function deepEqual<T>(a: T, b: T): boolean {
   // プリミティブ型の比較
   if (typeof a !== 'object') return a === b
 
+  // 循環参照のチェック
+  if (typeof a === 'object' && a !== null) {
+    if (visited.has(a as object)) return a === b
+    visited.add(a as object)
+  }
+
   // 配列の比較
   if (Array.isArray(a) && Array.isArray(b)) {
     if (a.length !== b.length) return false
     for (let i = 0; i < a.length; i++) {
-      if (!deepEqual(a[i], b[i])) return false
+      if (!deepEqual(a[i], b[i], visited)) return false
     }
     return true
   }
@@ -75,9 +81,10 @@ export function deepEqual<T>(a: T, b: T): boolean {
 
     if (keysA.length !== keysB.length) return false
 
+    const keySetB = new Set(keysB)
     for (const key of keysA) {
-      if (!keysB.includes(key)) return false
-      if (!deepEqual((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key])) return false
+      if (!keySetB.has(key)) return false
+      if (!deepEqual((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key], visited)) return false
     }
     return true
   }
