@@ -20,7 +20,6 @@
             icon="material-symbols:save"
             class="h-4 w-4"
           />
-          {{ saving ? '保存中...' : '設定を保存' }}
         </Button>
 
         <Button
@@ -31,7 +30,6 @@
             icon="material-symbols:refresh"
             class="h-4 w-4"
           />
-          リセット
         </Button>
 
         <div class="min-w-48">

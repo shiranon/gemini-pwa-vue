@@ -69,13 +69,13 @@
           >
             {{ isSending ? '送信中...' : '送信' }}
           </Button>
-          <Button
-            :disabled="isSending || !canSummarize"
-            class="p-2 text-lg"
-            @click="summarizeChat"
-          >
-            {{ isSummarizing ? '要約中...' : '要約' }}
-          </Button>
+          <QuickActionsModal
+            :disabled="isSending"
+            button-label="アクション"
+            :can-summarize="canSummarize"
+            :is-summarizing="isSummarizing"
+            @summarize="summarizeChat"
+          />
         </div>
       </div>
     </div>
@@ -99,6 +99,7 @@ import MessageWithAvatar from '~/components/molecules/page-chat/MessageWithAvata
 import MessageBubble from '~/components/molecules/page-chat/MessageBubble.vue'
 import SystemPromptEditor from '~/components/molecules/page-chat/SystemPromptEditor.vue'
 import RetryConfirmDialog from '~/components/molecules/dialogs/RetryConfirmDialog.vue'
+import QuickActionsModal from '~/components/molecules/page-chat/QuickActionsModal.vue'
 import { Button } from '~/components/ui/button'
 import { hexToRgba } from '~/utils/color'
 import type { ApiError, ChatMessage, AttachedFile, Message, AssistantMessage } from '~/types/chat'
