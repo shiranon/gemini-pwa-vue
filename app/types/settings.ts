@@ -125,8 +125,8 @@ export interface AvatarConfig {
 
 /** アバター設定 */
 export interface AvatarSettings {
-  enabled: boolean
-  size: number // アイコンサイズ(px): 10-150
+  avatarEnabled: boolean
+  avatarSize: number // アイコンサイズ(px): 10-150
   defaultUserAvatar: AvatarConfig
   defaultAssistantAvatar: AvatarConfig
 }
@@ -304,8 +304,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   prependDummyModelToResponse: false,
 
   // アバター設定
-  enabled: true,
-  size: 32, // デフォルト32px
+  avatarEnabled: false,
+  avatarSize: 32, // デフォルト32px
   defaultUserAvatar: {},
   defaultAssistantAvatar: {},
 

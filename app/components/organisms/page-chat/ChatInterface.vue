@@ -20,7 +20,7 @@
         :key="`${message.timestamp}-${index}`"
       >
         <MessageWithAvatar
-          v-if="settingsStore.settings.enabled"
+          v-if="settingsStore.settings.avatarEnabled"
           :message="message"
           :options="{
             showTimestamp: true,

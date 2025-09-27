@@ -1,5 +1,5 @@
 <template>
-  <div class="mx-auto mb-8 w-full max-w-5xl flex-1 items-center justify-between px-4">
+  <div class="mx-auto mb-8 w-full max-w-5xl flex-1 items-center justify-between px-2">
     <SettingsHeader
       :is-dirty="globalIsDirty || profileIsDirty"
       :saving="globalSaving || profileSaving"
@@ -10,7 +10,7 @@
       @update:selected-profile-id="(value) => value && handleSelectProfile(value)"
     />
 
-    <ProfileSelector
+    <ProfileSettingSection
       class="mt-4"
       :profiles="profiles"
       :active-profile-id="activeProfileId"
@@ -153,7 +153,7 @@ import AlertDialog from '~/components/molecules/dialogs/AlertDialog.vue'
 import ConfirmDialog from '~/components/molecules/dialogs/ConfirmDialog.vue'
 import SettingsHeader from '~/components/molecules/page-setting/SettingsHeader.vue'
 import ProfileDialog from '~/components/molecules/page-setting/ProfileDialog.vue'
-import ProfileSelector from '~/components/molecules/page-setting/ProfileSelector.vue'
+import ProfileSettingSection from '~/components/organisms/page-setting/ProfileSettingSection.vue'
 import ApiSettingsSection from '~/components/organisms/page-setting/ApiSettingsSection.vue'
 import PerformanceSettingsSection from '~/components/organisms/page-setting/PerformanceSettingsSection.vue'
 import ThoughtTranslationSettingsSection from '~/components/organisms/page-setting/ThoughtTranslationSettingsSection.vue'
@@ -343,7 +343,7 @@ const handleResetProfile = async (profileId: string) => {
   const profile = profiles.value.find((p) => p.id === profileId)
   if (!profile) return
 
-  const confirmed = await showConfirm(`「${profile.name}」の設定をデフォルト値にリセットしてもよろしいですか？\n\nこの操作は取り消せません。`, 'プロファイル設定のリセット')
+  const confirmed = await showConfirm(`「${profile.name}」の設定をデフォルト値にリセットしてもよろしいですか？ この操作は取り消せません。`, 'プロファイル設定のリセット')
 
   if (confirmed) {
     try {

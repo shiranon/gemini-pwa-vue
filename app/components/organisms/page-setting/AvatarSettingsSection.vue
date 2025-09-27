@@ -6,10 +6,10 @@
   >
     <div class="space-y-6">
       <SettingToggle
-        :model-value="localSettings.enabled"
+        :model-value="localSettings.avatarEnabled"
         label="アイコン表示"
         description="メッセージにアイコンを表示する"
-        @update:model-value="(value: boolean) => updateLocalSetting('enabled', value)"
+        @update:model-value="(value: boolean) => updateLocalSetting('avatarEnabled', value)"
       />
 
       <SettingItem
@@ -145,7 +145,7 @@ const props = defineProps<Props>()
 const userAvatarUploader = useAvatarImageUpload()
 const assistantAvatarUploader = useAvatarImageUpload()
 
-const avatarSize = computed(() => props.localSettings.size)
+const avatarSize = computed(() => props.localSettings.avatarSize)
 
 // プレビュー用のdata URL
 const userAvatarPreview = computed(() => props.localSettings.defaultUserAvatar.imageUrl)
@@ -153,15 +153,15 @@ const assistantAvatarPreview = computed(() => props.localSettings.defaultAssista
 
 // プレビュー用の設定
 const avatarPreviewSettings = computed(() => ({
-  enabled: props.localSettings.enabled, // 実際の設定に連動
-  size: props.localSettings.size,
+  avatarEnabled: props.localSettings.avatarEnabled,
+  avatarSize: props.localSettings.avatarSize,
   defaultUserAvatar: props.localSettings.defaultUserAvatar,
   defaultAssistantAvatar: props.localSettings.defaultAssistantAvatar,
 }))
 
 const updateAvatarSize = (value: number) => {
-  const clamped = clamp(Number(value) || props.localSettings.size, 10, 150)
-  props.updateLocalSetting('size', clamped)
+  const clamped = clamp(Number(value) || props.localSettings.avatarSize, 10, 150)
+  props.updateLocalSetting('avatarSize', clamped)
 }
 
 // ファイルアップロード処理
