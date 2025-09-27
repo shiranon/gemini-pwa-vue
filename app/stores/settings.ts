@@ -249,8 +249,8 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   const updateSetting = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
-    if (key === 'enabledFunctionTools' && Array.isArray(value)) {
-      settings.value[key] = cloneEnabledFunctionTools(value) as AppSettings[K]
+    if (key === 'enabledFunctionTools' && Array.isArray(value) && typeof value[0] === 'string') {
+      settings.value[key] = cloneEnabledFunctionTools(value as string[]) as AppSettings[K]
     } else {
       settings.value[key] = value
     }

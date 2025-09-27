@@ -65,7 +65,20 @@ export function useProfileSettings() {
    */
   const loadFromActiveProfile = () => {
     if (!profilesStore.activeProfile) {
-      logger.warn('アクティブプロファイルがありません')
+      logger.warn('アクティブプロファイルがありません。デフォルト設定を使用します。')
+
+      // プロファイルが存在しない場合はデフォルト設定を使用
+      const defaultSettings = profilesStore.defaultProfileSettings
+      localProfileSettings.value = {
+        ...defaultSettings,
+        enabledFunctionTools: [...defaultSettings.enabledFunctionTools],
+      }
+
+      originalProfileSettings.value = {
+        ...defaultSettings,
+        enabledFunctionTools: [...defaultSettings.enabledFunctionTools],
+      }
+
       return
     }
 
@@ -213,6 +226,32 @@ export function useProfileSettings() {
     }
   )
 
+  /**
+   * プロファイル設定を更新（一時的な変更）
+   */
+  const updateProfileSetting = <K extends keyof SettingsProfileData>(key: K, value: SettingsProfileData[K]) => {
+    if (key === 'enabledFunctionTools' && Array.isArray(value)) {
+      localProfileSettings.value = {
+        ...localProfileSettings.value,
+        [key]: [...value],
+      }
+    } else {
+      localProfileSettings.value = {
+        ...localProfileSettings.value,
+        [key]: value,
+      }
+    }
+    logger.info(`[Profile Settings] 一時的な設定変更: ${key}`, { component: 'useProfileSettings' })
+  }
+
+  /**
+   * ローカル設定をリセット
+   */
+  const resetLocalProfileSettings = () => {
+    loadFromActiveProfile()
+    logger.info('[Profile Settings] ローカル設定をリセットしました', { component: 'useProfileSettings' })
+  }
+
   return {
     // 状態
     localProfileSettings: readonly(localProfileSettings),
@@ -226,5 +265,7 @@ export function useProfileSettings() {
     resetChanges,
     resetToDefaults,
     loadFromActiveProfile,
+    updateProfileSetting,
+    resetLocalProfileSettings,
   }
 }

@@ -212,6 +212,9 @@ export interface AppSettings
   dummyModelPrompt: string
   // 保存時にモデル応答の先頭へダミーモデル文を連結
   prependDummyModelToResponse: boolean
+  // プロファイル管理
+  styleProfiles?: SettingsProfile[]
+  currentProfileId?: string
 }
 
 /** 設定のデフォルト値 */
@@ -305,6 +308,10 @@ export const DEFAULT_SETTINGS: AppSettings = {
   size: 32, // デフォルト32px
   defaultUserAvatar: {},
   defaultAssistantAvatar: {},
+
+  // プロファイル管理
+  styleProfiles: [],
+  currentProfileId: 'default',
 } as const
 
 /** 設定値のバリデーション関数の型 */

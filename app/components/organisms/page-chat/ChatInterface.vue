@@ -52,9 +52,26 @@
       </template>
     </div>
 
-    <div class="border-border bg-background/90 sticky bottom-0 z-20 border-t p-4 shadow-lg backdrop-blur">
+    <div class="border-border bg-background/90 sticky bottom-0 z-20 border-t p-2 shadow-lg backdrop-blur">
       <div class="flex gap-2">
+        <div class="flex flex-col gap-1">
+          <QuickActionsModal
+            :disabled="isSending"
+            button-label="アクション"
+            :can-summarize="canSummarize"
+            :is-summarizing="isSummarizing"
+            @summarize="summarizeChat"
+          />
+          <Button
+            :disabled="isSending"
+            class="size-10 rounded-full p-2 text-lg"
+            @click="sendMessage"
+          >
+            <Icon icon="icon-park-solid:scan-setting" />
+          </Button>
+        </div>
         <textarea
+          id="chat-input"
           v-model="inputText"
           :disabled="isSending"
           placeholder="メッセージを入力..."
@@ -67,15 +84,15 @@
             class="p-2 text-lg"
             @click="sendMessage"
           >
-            {{ isSending ? '中...' : '送' }}
+            <div v-if="isSending">
+              <Icon
+                icon="line-md:loading-alt-loop"
+                width="24"
+                height="24"
+              />
+            </div>
+            <div v-else>送</div>
           </Button>
-          <QuickActionsModal
-            :disabled="isSending"
-            button-label="アクション"
-            :can-summarize="canSummarize"
-            :is-summarizing="isSummarizing"
-            @summarize="summarizeChat"
-          />
         </div>
       </div>
     </div>
@@ -101,6 +118,7 @@ import SystemPromptEditor from '~/components/molecules/page-chat/SystemPromptEdi
 import RetryConfirmDialog from '~/components/molecules/dialogs/RetryConfirmDialog.vue'
 import QuickActionsModal from '~/components/molecules/page-chat/QuickActionsModal.vue'
 import { Button } from '~/components/ui/button'
+import { Icon } from '@iconify/vue'
 import { hexToRgba } from '~/utils/color'
 import type { ApiError, ChatMessage, AttachedFile, Message, AssistantMessage } from '~/types/chat'
 import { toast } from 'vue-sonner'
