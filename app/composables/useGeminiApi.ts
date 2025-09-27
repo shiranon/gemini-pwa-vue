@@ -116,7 +116,12 @@ export const useGeminiApi = () => {
     // 有効時のみFunction Callingツールを追加
     if (settings.functionCalling?.enabled) {
       const enabledFunctions = getEnabledFunctionDeclarations()
-      logger.info('[関数呼び出し] 有効な関数:', { component: 'useGeminiApi' }, enabledFunctions)
+      logger.info('[関数呼び出し] 有効な関数:', {
+        component: 'useGeminiApi',
+        count: enabledFunctions.length,
+        names: enabledFunctions.map((f) => f.name),
+        functions: enabledFunctions,
+      })
 
       let functionDeclarations = enabledFunctions
       if (settings.functionCalling.allowedFunctionNames?.length) {

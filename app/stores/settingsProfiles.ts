@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { useFunctionCalling } from '~/composables/useFunctionCalling'
 import { loadSettingsProfiles as loadProfilesFromDB, saveSettingsProfiles as saveProfilesToDB } from '~/lib/database'
 import type { AppSettings, SettingsProfile, SettingsProfileData } from '~/types/settings'
 import { DEFAULT_SETTINGS } from '~/types/settings'
@@ -15,6 +16,9 @@ export const useSettingsProfilesStore = defineStore('settingsProfiles', () => {
 
   // 一時的な設定変更を管理
   const temporarySettings = ref<Partial<SettingsProfileData>>({})
+
+  // Function Callingの管理
+  const { setFunctionEnablement } = useFunctionCalling()
 
   const activeProfile = computed(() => {
     if (!activeProfileId.value) return null
@@ -159,6 +163,12 @@ export const useSettingsProfilesStore = defineStore('settingsProfiles', () => {
     if (profileId && !profiles.value.find((p) => p.id === profileId)) {
       throw new Error(`プロファイルが見つかりません: ${profileId}`)
     }
+
+    // プロファイルが変更される前に一時的な設定をクリア
+    if (activeProfileId.value !== profileId) {
+      clearTemporarySettings()
+    }
+
     activeProfileId.value = profileId
     logger.info('アクティブプロファイルを変更', { profileId })
   }
@@ -296,6 +306,18 @@ export const useSettingsProfilesStore = defineStore('settingsProfiles', () => {
     temporarySettings.value = {}
     logger.info('[Profile Store] 一時的な設定をクリアしました')
   }
+
+  // プロファイル設定のenabledFunctionToolsを監視してFunction Callingを更新
+  watch(
+    () => activeProfileSettingsWithTemporary.value.enabledFunctionTools,
+    (enabledNames) => {
+      if (enabledNames && enabledNames.length > 0) {
+        setFunctionEnablement([...enabledNames])
+        logger.info('[Profile Store] Function Calling設定を更新', { enabledNames })
+      }
+    },
+    { immediate: true }
+  )
 
   const initialize = async () => {
     await loadProfiles()

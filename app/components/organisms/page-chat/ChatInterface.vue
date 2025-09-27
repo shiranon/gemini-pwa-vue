@@ -107,6 +107,7 @@
 </template>
 
 <script setup lang="ts">
+import { onBeforeRouteLeave } from 'vue-router'
 import { useChatStore } from '~/stores/chat'
 import { useSettingsStore } from '~/stores/settings'
 import { useSettingsProfilesStore } from '~/stores/settingsProfiles'
@@ -134,6 +135,11 @@ const geminiStore = useGeminiStore()
 const { syncLocalSettings } = useSettings({
   showAlert: () => {},
   showConfirm: () => Promise.resolve(true),
+})
+
+// ページを離れる時に一時的な設定をクリア
+onBeforeRouteLeave(() => {
+  profilesStore.clearTemporarySettings()
 })
 
 const inputText = ref('')
