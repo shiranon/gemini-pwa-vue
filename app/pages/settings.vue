@@ -90,17 +90,17 @@
           @update-setting="handleUpdateSetting"
         />
 
-        <ThoughtTranslationSettingsSection
-          :local-settings="localSettings as AppSettings"
-          @update-setting="handleUpdateSetting"
-        />
-
         <ProofreadingSettingsSection
           :local-settings="localSettings as AppSettings"
           @update-setting="handleUpdateSetting"
         />
 
         <SummarySettingsSection
+          :local-settings="localSettings as AppSettings"
+          @update-setting="handleUpdateSetting"
+        />
+
+        <ThoughtTranslationSettingsSection
           :local-settings="localSettings as AppSettings"
           @update-setting="handleUpdateSetting"
         />

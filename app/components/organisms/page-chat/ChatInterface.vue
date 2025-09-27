@@ -67,7 +67,7 @@
             class="p-2 text-lg"
             @click="sendMessage"
           >
-            {{ isSending ? '送信中...' : '送信' }}
+            {{ isSending ? '中...' : '送' }}
           </Button>
           <QuickActionsModal
             :disabled="isSending"

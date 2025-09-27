@@ -232,7 +232,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   thinkingBudget: null,
 
   // Gemini拡張機能
-  streamingOutput: true,
+  streamingOutput: false,
   enableThinking: false,
   includeThoughts: false,
 
@@ -289,8 +289,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   messageOpacity: 0.9,
 
   // ナビゲーション
-  enterToSend: false,
-  enableSwipeNavigation: true,
+  enterToSend: true,
+  enableSwipeNavigation: false,
   hideSystemPromptInChat: false,
 
   // ダミープロンプト（送信時のみ適用）

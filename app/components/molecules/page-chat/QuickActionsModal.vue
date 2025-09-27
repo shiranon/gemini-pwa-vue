@@ -3,10 +3,9 @@
     <DialogTrigger as-child>
       <Button
         :disabled="disabled"
-        class="p-2 text-lg"
+        class="p-0"
       >
-        <Settings2 class="mr-2 h-5 w-5" />
-        {{ buttonLabel }}
+        <Icon icon="icon-park-solid:scan-setting" />
       </Button>
     </DialogTrigger>
     <DialogContent class="max-w-2xl">
@@ -38,7 +37,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Settings2 } from 'lucide-vue-next'
+import { Icon } from '@iconify/vue'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '~/components/ui/dialog'
 import { Button } from '~/components/ui/button'
 import QuickActionButton from './QuickActionButton.vue'
