@@ -4,8 +4,8 @@ import { loadSettingsProfiles as loadProfilesFromDB, saveSettingsProfiles as sav
 import type { AppSettings, SettingsProfile, SettingsProfileData } from '~/types/settings'
 import { DEFAULT_SETTINGS } from '~/types/settings'
 import { logger } from '~/utils/logger'
-import { cloneProfileSettings, extractProfileSettings, mergeProfilePartial } from '~/utils/settingsPartition'
 import type { ProfileSettingKey } from '~/utils/settingsPartition'
+import { cloneProfileSettings, extractProfileSettings, mergeProfilePartial } from '~/utils/settingsPartition'
 
 export const useSettingsProfilesStore = defineStore('settingsProfiles', () => {
   const profiles = ref<SettingsProfile[]>([])
@@ -268,6 +268,7 @@ export const useSettingsProfilesStore = defineStore('settingsProfiles', () => {
     duplicateProfile,
     setActiveProfile,
     applyProfileToSettings,
+    saveProfiles,
     exportProfile,
     importProfile,
 

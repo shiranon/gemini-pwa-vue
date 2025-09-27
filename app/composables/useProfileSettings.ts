@@ -75,7 +75,7 @@ export function useProfileSettings() {
       enabledFunctionTools: [...profileSettings.enabledFunctionTools],
     }
 
-    // オリジナル設定を保存
+    // オリジナル設定を保存（プロファイル切り替え時にリセット）
     originalProfileSettings.value = {
       ...profileSettings,
       enabledFunctionTools: [...profileSettings.enabledFunctionTools],

@@ -300,12 +300,21 @@ const profileDialogOpen = ref(false)
 const profileDialogMode = ref<'create' | 'edit'>('create')
 const editingProfile = ref<import('~/types/settings').SettingsProfile | null>(null)
 
-const handleSelectProfile = (profileId: string) => {
-  // プロファイルを切り替えるだけ（保存はしない）
-  profilesStore.applyProfileToSettings(profileId)
-  // ローカル設定を更新して表示を切り替える
-  syncLocalSettings()
-  // プロファイル設定も自動的に読み込まれる（useProfileSettingsのwatchで）
+const handleSelectProfile = async (profileId: string) => {
+  try {
+    // プロファイルを切り替えて即座に保存
+    profilesStore.applyProfileToSettings(profileId)
+    await profilesStore.saveProfiles() // アクティブプロファイルを永続化
+
+    // ローカル設定を更新して表示を切り替える
+    syncLocalSettings()
+    // プロファイル設定も自動的に読み込まれる（useProfileSettingsのwatchで）
+
+    logger.info('プロファイルを切り替えて保存しました', { profileId })
+  } catch (error) {
+    logger.error('プロファイル切り替え時の保存に失敗', { component: 'settings' }, error)
+    showAlert('プロファイルの切り替えに失敗しました', 'エラー')
+  }
 }
 
 const handleCreateProfile = () => {

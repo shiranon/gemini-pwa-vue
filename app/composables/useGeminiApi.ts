@@ -404,8 +404,8 @@ export const useGeminiApi = () => {
             }
           })
 
-          // Function Call結果送信時はAUTOモードを使用（ANYモードから切り替え）
-          const resultToolConfig = buildToolConfig(settings, 'auto')
+          // Function Call結果送信時はNONEモードを使用
+          const resultToolConfig = buildToolConfig(settings, 'none')
 
           const finalResult = await genAI.models.generateContent({
             model: settings.model,
@@ -641,8 +641,8 @@ export const useGeminiApi = () => {
           currentContents: currentContents.map((c) => ({ role: c.role, partsCount: c.parts?.length || 0 })),
         })
 
-        // Function Call結果送信時はAUTOモードを使用（ANYモードから切り替え）
-        const resultToolConfig = buildToolConfig(settings, 'auto')
+        // Function Call結果送信時はNONEモードを使用（ANYモードから切り替え）
+        const resultToolConfig = buildToolConfig(settings, 'none')
 
         const finalResult = await genAI.models.generateContentStream({
           model: settings.model,
