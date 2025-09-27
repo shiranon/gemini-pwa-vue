@@ -13,9 +13,23 @@ export const useSettingsProfilesStore = defineStore('settingsProfiles', () => {
   const isLoading = ref(false)
   const isDirty = ref(false)
 
+  // 一時的な設定変更を管理
+  const temporarySettings = ref<Partial<SettingsProfileData>>({})
+
   const activeProfile = computed(() => {
     if (!activeProfileId.value) return null
     return profiles.value.find((p) => p.id === activeProfileId.value) || null
+  })
+
+  // 一時的な設定を含むアクティブプロファイル設定
+  const activeProfileSettingsWithTemporary = computed(() => {
+    const profile = activeProfile.value
+    if (!profile) return defaultProfileSettings
+
+    return {
+      ...profile.settings,
+      ...temporarySettings.value,
+    }
   })
 
   const sortedProfiles = computed(() => {
@@ -247,6 +261,42 @@ export const useSettingsProfilesStore = defineStore('settingsProfiles', () => {
     }
   }
 
+  // 一時的な設定を更新
+  const updateTemporarySetting = <K extends keyof SettingsProfileData>(key: K, value: SettingsProfileData[K]) => {
+    temporarySettings.value = {
+      ...temporarySettings.value,
+      [key]: value,
+    }
+    logger.info(`[Profile Store] 一時的な設定を更新: ${key}`, { value })
+
+    // Function Calling と Google Search の排他制御
+    if (key === 'geminiEnableFunctionCalling' && value === true) {
+      const currentSettings = activeProfileSettingsWithTemporary.value
+      if (currentSettings.geminiEnableGrounding) {
+        temporarySettings.value = {
+          ...temporarySettings.value,
+          geminiEnableGrounding: false,
+        }
+        logger.info('[Profile Store] Function Calling有効化によりGroundingを無効化')
+      }
+    } else if (key === 'geminiEnableGrounding' && value === true) {
+      const currentSettings = activeProfileSettingsWithTemporary.value
+      if (currentSettings.geminiEnableFunctionCalling) {
+        temporarySettings.value = {
+          ...temporarySettings.value,
+          geminiEnableFunctionCalling: false,
+        }
+        logger.info('[Profile Store] Grounding有効化によりFunction Callingを無効化')
+      }
+    }
+  }
+
+  // 一時的な設定をクリア
+  const clearTemporarySettings = () => {
+    temporarySettings.value = {}
+    logger.info('[Profile Store] 一時的な設定をクリアしました')
+  }
+
   const initialize = async () => {
     await loadProfiles()
     logger.info('プロファイルストアを初期化', { profileCount: profiles.value.length })
@@ -258,6 +308,7 @@ export const useSettingsProfilesStore = defineStore('settingsProfiles', () => {
     isLoading,
     isDirty,
     activeProfile,
+    activeProfileSettingsWithTemporary,
     sortedProfiles,
     defaultProfileSettings,
 
@@ -271,6 +322,8 @@ export const useSettingsProfilesStore = defineStore('settingsProfiles', () => {
     saveProfiles,
     exportProfile,
     importProfile,
+    updateTemporarySetting,
+    clearTemporarySettings,
 
     initialize,
   }

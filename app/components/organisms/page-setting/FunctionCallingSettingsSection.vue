@@ -1,10 +1,16 @@
 <template>
   <SettingSection
-    title="Function Calling設定"
+    title="toolConfig設定"
     description="AI関数呼び出し機能の設定"
     single-column
   >
     <div class="flex flex-col gap-4">
+      <SettingToggle
+        :model-value="localProfileSettings.geminiEnableGrounding"
+        label="Google Search"
+        description="Google Searchによる情報取得を有効化"
+        @update:model-value="(value: boolean) => updateProfileSetting('geminiEnableGrounding', value)"
+      />
       <SettingToggle
         :model-value="props.localProfileSettings.geminiEnableFunctionCalling"
         label="Function Calling"

@@ -62,13 +62,12 @@
             :is-summarizing="isSummarizing"
             @summarize="summarizeChat"
           />
-          <Button
-            :disabled="isSending"
-            class="size-10 rounded-full p-2 text-lg"
-            @click="sendMessage"
-          >
-            <Icon icon="icon-park-solid:scan-setting" />
-          </Button>
+          <ProfileSelect
+            :profiles="profiles"
+            :selected-profile-id="selectedProfileId"
+            mode="avatar-only"
+            @update:selected-profile-id="handleProfileChange"
+          />
         </div>
         <textarea
           id="chat-input"
@@ -110,13 +109,16 @@
 <script setup lang="ts">
 import { useChatStore } from '~/stores/chat'
 import { useSettingsStore } from '~/stores/settings'
+import { useSettingsProfilesStore } from '~/stores/settingsProfiles'
 import { useGeminiStore } from '~/stores/gemini'
+import { useSettings } from '~/composables/useSettings'
 import { scrollToBottom } from '~/lib/scroll'
 import MessageWithAvatar from '~/components/molecules/page-chat/MessageWithAvatar.vue'
 import MessageBubble from '~/components/molecules/page-chat/MessageBubble.vue'
 import SystemPromptEditor from '~/components/molecules/page-chat/SystemPromptEditor.vue'
 import RetryConfirmDialog from '~/components/molecules/dialogs/RetryConfirmDialog.vue'
 import QuickActionsModal from '~/components/molecules/page-chat/QuickActionsModal.vue'
+import ProfileSelect from '~/components/molecules/page-setting/ProfileSelect.vue'
 import { Button } from '~/components/ui/button'
 import { Icon } from '@iconify/vue'
 import { hexToRgba } from '~/utils/color'
@@ -126,12 +128,22 @@ import { logger } from '~/utils/logger'
 
 const chatStore = useChatStore()
 const settingsStore = useSettingsStore()
+const profilesStore = useSettingsProfilesStore()
 const geminiStore = useGeminiStore()
+// 設定同期用のメソッドを取得（ダイアログ関数は使用しないので空のスタブを渡す）
+const { syncLocalSettings } = useSettings({
+  showAlert: () => {},
+  showConfirm: () => Promise.resolve(true),
+})
 
 const inputText = ref('')
 const messageContainer = ref<HTMLElement>()
 const backgroundUrl = ref<string | null>(null)
 
+// プロファイル関連の変数
+const profiles = computed(() => profilesStore.sortedProfiles)
+const selectedProfileId = computed(() => profilesStore.activeProfileId)
+// selectedProfile は ProfileAvatarButton 内で使用されるため、ここでは不要
 const backgroundStyle = computed(() => {
   if (!backgroundUrl.value) return {}
   return {
@@ -399,6 +411,26 @@ const handleRetryCancel = () => {
 const scrollToBottomInternal = () => {
   if (messageContainer.value) {
     scrollToBottom(messageContainer.value)
+  }
+}
+
+const handleProfileChange = async (profileId: string | null) => {
+  if (!profileId) return
+
+  try {
+    // プロファイルを切り替えて設定を適用
+    profilesStore.applyProfileToSettings(profileId)
+    await profilesStore.saveProfiles() // アクティブプロファイルを永続化
+
+    // ローカル設定を更新して表示を切り替える
+    syncLocalSettings()
+    // プロファイル設定も自動的に読み込まれる（useProfileSettingsのwatchで）
+
+    logger.info('プロファイルを切り替えて保存しました', { profileId })
+    toast.success('プロファイルを切り替えました')
+  } catch (error) {
+    logger.error('プロファイル切り替え時の保存に失敗', { component: 'ChatInterface' }, error)
+    toast.error('プロファイルの切り替えに失敗しました')
   }
 }
 

@@ -83,6 +83,12 @@ export const useGeminiStore = defineStore('gemini', () => {
   }
 
   const settingsStore = useSettingsStore()
+  const profilesStore = useSettingsProfilesStore()
+
+  // 一時的な設定を含むプロファイル設定を取得
+  const getActiveProfileSettings = () => {
+    return profilesStore.activeProfileSettingsWithTemporary
+  }
 
   type SendChatMessageOptions = {
     content?: string
@@ -629,8 +635,37 @@ export const useGeminiStore = defineStore('gemini', () => {
       chatStore.setInputText(options.content.trim())
     }
 
+    // プロファイル設定とグローバル設定を統合
+    const activeProfile = profilesStore.activeProfile
+    const profileSettings = getActiveProfileSettings()
+    const combinedSettings = activeProfile
+      ? {
+          ...settingsStore.settings,
+          ...profileSettings,
+        }
+      : settingsStore.settings
+
     const settings = {
       ...settingsStore.apiSettings,
+      // プロファイル設定で上書き
+      model: combinedSettings.modelName,
+      temperature: combinedSettings.temperature ?? 1.0,
+      maxTokens: combinedSettings.maxTokens,
+      topK: combinedSettings.topK ?? 1,
+      topP: combinedSettings.topP ?? 0.95,
+      geminiEnableGrounding: combinedSettings.geminiEnableGrounding,
+      functionCalling: combinedSettings.geminiEnableFunctionCalling
+        ? {
+            enabled: true,
+            mode: combinedSettings.functionCallingMode,
+            ...(combinedSettings.functionCallingMode === 'any' && combinedSettings.enabledFunctionTools.length > 0 ? { allowedFunctionNames: [...combinedSettings.enabledFunctionTools] } : {}),
+          }
+        : undefined,
+      enableDummyUserPrompt: combinedSettings.enableDummyUserPrompt,
+      dummyUserPrompt: combinedSettings.dummyUserPrompt,
+      enableDummyModelPrompt: combinedSettings.enableDummyModelPrompt,
+      dummyModelPrompt: combinedSettings.dummyModelPrompt,
+      prependDummyModelToResponse: combinedSettings.prependDummyModelToResponse,
       systemPrompt: chatStore.systemPrompt,
     }
 

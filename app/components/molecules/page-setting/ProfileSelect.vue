@@ -5,11 +5,16 @@
       @update:model-value="handleProfileChange"
     >
       <SelectTrigger
-        class="border-border/60 text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-primary/30 bg-background h-10 w-full rounded-xl border px-3 py-2 text-sm transition focus:ring-2 focus:outline-none"
+        :class="
+          props.mode === 'avatar-only'
+            ? 'hover:bg-muted/50 focus:ring-primary/30 size-10 rounded-full border-0 bg-transparent p-0 focus:ring-2 [&_svg]:hidden'
+            : 'border-border/60 text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-primary/30 bg-background h-10 w-full rounded-xl border px-3 py-2 text-sm transition focus:ring-2 focus:outline-none'
+        "
         :disabled="!profiles.length"
       >
         <slot>
           <SelectValue
+            v-if="props.mode === 'full'"
             class="justify-center"
             :placeholder="placeholder"
           >
@@ -35,6 +40,29 @@
               <span class="truncate">{{ selectedProfile?.name ?? placeholder }}</span>
             </div>
           </SelectValue>
+          <div
+            v-else
+            class="flex h-full w-full items-center justify-center"
+          >
+            <div
+              v-if="selectedProfile?.settings.profileImage"
+              class="h-8 w-8 overflow-hidden rounded-full"
+            >
+              <img
+                :src="selectedProfile.settings.profileImage"
+                :alt="selectedProfile.name"
+                class="h-full w-full object-cover"
+              />
+            </div>
+            <div
+              v-else
+              class="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-pink-400 to-purple-500"
+            >
+              <span class="text-sm font-medium text-white">
+                {{ selectedProfile?.name?.charAt(0)?.toUpperCase() ?? '?' }}
+              </span>
+            </div>
+          </div>
         </slot>
       </SelectTrigger>
       <SelectContent class="mr-6">
@@ -109,11 +137,14 @@ export interface ProfileSelectProps {
   placeholder?: string
   /** ラベルテキスト */
   label?: string
+  /** 表示モード: 'full' (フル表示) または 'avatar-only' (アバターのみ) */
+  mode?: 'full' | 'avatar-only'
 }
 
 const props = withDefaults(defineProps<ProfileSelectProps>(), {
   placeholder: 'プロファイルを選択',
   label: '利用可能なプロファイル',
+  mode: 'full',
 })
 
 const emit = defineEmits<{

@@ -11,13 +11,6 @@
     />
 
     <SettingToggle
-      :model-value="localProfileSettings.geminiEnableGrounding"
-      label="Google Search"
-      description="Google Searchによる情報取得を有効化"
-      @update:model-value="(value: boolean) => updateProfileSetting('geminiEnableGrounding', value)"
-    />
-
-    <SettingToggle
       :model-value="localSettings.hideSystemPromptInChat"
       label="チャットでシステムプロンプトを非表示"
       description="チャット画面でシステムプロンプトを隠す"
@@ -66,9 +59,5 @@ const emit = defineEmits<{
 
 const updateSetting = (key: keyof AppSettings, value: AppSettings[keyof AppSettings]) => {
   emit('update-setting', key, value)
-}
-
-const updateProfileSetting = (key: keyof SettingsProfileData, value: SettingsProfileData[keyof SettingsProfileData]) => {
-  emit('update-profile-setting', key, value)
 }
 </script>

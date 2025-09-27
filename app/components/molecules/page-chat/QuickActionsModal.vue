@@ -11,7 +11,7 @@
     <DialogContent class="max-w-2xl">
       <DialogHeader>
         <DialogTitle>クイック設定</DialogTitle>
-        <DialogDescription>ここでの切り替えはこのチャットでのみ有効です </DialogDescription>
+        <DialogDescription>ここでの設定は保存されません</DialogDescription>
       </DialogHeader>
       <div class="grid grid-cols-4 gap-2 py-2 sm:gap-3 sm:p-4">
         <QuickSettingButton
