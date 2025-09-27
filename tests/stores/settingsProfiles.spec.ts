@@ -1,5 +1,5 @@
+import { beforeEach, describe, expect, it } from 'bun:test'
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it } from 'vitest'
 import { useSettingsProfilesStore } from '~/stores/settingsProfiles'
 import type { SettingsProfile } from '~/types/settings'
 
@@ -87,7 +87,7 @@ describe('useSettingsProfilesStore', () => {
 
     it('activeProfileが正しく取得される', () => {
       store.activeProfileId = 'profile-1'
-      expect(store.activeProfile).toEqual(store.profiles[0])
+      expect(store.activeProfile).toEqual(store.profiles[0] || null)
     })
 
     it('activeProfileがnullの場合、nullを返す', () => {
@@ -354,6 +354,253 @@ describe('useSettingsProfilesStore', () => {
       expect(profile.createdAt).toBeLessThanOrEqual(afterCreate)
       expect(profile.updatedAt).toBeGreaterThanOrEqual(beforeCreate)
       expect(profile.updatedAt).toBeLessThanOrEqual(afterCreate)
+    })
+  })
+
+  describe('新機能: 一時的な設定管理', () => {
+    let testProfile: SettingsProfile
+
+    beforeEach(() => {
+      testProfile = {
+        id: 'test-profile',
+        name: 'テストプロファイル',
+        description: 'テスト用',
+        settings: {
+          modelName: 'gemini-1.5-pro',
+          systemPrompt: 'テストプロンプト',
+          maxTokens: 1000,
+          temperature: 0.7,
+          topK: 40,
+          topP: 0.95,
+          presencePenalty: 0,
+          frequencyPenalty: 0,
+          thinkingBudget: null,
+          geminiEnableFunctionCalling: false,
+          functionCallingMode: 'auto',
+          enabledFunctionTools: [],
+          geminiEnableGrounding: false,
+          enableDummyUserPrompt: false,
+          dummyUserPrompt: '',
+          enableDummyModelPrompt: false,
+          dummyModelPrompt: '',
+          prependDummyModelToResponse: false,
+        },
+        isDefault: false,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      }
+
+      store.profiles = [testProfile]
+      store.activeProfileId = testProfile.id
+    })
+
+    it('updateTemporarySettingで一時的な設定を更新できる', () => {
+      store.updateTemporarySetting('modelName', 'temporary-model')
+
+      const settingsWithTemporary = store.activeProfileSettingsWithTemporary
+      expect(settingsWithTemporary.modelName).toBe('temporary-model')
+      expect(settingsWithTemporary.systemPrompt).toBe('テストプロンプト') // 元の設定は保持
+    })
+
+    it('配列の一時的な設定を更新できる', () => {
+      store.updateTemporarySetting('enabledFunctionTools', ['tool1', 'tool2'])
+
+      const settingsWithTemporary = store.activeProfileSettingsWithTemporary
+      expect(settingsWithTemporary.enabledFunctionTools).toEqual(['tool1', 'tool2'])
+    })
+
+    it('clearTemporarySettingsで一時的な設定をクリアできる', () => {
+      // 一時的な設定を追加
+      store.updateTemporarySetting('modelName', 'temporary-model')
+      store.updateTemporarySetting('temperature', 0.9)
+
+      // クリア
+      store.clearTemporarySettings()
+
+      // 元の設定に戻っていることを確認
+      const settingsWithTemporary = store.activeProfileSettingsWithTemporary
+      expect(settingsWithTemporary.modelName).toBe('gemini-1.5-pro')
+      expect(settingsWithTemporary.temperature).toBe(0.7)
+    })
+
+    it('プロファイル切り替え時に一時的な設定がクリアされる', () => {
+      // 一時的な設定を追加
+      store.updateTemporarySetting('modelName', 'temporary-model')
+
+      // 別のプロファイルに切り替え
+      const anotherProfile: SettingsProfile = {
+        id: 'another-profile',
+        name: '別のプロファイル',
+        description: 'テスト用',
+        settings: {
+          modelName: 'gemini-1.5-flash',
+          systemPrompt: '別のプロンプト',
+          maxTokens: 2000,
+          temperature: 0.5,
+          topK: 20,
+          topP: 0.9,
+          presencePenalty: 0,
+          frequencyPenalty: 0,
+          thinkingBudget: null,
+          geminiEnableFunctionCalling: false,
+          functionCallingMode: 'auto',
+          enabledFunctionTools: [],
+          geminiEnableGrounding: false,
+          enableDummyUserPrompt: false,
+          dummyUserPrompt: '',
+          enableDummyModelPrompt: false,
+          dummyModelPrompt: '',
+          prependDummyModelToResponse: false,
+        },
+        isDefault: false,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      }
+
+      store.profiles.push(anotherProfile)
+      store.setActiveProfile(anotherProfile.id)
+
+      // 一時的な設定がクリアされていることを確認
+      const settingsWithTemporary = store.activeProfileSettingsWithTemporary
+      expect(settingsWithTemporary.modelName).toBe('gemini-1.5-flash')
+    })
+  })
+
+  describe('新機能: Function Calling と Google Search の排他制御', () => {
+    let testProfile: SettingsProfile
+
+    beforeEach(() => {
+      testProfile = {
+        id: 'test-profile',
+        name: 'テストプロファイル',
+        description: 'テスト用',
+        settings: {
+          modelName: 'gemini-1.5-pro',
+          systemPrompt: 'テストプロンプト',
+          maxTokens: 1000,
+          temperature: 0.7,
+          topK: 40,
+          topP: 0.95,
+          presencePenalty: 0,
+          frequencyPenalty: 0,
+          thinkingBudget: null,
+          geminiEnableFunctionCalling: false,
+          functionCallingMode: 'auto',
+          enabledFunctionTools: [],
+          geminiEnableGrounding: false,
+          enableDummyUserPrompt: false,
+          dummyUserPrompt: '',
+          enableDummyModelPrompt: false,
+          dummyModelPrompt: '',
+          prependDummyModelToResponse: false,
+        },
+        isDefault: false,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      }
+
+      store.profiles = [testProfile]
+      store.activeProfileId = testProfile.id
+    })
+
+    it('Function Callingを有効にするとGoogle Searchが無効になる', () => {
+      // Google Searchを先に有効にする
+      store.updateTemporarySetting('geminiEnableGrounding', true)
+      expect(store.activeProfileSettingsWithTemporary.geminiEnableGrounding).toBe(true)
+
+      // Function Callingを有効にする
+      store.updateTemporarySetting('geminiEnableFunctionCalling', true)
+
+      // Google Searchが無効になっていることを確認
+      expect(store.activeProfileSettingsWithTemporary.geminiEnableFunctionCalling).toBe(true)
+      expect(store.activeProfileSettingsWithTemporary.geminiEnableGrounding).toBe(false)
+    })
+
+    it('Google Searchを有効にするとFunction Callingが無効になる', () => {
+      // Function Callingを先に有効にする
+      store.updateTemporarySetting('geminiEnableFunctionCalling', true)
+      expect(store.activeProfileSettingsWithTemporary.geminiEnableFunctionCalling).toBe(true)
+
+      // Google Searchを有効にする
+      store.updateTemporarySetting('geminiEnableGrounding', true)
+
+      // Function Callingが無効になっていることを確認
+      expect(store.activeProfileSettingsWithTemporary.geminiEnableGrounding).toBe(true)
+      expect(store.activeProfileSettingsWithTemporary.geminiEnableFunctionCalling).toBe(false)
+    })
+
+    it('同じ値を設定しても排他制御は発動しない', () => {
+      // Function Callingを有効にする
+      store.updateTemporarySetting('geminiEnableFunctionCalling', true)
+      expect(store.activeProfileSettingsWithTemporary.geminiEnableFunctionCalling).toBe(true)
+
+      // 同じ値を再度設定
+      store.updateTemporarySetting('geminiEnableFunctionCalling', true)
+
+      // Google Searchは変更されていないことを確認
+      expect(store.activeProfileSettingsWithTemporary.geminiEnableGrounding).toBe(false)
+    })
+  })
+
+  describe('新機能: activeProfileSettingsWithTemporary', () => {
+    let testProfile: SettingsProfile
+
+    beforeEach(() => {
+      testProfile = {
+        id: 'test-profile',
+        name: 'テストプロファイル',
+        description: 'テスト用',
+        settings: {
+          modelName: 'gemini-1.5-pro',
+          systemPrompt: 'テストプロンプト',
+          maxTokens: 1000,
+          temperature: 0.7,
+          topK: 40,
+          topP: 0.95,
+          presencePenalty: 0,
+          frequencyPenalty: 0,
+          thinkingBudget: null,
+          geminiEnableFunctionCalling: false,
+          functionCallingMode: 'auto',
+          enabledFunctionTools: [],
+          geminiEnableGrounding: false,
+          enableDummyUserPrompt: false,
+          dummyUserPrompt: '',
+          enableDummyModelPrompt: false,
+          dummyModelPrompt: '',
+          prependDummyModelToResponse: false,
+        },
+        isDefault: false,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      }
+
+      store.profiles = [testProfile]
+      store.activeProfileId = testProfile.id
+    })
+
+    it('アクティブプロファイルがない場合はデフォルト設定を返す', () => {
+      store.activeProfileId = null
+
+      const settings = store.activeProfileSettingsWithTemporary
+      expect(settings).toBeDefined()
+      expect(settings.modelName).toBe('gemini-2.5-flash') // デフォルト値
+    })
+
+    it('一時的な設定がない場合は元のプロファイル設定を返す', () => {
+      const settings = store.activeProfileSettingsWithTemporary
+      expect(settings.modelName).toBe('gemini-1.5-pro')
+      expect(settings.systemPrompt).toBe('テストプロンプト')
+    })
+
+    it('一時的な設定がある場合はマージされた設定を返す', () => {
+      store.updateTemporarySetting('modelName', 'temporary-model')
+      store.updateTemporarySetting('temperature', 0.9)
+
+      const settings = store.activeProfileSettingsWithTemporary
+      expect(settings.modelName).toBe('temporary-model') // 一時的な設定
+      expect(settings.temperature).toBe(0.9) // 一時的な設定
+      expect(settings.systemPrompt).toBe('テストプロンプト') // 元の設定
     })
   })
 })
