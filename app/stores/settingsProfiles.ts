@@ -333,6 +333,7 @@ export const useSettingsProfilesStore = defineStore('settingsProfiles', () => {
     activeProfileSettingsWithTemporary,
     sortedProfiles,
     defaultProfileSettings,
+    temporarySettings,
 
     createProfile,
     updateProfile,

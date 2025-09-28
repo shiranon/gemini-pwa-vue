@@ -3,7 +3,9 @@
     variant="outline"
     class="h-20 flex-col gap-2 px-2"
     :disabled="disabled || loading"
+    :aria-label="`${label}${description ? ': ' + description : ''}`"
     @click="handleClick"
+    @keydown="handleKeydown"
   >
     <component
       :is="icon"
@@ -43,6 +45,13 @@ const emit = defineEmits<{
 const handleClick = () => {
   if (!props.disabled && !props.loading) {
     emit('click')
+  }
+}
+
+const handleKeydown = (event: KeyboardEvent) => {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    handleClick()
   }
 }
 </script>
