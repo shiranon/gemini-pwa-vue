@@ -80,7 +80,7 @@
         <div class="flex flex-col gap-2">
           <Button
             :disabled="isSending || !inputText.trim()"
-            class="p-2 text-lg"
+            class="size-10 p-2 text-lg sm:size-11"
             @click="sendMessage"
           >
             <div v-if="isSending">

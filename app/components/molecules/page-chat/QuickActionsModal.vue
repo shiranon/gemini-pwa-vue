@@ -2,16 +2,19 @@
   <Dialog v-model:open="isOpen">
     <DialogTrigger
       as-child
-      class="size-10 rounded-md"
+      class="size-10 rounded-md sm:size-13"
     >
       <Button :disabled="disabled">
-        <Icon icon="icon-park-solid:scan-setting" />
+        <Icon
+          icon="icon-park-solid:scan-setting"
+          class="size-6 sm:size-8"
+        />
       </Button>
     </DialogTrigger>
     <DialogContent class="max-w-2xl">
       <DialogHeader>
         <DialogTitle>クイック設定</DialogTitle>
-        <DialogDescription>ここでの設定は保存されません</DialogDescription>
+        <DialogDescription>ここでの変更は保存されません</DialogDescription>
       </DialogHeader>
       <div class="grid grid-cols-4 gap-2 py-2 sm:gap-3 sm:p-4">
         <QuickSettingButton

@@ -203,6 +203,46 @@ export const useQuickActions = () => {
   })
 
   /**
+   * 指定されたアクションの設定を内部で切り替えます（排他制御用）
+   *
+   * @param actionId - 切り替えるアクションのID
+   * @param value - 設定する値（true/false）
+   */
+  const toggleActionInternal = (actionId: string, value: boolean): void => {
+    try {
+      const action = quickActions.value.find((a: QuickAction) => a.id === actionId)
+      if (!action) {
+        logger.warn(`[Quick Actions] 内部切り替え: アクションが見つかりません: ${actionId}`, { component: 'useQuickActions' })
+        return
+      }
+
+      const settings = currentSettings.value
+      const currentValue = settings[action.settingKey as keyof typeof settings]
+
+      // 既に同じ値の場合は何もしない
+      if (currentValue === value) {
+        return
+      }
+
+      // プロファイル固有の設定かグローバル設定かを判断して更新
+      const profileSettings = profilesStore.activeProfile?.settings
+      if (profileSettings && action.settingKey in profileSettings) {
+        // プロファイル固有の設定を更新
+        updateProfileSetting(action.settingKey as keyof SettingsProfileData, value as SettingsProfileData[keyof SettingsProfileData])
+      } else {
+        // グローバル設定を更新
+        settingsStore.updateSettings({ [action.settingKey]: value })
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      logger.error(`[Quick Actions] 内部切り替えエラー: ${actionId}`, {
+        error: errorMessage,
+        component: 'useQuickActions',
+      })
+    }
+  }
+
+  /**
    * 指定されたアクションの設定を切り替えます
    *
    * プロファイル固有の設定の場合は一時的な変更として処理し、
@@ -228,6 +268,23 @@ export const useQuickActions = () => {
       const currentValue = settings[action.settingKey as keyof typeof settings]
       const newValue = !currentValue
       logger.debug(`[Quick Actions] 現在の値: ${currentValue}, 新しい値: ${newValue}`, { component: 'useQuickActions' })
+
+      // Google Search と Function Calling の排他制御
+      if (actionId === 'google-search' && newValue) {
+        // Google Search を有効にする場合、Function Calling を無効化
+        const functionCallingAction = quickActions.value.find((a) => a.id === 'functionCalling')
+        if (functionCallingAction && currentSettings.value.geminiEnableFunctionCalling) {
+          logger.debug('[Quick Actions] Google Search有効化によりFunction Callingを無効化', { component: 'useQuickActions' })
+          toggleActionInternal('functionCalling', false)
+        }
+      } else if (actionId === 'functionCalling' && newValue) {
+        // Function Calling を有効にする場合、Google Search を無効化
+        const googleSearchAction = quickActions.value.find((a) => a.id === 'google-search')
+        if (googleSearchAction && currentSettings.value.geminiEnableGrounding) {
+          logger.debug('[Quick Actions] Function Calling有効化によりGoogle Searchを無効化', { component: 'useQuickActions' })
+          toggleActionInternal('google-search', false)
+        }
+      }
 
       // プロファイル固有の設定かグローバル設定かを判断して更新
       const profileSettings = profilesStore.activeProfile?.settings
