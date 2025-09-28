@@ -1,4 +1,4 @@
-import { computed, readonly, ref, watch } from 'vue'
+import { computed, onUnmounted, readonly, ref, watch } from 'vue'
 import { useSettingsProfilesStore } from '~/stores/settingsProfiles'
 import type { SettingsProfileData } from '~/types/settings'
 import { logger } from '~/utils/logger'
@@ -65,7 +65,20 @@ export function useProfileSettings() {
    */
   const loadFromActiveProfile = () => {
     if (!profilesStore.activeProfile) {
-      logger.warn('アクティブプロファイルがありません')
+      logger.warn('アクティブプロファイルがありません。デフォルト設定を使用します。')
+
+      // プロファイルが存在しない場合はデフォルト設定を使用
+      const defaultSettings = profilesStore.defaultProfileSettings
+      localProfileSettings.value = {
+        ...defaultSettings,
+        enabledFunctionTools: [...defaultSettings.enabledFunctionTools],
+      }
+
+      originalProfileSettings.value = {
+        ...defaultSettings,
+        enabledFunctionTools: [...defaultSettings.enabledFunctionTools],
+      }
+
       return
     }
 
@@ -75,13 +88,14 @@ export function useProfileSettings() {
       enabledFunctionTools: [...profileSettings.enabledFunctionTools],
     }
 
-    // オリジナル設定を保存
+    // オリジナル設定を保存（プロファイル切り替え時にリセット）
     originalProfileSettings.value = {
       ...profileSettings,
       enabledFunctionTools: [...profileSettings.enabledFunctionTools],
     }
 
     logger.info('プロファイル設定を読み込みました', {
+      component: 'useProfileSettings',
       profileId: profilesStore.activeProfile.id,
       profileName: profilesStore.activeProfile.name,
     })
@@ -177,8 +191,11 @@ export function useProfileSettings() {
     })
   }
 
+  // watcherの参照を保持してクリーンアップ用
+  const watchers: Array<() => void> = []
+
   // アクティブプロファイルが変更されたら設定を読み込む
-  watch(
+  const stopActiveProfileWatcher = watch(
     () => profilesStore.activeProfile,
     (newProfile) => {
       if (newProfile) {
@@ -187,9 +204,10 @@ export function useProfileSettings() {
     },
     { immediate: true }
   )
+  watchers.push(stopActiveProfileWatcher)
 
   // Function Calling と Google Search の排他制御
-  watch(
+  const stopFunctionCallingWatcher = watch(
     () => localProfileSettings.value.geminiEnableFunctionCalling,
     (newValue, oldValue) => {
       if (newValue !== oldValue && newValue && localProfileSettings.value.geminiEnableGrounding) {
@@ -200,8 +218,9 @@ export function useProfileSettings() {
       }
     }
   )
+  watchers.push(stopFunctionCallingWatcher)
 
-  watch(
+  const stopGroundingWatcher = watch(
     () => localProfileSettings.value.geminiEnableGrounding,
     (newValue, oldValue) => {
       if (newValue !== oldValue && newValue && localProfileSettings.value.geminiEnableFunctionCalling) {
@@ -212,6 +231,39 @@ export function useProfileSettings() {
       }
     }
   )
+  watchers.push(stopGroundingWatcher)
+
+  // クリーンアップ処理
+  onUnmounted(() => {
+    watchers.forEach((stop) => stop())
+    logger.debug('[Profile Settings] watchersをクリーンアップしました', { component: 'useProfileSettings' })
+  })
+
+  /**
+   * プロファイル設定を更新（一時的な変更）
+   */
+  const updateProfileSetting = <K extends keyof SettingsProfileData>(key: K, value: SettingsProfileData[K]) => {
+    if (key === 'enabledFunctionTools' && Array.isArray(value)) {
+      localProfileSettings.value = {
+        ...localProfileSettings.value,
+        [key]: [...value],
+      }
+    } else {
+      localProfileSettings.value = {
+        ...localProfileSettings.value,
+        [key]: value,
+      }
+    }
+    logger.info(`[Profile Settings] 一時的な設定変更: ${key}`, { component: 'useProfileSettings' })
+  }
+
+  /**
+   * ローカル設定をリセット
+   */
+  const resetLocalProfileSettings = () => {
+    loadFromActiveProfile()
+    logger.info('[Profile Settings] ローカル設定をリセットしました', { component: 'useProfileSettings' })
+  }
 
   return {
     // 状態
@@ -226,5 +278,7 @@ export function useProfileSettings() {
     resetChanges,
     resetToDefaults,
     loadFromActiveProfile,
+    updateProfileSetting,
+    resetLocalProfileSettings,
   }
 }

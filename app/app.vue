@@ -5,12 +5,13 @@ import 'vue-sonner/style.css'
 import { logger } from '~/utils/logger'
 
 const settingsStore = useSettingsStore()
+const profilesStore = useSettingsProfilesStore()
 
 onMounted(async () => {
   try {
-    await settingsStore.initialize()
+    await Promise.all([settingsStore.initialize(), profilesStore.initialize()])
   } catch (error) {
-    logger.error('[SettingsStore] 初期化に失敗しました:', { component: 'app' }, error)
+    logger.error('[Stores] 初期化に失敗しました:', { component: 'app' }, error)
   }
 })
 </script>

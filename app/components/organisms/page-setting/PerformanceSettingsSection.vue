@@ -110,7 +110,6 @@
       :model-value="localSettings.includeThoughts"
       label="思考プロセス表示"
       description="AIの思考過程を表示"
-      :disabled="!localSettings.enableThinking"
       @update:model-value="(value: boolean) => updateSetting('includeThoughts', value)"
     />
 

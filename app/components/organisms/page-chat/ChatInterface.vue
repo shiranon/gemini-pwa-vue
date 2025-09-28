@@ -20,7 +20,7 @@
         :key="`${message.timestamp}-${index}`"
       >
         <MessageWithAvatar
-          v-if="settingsStore.settings.enabled"
+          v-if="settingsStore.settings.avatarEnabled"
           :message="message"
           :options="{
             showTimestamp: true,
@@ -52,9 +52,25 @@
       </template>
     </div>
 
-    <div class="border-border bg-background/90 sticky bottom-0 z-20 border-t p-4 shadow-lg backdrop-blur">
+    <div class="border-border bg-background/90 sticky bottom-0 z-20 border-t p-2 shadow-lg backdrop-blur">
       <div class="flex gap-2">
+        <div class="flex flex-col gap-1">
+          <QuickActionsModal
+            :disabled="isSending"
+            button-label="アクション"
+            :can-summarize="canSummarize"
+            :is-summarizing="isSummarizing"
+            @summarize="summarizeChat"
+          />
+          <ProfileSelect
+            :profiles="profiles"
+            :selected-profile-id="selectedProfileId"
+            mode="avatar-only"
+            @update:selected-profile-id="handleProfileChange"
+          />
+        </div>
         <textarea
+          id="chat-input"
           v-model="inputText"
           :disabled="isSending"
           placeholder="メッセージを入力..."
@@ -67,14 +83,14 @@
             class="p-2 text-lg"
             @click="sendMessage"
           >
-            {{ isSending ? '送信中...' : '送信' }}
-          </Button>
-          <Button
-            :disabled="isSending || !canSummarize"
-            class="p-2 text-lg"
-            @click="summarizeChat"
-          >
-            {{ isSummarizing ? '要約中...' : '要約' }}
+            <div v-if="isSending">
+              <Icon
+                icon="line-md:loading-alt-loop"
+                width="24"
+                height="24"
+              />
+            </div>
+            <div v-else>送</div>
           </Button>
         </div>
       </div>
@@ -91,15 +107,22 @@
 </template>
 
 <script setup lang="ts">
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { onBeforeRouteLeave } from 'vue-router'
 import { useChatStore } from '~/stores/chat'
 import { useSettingsStore } from '~/stores/settings'
+import { useSettingsProfilesStore } from '~/stores/settingsProfiles'
 import { useGeminiStore } from '~/stores/gemini'
+import { useSettings } from '~/composables/useSettings'
 import { scrollToBottom } from '~/lib/scroll'
 import MessageWithAvatar from '~/components/molecules/page-chat/MessageWithAvatar.vue'
 import MessageBubble from '~/components/molecules/page-chat/MessageBubble.vue'
 import SystemPromptEditor from '~/components/molecules/page-chat/SystemPromptEditor.vue'
 import RetryConfirmDialog from '~/components/molecules/dialogs/RetryConfirmDialog.vue'
+import QuickActionsModal from '~/components/molecules/page-chat/QuickActionsModal.vue'
+import ProfileSelect from '~/components/molecules/page-setting/ProfileSelect.vue'
 import { Button } from '~/components/ui/button'
+import { Icon } from '@iconify/vue'
 import { hexToRgba } from '~/utils/color'
 import type { ApiError, ChatMessage, AttachedFile, Message, AssistantMessage } from '~/types/chat'
 import { toast } from 'vue-sonner'
@@ -107,12 +130,28 @@ import { logger } from '~/utils/logger'
 
 const chatStore = useChatStore()
 const settingsStore = useSettingsStore()
+const profilesStore = useSettingsProfilesStore()
 const geminiStore = useGeminiStore()
+// 設定同期用のメソッドを取得（ダイアログ関数は使用しないので空のスタブを渡す）
+const { syncLocalSettings } = useSettings({
+  showAlert: () => {},
+  showConfirm: () => Promise.resolve(true),
+})
+
+// ページを離れる時に一時的な設定をクリア
+onBeforeRouteLeave(() => {
+  profilesStore.clearTemporarySettings()
+})
 
 const inputText = ref('')
 const messageContainer = ref<HTMLElement>()
 const backgroundUrl = ref<string | null>(null)
+const isProfileLoading = ref(false)
 
+// プロファイル関連の変数
+const profiles = computed(() => profilesStore.sortedProfiles)
+const selectedProfileId = computed(() => profilesStore.activeProfileId)
+// selectedProfile は ProfileAvatarButton 内で使用されるため、ここでは不要
 const backgroundStyle = computed(() => {
   if (!backgroundUrl.value) return {}
   return {
@@ -380,6 +419,31 @@ const handleRetryCancel = () => {
 const scrollToBottomInternal = () => {
   if (messageContainer.value) {
     scrollToBottom(messageContainer.value)
+  }
+}
+
+const handleProfileChange = async (profileId: string | null) => {
+  if (!profileId) return
+
+  try {
+    // プロファイル切り替え中のローディング状態を設定
+    isProfileLoading.value = true
+    // プロファイルを切り替えて設定を適用
+    profilesStore.applyProfileToSettings(profileId)
+    await profilesStore.saveProfiles() // アクティブプロファイルを永続化
+
+    // 状態更新完了を待ってからUIを更新
+    await nextTick()
+    syncLocalSettings()
+    // プロファイル設定も自動的に読み込まれる（useProfileSettingsのwatchで）
+
+    logger.info('プロファイルを切り替えて保存しました', { profileId })
+    toast.success('プロファイルを切り替えました')
+  } catch (error) {
+    logger.error('プロファイル切り替え時の保存に失敗', { component: 'ChatInterface' }, error)
+    toast.error('プロファイルの切り替えに失敗しました')
+  } finally {
+    isProfileLoading.value = false
   }
 }
 

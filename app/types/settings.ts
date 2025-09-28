@@ -125,8 +125,8 @@ export interface AvatarConfig {
 
 /** アバター設定 */
 export interface AvatarSettings {
-  enabled: boolean
-  size: number // アイコンサイズ(px): 10-150
+  avatarEnabled: boolean
+  avatarSize: number // アイコンサイズ(px): 10-150
   defaultUserAvatar: AvatarConfig
   defaultAssistantAvatar: AvatarConfig
 }
@@ -212,6 +212,9 @@ export interface AppSettings
   dummyModelPrompt: string
   // 保存時にモデル応答の先頭へダミーモデル文を連結
   prependDummyModelToResponse: boolean
+  // プロファイル管理
+  styleProfiles?: SettingsProfile[]
+  currentProfileId?: string
 }
 
 /** 設定のデフォルト値 */
@@ -232,7 +235,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   thinkingBudget: null,
 
   // Gemini拡張機能
-  streamingOutput: true,
+  streamingOutput: false,
   enableThinking: false,
   includeThoughts: false,
 
@@ -289,8 +292,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   messageOpacity: 0.9,
 
   // ナビゲーション
-  enterToSend: false,
-  enableSwipeNavigation: true,
+  enterToSend: true,
+  enableSwipeNavigation: false,
   hideSystemPromptInChat: false,
 
   // ダミープロンプト（送信時のみ適用）
@@ -301,10 +304,14 @@ export const DEFAULT_SETTINGS: AppSettings = {
   prependDummyModelToResponse: false,
 
   // アバター設定
-  enabled: true,
-  size: 32, // デフォルト32px
+  avatarEnabled: false,
+  avatarSize: 32, // デフォルト32px
   defaultUserAvatar: {},
   defaultAssistantAvatar: {},
+
+  // プロファイル管理
+  styleProfiles: [],
+  currentProfileId: 'default',
 } as const
 
 /** 設定値のバリデーション関数の型 */

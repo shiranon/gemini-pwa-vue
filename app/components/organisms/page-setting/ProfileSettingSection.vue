@@ -17,7 +17,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import ProfileCard from './ProfileCard.vue'
+import ProfileCard from '~/components/molecules/page-setting/ProfileCard.vue'
 import type { SettingsProfile } from '~/types/settings'
 
 const props = defineProps<{

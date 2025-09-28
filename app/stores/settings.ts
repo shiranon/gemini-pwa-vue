@@ -1,14 +1,14 @@
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { useFunctionCalling } from '~/composables/useFunctionCalling'
-import { loadSettings as loadSettingsFromDB, loadSystemDefaults as loadSystemDefaultsFromDB, saveSettings as saveSettingsToDB } from '~/lib/database'
+import { loadSettings as loadSettingsFromDB, saveSettings as saveSettingsToDB } from '~/lib/database'
 import { useSettingsProfilesStore } from '~/stores/settingsProfiles'
 import type { GeminiApiSettings } from '~/types/chat'
 import type { AppSettings } from '~/types/settings'
 import { DEFAULT_SETTINGS } from '~/types/settings'
 import { clamp } from '~/utils/calc'
 import { logger } from '~/utils/logger'
-import { mergeSettingsFromSlices, extractProfileSettings } from '~/utils/settingsPartition'
+import { extractProfileSettings } from '~/utils/settingsPartition'
 import { applyTheme, getThemePreset } from '~/utils/theme'
 
 const cloneEnabledFunctionTools = (toolNames?: string[]) => {
@@ -183,8 +183,8 @@ export const useSettingsStore = defineStore('settings', () => {
   }))
 
   const avatarSettings = computed(() => ({
-    enabled: settings.value.enabled,
-    size: settings.value.size,
+    enabled: settings.value.avatarEnabled,
+    size: settings.value.avatarSize,
     defaultUserAvatar: settings.value.defaultUserAvatar,
     defaultAssistantAvatar: settings.value.defaultAssistantAvatar,
   }))
@@ -249,8 +249,8 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   const updateSetting = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
-    if (key === 'enabledFunctionTools' && Array.isArray(value)) {
-      settings.value[key] = cloneEnabledFunctionTools(value) as AppSettings[K]
+    if (key === 'enabledFunctionTools' && Array.isArray(value) && typeof value[0] === 'string') {
+      settings.value[key] = cloneEnabledFunctionTools(value as string[]) as AppSettings[K]
     } else {
       settings.value[key] = value
     }
@@ -336,25 +336,13 @@ export const useSettingsStore = defineStore('settings', () => {
 
   const resetToDefaults = async () => {
     try {
-      // テスト環境では純粋なDEFAULT_SETTINGSを使用
-      if (import.meta.env.NODE_ENV === 'test') {
-        settings.value = createSettingsState()
-        isDirty.value = true
-        return
-      }
-
-      const result = await loadSystemDefaultsFromDB()
-      if (result.success && result.data) {
-        const mergedDefaults = mergeSettingsFromSlices(DEFAULT_SETTINGS, result.data.global, result.data.profile)
-        settings.value = createSettingsState(mergedDefaults)
-      } else {
-        settings.value = createSettingsState()
-      }
+      // 常に純粋なDEFAULT_SETTINGSを使用してリセット
+      settings.value = createSettingsState()
+      isDirty.value = true
     } catch (error) {
-      logger.error('システムデフォルトの読み込みに失敗しました。デフォルト値を使用します。', { component: 'useSettingsStore' }, error)
+      logger.error('デフォルト値へのリセットに失敗しました。', { component: 'useSettingsStore' }, error)
       settings.value = createSettingsState()
     }
-    isDirty.value = true
   }
 
   const saveSettings = async (skipProfileUpdate = false) => {

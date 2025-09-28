@@ -6,8 +6,7 @@
     <SettingToggle
       :model-value="localSettings.enableThoughtTranslation"
       label="思考プロセス翻訳"
-      description="日本語翻訳を有効化(思考プロセス表示有効化時のみ)"
-      :disabled="!localSettings.includeThoughts"
+      description="日本語翻訳を有効化"
       @update:model-value="updateSetting('enableThoughtTranslation', $event)"
     />
 
@@ -15,11 +14,9 @@
       name="thoughtTranslationProvider"
       label="翻訳プロバイダ"
       description="Gemini または DeepL を選択"
-      :disabled="!localSettings.enableThoughtTranslation"
     >
       <Select
         :model-value="localSettings.thoughtTranslationProvider"
-        :disabled="!localSettings.enableThoughtTranslation"
         @update:model-value="updateSetting('thoughtTranslationProvider', $event as 'gemini' | 'deepl')"
       >
         <SelectTrigger>
@@ -36,11 +33,9 @@
       name="thoughtTranslationModel"
       label="翻訳用モデル"
       description="思考プロセス翻訳に使用するモデル"
-      :disabled="!localSettings.enableThoughtTranslation || localSettings.thoughtTranslationProvider !== 'gemini'"
     >
       <Select
         :model-value="localSettings.thoughtTranslationModel"
-        :disabled="!localSettings.enableThoughtTranslation || localSettings.thoughtTranslationProvider !== 'gemini'"
         @update:model-value="updateSetting('thoughtTranslationModel', $event as string)"
       >
         <SelectTrigger>

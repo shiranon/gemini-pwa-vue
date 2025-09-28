@@ -16,7 +16,7 @@
         </div>
       </div>
       <Avatar
-        v-if="avatarSettings.enabled"
+        v-if="avatarSettings.avatarEnabled"
         :style="avatarStyle"
         class="shrink-0"
       >
@@ -34,7 +34,7 @@
       :style="containerStyle"
     >
       <Avatar
-        v-if="avatarSettings.enabled"
+        v-if="avatarSettings.avatarEnabled"
         :style="avatarStyle"
         class="shrink-0"
       >
@@ -80,20 +80,20 @@ const settingsStore = useSettingsStore()
 const { messageAppearanceSettings } = storeToRefs(settingsStore)
 
 const containerStyle = computed(() => {
-  if (!props.avatarSettings.enabled) {
+  if (!props.avatarSettings.avatarEnabled) {
     return {}
   }
 
   return {
-    '--avatar-size': `${props.avatarSettings.size}px`,
+    '--avatar-size': `${props.avatarSettings.avatarSize}px`,
     gap: '12px',
   }
 })
 
 const avatarStyle = computed(() => {
   return {
-    width: `${props.avatarSettings.size}px`,
-    height: `${props.avatarSettings.size}px`,
+    width: `${props.avatarSettings.avatarSize}px`,
+    height: `${props.avatarSettings.avatarSize}px`,
   }
 })
 

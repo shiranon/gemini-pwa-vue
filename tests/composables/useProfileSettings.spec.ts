@@ -1,5 +1,5 @@
+import { beforeEach, describe, expect, it } from 'bun:test'
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it } from 'vitest'
 import { useProfileSettings } from '~/composables/useProfileSettings'
 import { useSettingsProfilesStore } from '~/stores/settingsProfiles'
 import type { SettingsProfile } from '~/types/settings'
@@ -306,6 +306,115 @@ describe('useProfileSettings', () => {
       store.activeProfileId = testProfile.id
 
       expect(composable.hasActiveProfile.value).toBe(true)
+    })
+  })
+
+  describe('新機能: 一時的な設定変更', () => {
+    beforeEach(() => {
+      const testProfile: SettingsProfile = {
+        id: 'test-profile',
+        name: 'テストプロファイル',
+        description: 'テスト用',
+        settings: {
+          modelName: 'gemini-1.5-pro',
+          systemPrompt: 'テストプロンプト',
+          maxTokens: 1000,
+          temperature: 0.7,
+          topK: 40,
+          topP: 0.95,
+          presencePenalty: 0,
+          frequencyPenalty: 0,
+          thinkingBudget: null,
+          geminiEnableFunctionCalling: false,
+          functionCallingMode: 'auto',
+          enabledFunctionTools: [],
+          geminiEnableGrounding: false,
+          enableDummyUserPrompt: false,
+          dummyUserPrompt: '',
+          enableDummyModelPrompt: false,
+          dummyModelPrompt: '',
+          prependDummyModelToResponse: false,
+        },
+        isDefault: false,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      }
+
+      store.profiles = [testProfile]
+      store.activeProfileId = testProfile.id
+      composable.loadFromActiveProfile()
+    })
+
+    it('updateProfileSettingで一時的な設定変更ができる', () => {
+      composable.updateProfileSetting('modelName', 'updated-model')
+      expect(composable.localProfileSettings.value.modelName).toBe('updated-model')
+    })
+
+    it('配列の一時的な設定変更ができる', () => {
+      composable.updateProfileSetting('enabledFunctionTools', ['tool1', 'tool2'])
+      expect(composable.localProfileSettings.value.enabledFunctionTools).toEqual(['tool1', 'tool2'])
+    })
+
+    it('resetLocalProfileSettingsでローカル設定をリセットできる', () => {
+      // 設定を変更
+      composable.updateProfileSetting('modelName', 'changed-model')
+      composable.updateProfileSetting('temperature', 0.9)
+
+      // リセット
+      composable.resetLocalProfileSettings()
+
+      // 元の設定に戻っていることを確認
+      expect(composable.localProfileSettings.value.modelName).toBe('gemini-1.5-pro')
+      expect(composable.localProfileSettings.value.temperature).toBe(0.7)
+    })
+  })
+
+  describe('新機能: Function Calling と Google Search の排他制御', () => {
+    beforeEach(() => {
+      const testProfile: SettingsProfile = {
+        id: 'test-profile',
+        name: 'テストプロファイル',
+        description: 'テスト用',
+        settings: {
+          modelName: 'gemini-1.5-pro',
+          systemPrompt: 'テストプロンプト',
+          maxTokens: 1000,
+          temperature: 0.7,
+          topK: 40,
+          topP: 0.95,
+          presencePenalty: 0,
+          frequencyPenalty: 0,
+          thinkingBudget: null,
+          geminiEnableFunctionCalling: false,
+          functionCallingMode: 'auto',
+          enabledFunctionTools: [],
+          geminiEnableGrounding: false,
+          enableDummyUserPrompt: false,
+          dummyUserPrompt: '',
+          enableDummyModelPrompt: false,
+          dummyModelPrompt: '',
+          prependDummyModelToResponse: false,
+        },
+        isDefault: false,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      }
+
+      store.profiles = [testProfile]
+      store.activeProfileId = testProfile.id
+      composable.loadFromActiveProfile()
+    })
+
+    it('同じ値を設定しても排他制御は発動しない', () => {
+      // Function Callingを有効にする
+      composable.updateSetting('geminiEnableFunctionCalling', true)
+      expect(composable.localProfileSettings.value.geminiEnableFunctionCalling).toBe(true)
+
+      // 同じ値を再度設定
+      composable.updateSetting('geminiEnableFunctionCalling', true)
+
+      // Google Searchは変更されていないことを確認
+      expect(composable.localProfileSettings.value.geminiEnableGrounding).toBe(false)
     })
   })
 })

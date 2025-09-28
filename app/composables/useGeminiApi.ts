@@ -116,7 +116,12 @@ export const useGeminiApi = () => {
     // 有効時のみFunction Callingツールを追加
     if (settings.functionCalling?.enabled) {
       const enabledFunctions = getEnabledFunctionDeclarations()
-      logger.info('[関数呼び出し] 有効な関数:', { component: 'useGeminiApi' }, enabledFunctions)
+      logger.info('[関数呼び出し] 有効な関数:', {
+        component: 'useGeminiApi',
+        count: enabledFunctions.length,
+        names: enabledFunctions.map((f) => f.name),
+        functions: enabledFunctions,
+      })
 
       let functionDeclarations = enabledFunctions
       if (settings.functionCalling.allowedFunctionNames?.length) {
@@ -404,8 +409,8 @@ export const useGeminiApi = () => {
             }
           })
 
-          // Function Call結果送信時はAUTOモードを使用（ANYモードから切り替え）
-          const resultToolConfig = buildToolConfig(settings, 'auto')
+          // Function Call結果送信時はNONEモードを使用
+          const resultToolConfig = buildToolConfig(settings, 'none')
 
           const finalResult = await genAI.models.generateContent({
             model: settings.model,
@@ -641,8 +646,8 @@ export const useGeminiApi = () => {
           currentContents: currentContents.map((c) => ({ role: c.role, partsCount: c.parts?.length || 0 })),
         })
 
-        // Function Call結果送信時はAUTOモードを使用（ANYモードから切り替え）
-        const resultToolConfig = buildToolConfig(settings, 'auto')
+        // Function Call結果送信時はNONEモードを使用（ANYモードから切り替え）
+        const resultToolConfig = buildToolConfig(settings, 'none')
 
         const finalResult = await genAI.models.generateContentStream({
           model: settings.model,

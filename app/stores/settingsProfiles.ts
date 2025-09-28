@@ -1,11 +1,12 @@
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { useFunctionCalling } from '~/composables/useFunctionCalling'
 import { loadSettingsProfiles as loadProfilesFromDB, saveSettingsProfiles as saveProfilesToDB } from '~/lib/database'
 import type { AppSettings, SettingsProfile, SettingsProfileData } from '~/types/settings'
 import { DEFAULT_SETTINGS } from '~/types/settings'
 import { logger } from '~/utils/logger'
-import { cloneProfileSettings, extractProfileSettings, mergeProfilePartial } from '~/utils/settingsPartition'
 import type { ProfileSettingKey } from '~/utils/settingsPartition'
+import { cloneProfileSettings, extractProfileSettings, mergeProfilePartial } from '~/utils/settingsPartition'
 
 export const useSettingsProfilesStore = defineStore('settingsProfiles', () => {
   const profiles = ref<SettingsProfile[]>([])
@@ -13,9 +14,26 @@ export const useSettingsProfilesStore = defineStore('settingsProfiles', () => {
   const isLoading = ref(false)
   const isDirty = ref(false)
 
+  // 一時的な設定変更を管理
+  const temporarySettings = ref<Partial<SettingsProfileData>>({})
+
+  // Function Callingの管理
+  const { setFunctionEnablement } = useFunctionCalling()
+
   const activeProfile = computed(() => {
     if (!activeProfileId.value) return null
     return profiles.value.find((p) => p.id === activeProfileId.value) || null
+  })
+
+  // 一時的な設定を含むアクティブプロファイル設定
+  const activeProfileSettingsWithTemporary = computed(() => {
+    const profile = activeProfile.value
+    if (!profile) return defaultProfileSettings
+
+    return {
+      ...profile.settings,
+      ...temporarySettings.value,
+    }
   })
 
   const sortedProfiles = computed(() => {
@@ -142,21 +160,51 @@ export const useSettingsProfilesStore = defineStore('settingsProfiles', () => {
   }
 
   const setActiveProfile = (profileId: string | null) => {
-    if (profileId && !profiles.value.find((p) => p.id === profileId)) {
-      throw new Error(`プロファイルが見つかりません: ${profileId}`)
+    try {
+      if (profileId && !profiles.value.find((p) => p.id === profileId)) {
+        const error = new Error(`プロファイルが見つかりません: ${profileId}`)
+        logger.error('無効なプロファイルIDでアクティブプロファイルを設定しようとしました', {
+          component: 'settingsProfiles',
+          profileId,
+          availableProfiles: profiles.value.map((p) => p.id),
+        })
+        throw error
+      }
+
+      // プロファイルが変更される前に一時的な設定をクリア
+      if (activeProfileId.value !== profileId) {
+        clearTemporarySettings()
+      }
+
+      activeProfileId.value = profileId
+      logger.info('アクティブプロファイルを変更', { profileId })
+    } catch (error) {
+      logger.error('アクティブプロファイルの設定に失敗しました:', { component: 'settingsProfiles' }, error)
+      throw error
     }
-    activeProfileId.value = profileId
-    logger.info('アクティブプロファイルを変更', { profileId })
   }
 
   const applyProfileToSettings = (profileId: string): Partial<AppSettings> => {
-    const profile = profiles.value.find((p) => p.id === profileId)
-    if (!profile) {
-      throw new Error(`プロファイルが見つかりません: ${profileId}`)
-    }
+    try {
+      const profile = profiles.value.find((p) => p.id === profileId)
+      if (!profile) {
+        const error = new Error(`プロファイルが見つかりません: ${profileId}`)
+        logger.error('存在しないプロファイルを適用しようとしました', {
+          component: 'settingsProfiles',
+          profileId,
+          availableProfiles: profiles.value.map((p) => p.id),
+        })
+        throw error
+      }
 
-    setActiveProfile(profileId)
-    return cloneProfileSettings(profile.settings)
+      setActiveProfile(profileId)
+      const settings = cloneProfileSettings(profile.settings)
+      logger.info('プロファイル設定を適用しました', { profileId, profileName: profile.name })
+      return settings
+    } catch (error) {
+      logger.error('プロファイル設定の適用に失敗しました:', { component: 'settingsProfiles' }, error)
+      throw error
+    }
   }
 
   const saveProfiles = async () => {
@@ -184,22 +232,41 @@ export const useSettingsProfilesStore = defineStore('settingsProfiles', () => {
         activeProfileId.value = result.data.activeProfileId
 
         if (profiles.value.length === 0) {
+          logger.info('プロファイルが存在しないため、デフォルトプロファイルを作成します')
           await createDefaultProfile()
         }
       } else {
+        logger.warn('プロファイルの読み込みに失敗、デフォルトプロファイルを作成', {
+          error: result.error,
+        })
         await createDefaultProfile()
       }
     } catch (error) {
       logger.error('プロファイルの読み込みエラー:', { component: 'settingsProfiles' }, error)
-      await createDefaultProfile()
+      // エラー時はデフォルトプロファイルを作成してアプリを継続
+      try {
+        await createDefaultProfile()
+        logger.info('エラー回復: デフォルトプロファイルを作成しました')
+      } catch (createError) {
+        logger.error('デフォルトプロファイルの作成にも失敗しました:', { component: 'settingsProfiles' }, createError)
+        // 最後の手段として空のプロファイルリストで継続
+        profiles.value = []
+        activeProfileId.value = null
+      }
     } finally {
       isLoading.value = false
     }
   }
 
   const createDefaultProfile = async () => {
-    const defaultProfile = await createProfile('デフォルト', 'デフォルトの設定プロファイル', DEFAULT_SETTINGS, true)
-    setActiveProfile(defaultProfile.id)
+    try {
+      const defaultProfile = await createProfile('デフォルト', 'デフォルトの設定プロファイル', DEFAULT_SETTINGS, true)
+      setActiveProfile(defaultProfile.id)
+      logger.info('デフォルトプロファイルを作成しました', { profileId: defaultProfile.id })
+    } catch (error) {
+      logger.error('デフォルトプロファイルの作成に失敗しました:', { component: 'settingsProfiles' }, error)
+      throw error // 呼び出し元でエラーハンドリングを行うため再スロー
+    }
   }
 
   const exportProfile = (profileId: string): string => {
@@ -247,9 +314,57 @@ export const useSettingsProfilesStore = defineStore('settingsProfiles', () => {
     }
   }
 
+  // 一時的な設定を更新
+  const updateTemporarySetting = <K extends keyof SettingsProfileData>(key: K, value: SettingsProfileData[K]) => {
+    temporarySettings.value = {
+      ...temporarySettings.value,
+      [key]: value,
+    }
+    logger.info(`[Profile Store] 一時的な設定を更新: ${key}`, { value })
+
+    // Function Calling と Google Search の排他制御
+    if (key === 'geminiEnableFunctionCalling' && value === true) {
+      const currentSettings = activeProfileSettingsWithTemporary.value
+      if (currentSettings.geminiEnableGrounding) {
+        temporarySettings.value = {
+          ...temporarySettings.value,
+          geminiEnableGrounding: false,
+        }
+        logger.info('[Profile Store] Function Calling有効化によりGroundingを無効化')
+      }
+    } else if (key === 'geminiEnableGrounding' && value === true) {
+      const currentSettings = activeProfileSettingsWithTemporary.value
+      if (currentSettings.geminiEnableFunctionCalling) {
+        temporarySettings.value = {
+          ...temporarySettings.value,
+          geminiEnableFunctionCalling: false,
+        }
+        logger.info('[Profile Store] Grounding有効化によりFunction Callingを無効化')
+      }
+    }
+  }
+
+  // 一時的な設定をクリア
+  const clearTemporarySettings = () => {
+    temporarySettings.value = {}
+    logger.info('[Profile Store] 一時的な設定をクリアしました')
+  }
+
+  // プロファイル設定のenabledFunctionToolsを監視してFunction Callingを更新
+  watch(
+    () => activeProfileSettingsWithTemporary.value.enabledFunctionTools,
+    (enabledNames) => {
+      if (enabledNames && enabledNames.length > 0) {
+        setFunctionEnablement([...enabledNames])
+        logger.info('[Profile Store] Function Calling設定を更新', { enabledNames })
+      }
+    },
+    { immediate: true }
+  )
+
   const initialize = async () => {
     await loadProfiles()
-    logger.info('プロファイルストアを初期化', { profileCount: profiles.value.length })
+    logger.info('プロファイルストアを初期化', { component: 'settingsProfiles' }, { profileCount: profiles.value.length })
   }
 
   return {
@@ -258,8 +373,10 @@ export const useSettingsProfilesStore = defineStore('settingsProfiles', () => {
     isLoading,
     isDirty,
     activeProfile,
+    activeProfileSettingsWithTemporary,
     sortedProfiles,
     defaultProfileSettings,
+    temporarySettings,
 
     createProfile,
     updateProfile,
@@ -268,8 +385,11 @@ export const useSettingsProfilesStore = defineStore('settingsProfiles', () => {
     duplicateProfile,
     setActiveProfile,
     applyProfileToSettings,
+    saveProfiles,
     exportProfile,
     importProfile,
+    updateTemporarySetting,
+    clearTemporarySettings,
 
     initialize,
   }

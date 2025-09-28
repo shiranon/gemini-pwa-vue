@@ -1,5 +1,5 @@
 <template>
-  <div class="mx-auto mb-8 w-full max-w-5xl flex-1 items-center justify-between px-4">
+  <div class="mx-auto mb-8 w-full max-w-5xl flex-1 items-center justify-between px-2">
     <SettingsHeader
       :is-dirty="globalIsDirty || profileIsDirty"
       :saving="globalSaving || profileSaving"
@@ -10,7 +10,7 @@
       @update:selected-profile-id="(value) => value && handleSelectProfile(value)"
     />
 
-    <ProfileSelector
+    <ProfileSettingSection
       class="mt-4"
       :profiles="profiles"
       :active-profile-id="activeProfileId"
@@ -90,17 +90,17 @@
           @update-setting="handleUpdateSetting"
         />
 
-        <ThoughtTranslationSettingsSection
-          :local-settings="localSettings as AppSettings"
-          @update-setting="handleUpdateSetting"
-        />
-
         <ProofreadingSettingsSection
           :local-settings="localSettings as AppSettings"
           @update-setting="handleUpdateSetting"
         />
 
         <SummarySettingsSection
+          :local-settings="localSettings as AppSettings"
+          @update-setting="handleUpdateSetting"
+        />
+
+        <ThoughtTranslationSettingsSection
           :local-settings="localSettings as AppSettings"
           @update-setting="handleUpdateSetting"
         />
@@ -153,7 +153,7 @@ import AlertDialog from '~/components/molecules/dialogs/AlertDialog.vue'
 import ConfirmDialog from '~/components/molecules/dialogs/ConfirmDialog.vue'
 import SettingsHeader from '~/components/molecules/page-setting/SettingsHeader.vue'
 import ProfileDialog from '~/components/molecules/page-setting/ProfileDialog.vue'
-import ProfileSelector from '~/components/molecules/page-setting/ProfileSelector.vue'
+import ProfileSettingSection from '~/components/organisms/page-setting/ProfileSettingSection.vue'
 import ApiSettingsSection from '~/components/organisms/page-setting/ApiSettingsSection.vue'
 import PerformanceSettingsSection from '~/components/organisms/page-setting/PerformanceSettingsSection.vue'
 import ThoughtTranslationSettingsSection from '~/components/organisms/page-setting/ThoughtTranslationSettingsSection.vue'
@@ -300,12 +300,21 @@ const profileDialogOpen = ref(false)
 const profileDialogMode = ref<'create' | 'edit'>('create')
 const editingProfile = ref<import('~/types/settings').SettingsProfile | null>(null)
 
-const handleSelectProfile = (profileId: string) => {
-  // プロファイルを切り替えるだけ（保存はしない）
-  profilesStore.applyProfileToSettings(profileId)
-  // ローカル設定を更新して表示を切り替える
-  syncLocalSettings()
-  // プロファイル設定も自動的に読み込まれる（useProfileSettingsのwatchで）
+const handleSelectProfile = async (profileId: string) => {
+  try {
+    // プロファイルを切り替えて即座に保存
+    profilesStore.applyProfileToSettings(profileId)
+    await profilesStore.saveProfiles() // アクティブプロファイルを永続化
+
+    // ローカル設定を更新して表示を切り替える
+    syncLocalSettings()
+    // プロファイル設定も自動的に読み込まれる（useProfileSettingsのwatchで）
+
+    logger.info('プロファイルを切り替えて保存しました', { profileId })
+  } catch (error) {
+    logger.error('プロファイル切り替え時の保存に失敗', { component: 'settings' }, error)
+    showAlert('プロファイルの切り替えに失敗しました', 'エラー')
+  }
 }
 
 const handleCreateProfile = () => {
@@ -334,7 +343,7 @@ const handleResetProfile = async (profileId: string) => {
   const profile = profiles.value.find((p) => p.id === profileId)
   if (!profile) return
 
-  const confirmed = await showConfirm(`「${profile.name}」の設定をデフォルト値にリセットしてもよろしいですか？\n\nこの操作は取り消せません。`, 'プロファイル設定のリセット')
+  const confirmed = await showConfirm(`「${profile.name}」の設定をデフォルト値にリセットしてもよろしいですか？ この操作は取り消せません。`, 'プロファイル設定のリセット')
 
   if (confirmed) {
     try {
