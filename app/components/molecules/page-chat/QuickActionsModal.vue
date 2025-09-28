@@ -11,7 +11,7 @@
     <DialogContent class="max-w-2xl">
       <DialogHeader>
         <DialogTitle>クイック設定</DialogTitle>
-        <DialogDescription>ここでの設定は保存されません</DialogDescription>
+        <DialogDescription>ここでの変更は保存されません</DialogDescription>
       </DialogHeader>
       <div class="grid grid-cols-4 gap-2 py-2 sm:gap-3 sm:p-4">
         <QuickSettingButton
