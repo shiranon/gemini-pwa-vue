@@ -122,7 +122,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '~/components/ui/dialog'
 import { Button } from '~/components/ui/button'
 import { Checkbox } from '~/components/ui/checkbox'
@@ -165,16 +165,7 @@ const toolOptions = computed<ToolOption[]>(() => {
 
 const selectedToolNameSet = computed(() => {
   const enabledTools = activeProfileSettings.value?.enabledFunctionTools || []
-  const set = new Set(enabledTools)
-
-  console.log('[FunctionToggleModal] selectedToolNameSet computed:', {
-    enabledTools,
-    setSize: set.size,
-    setValues: Array.from(set),
-    activeProfileSettings: activeProfileSettings.value,
-  })
-
-  return set
+  return new Set(enabledTools)
 })
 const selectedCount = computed(() => activeProfileSettings.value?.enabledFunctionTools?.length || 0)
 
@@ -182,11 +173,6 @@ const handleToolToggle = (toolName: string, enabled: boolean) => {
   const orderedNames = toolOptions.value.map((tool) => tool.name)
   const currentSelection = activeProfileSettings.value?.enabledFunctionTools || []
   const nextSelection = computeNextEnabledFunctionTools(currentSelection, toolName, enabled, orderedNames)
-
-  console.log(`[FunctionToggleModal] Tool toggle: ${toolName} -> ${enabled}`, {
-    current: currentSelection,
-    next: nextSelection,
-  })
 
   updateProfileSetting('enabledFunctionTools', nextSelection)
 }
@@ -201,23 +187,6 @@ const selectAllTools = () => {
 const clearAllTools = () => {
   updateProfileSetting('enabledFunctionTools', [])
 }
-
-// モーダルが開かれた時のログ出力
-watch(isOpen, (newValue) => {
-  if (newValue) {
-    console.log('[FunctionToggleModal] Modal opened:', {
-      hasActiveProfile: !!getActiveProfileSettings(),
-      enabledFunctionTools: activeProfileSettings.value?.enabledFunctionTools,
-      toolOptionsCount: toolOptions.value.length,
-      selectedToolNameSetSize: selectedToolNameSet.value.size,
-    })
-
-    // プロファイルが存在しない場合は警告を表示
-    if (!activeProfileSettings.value || Object.keys(activeProfileSettings.value).length === 0) {
-      console.warn('[FunctionToggleModal] プロファイル設定が読み込まれていません')
-    }
-  }
-})
 
 const open = () => {
   isOpen.value = true

@@ -6,6 +6,8 @@
       'border-border': !enabled,
     }"
     :title="`${description} (${enabled ? 'クリックで無効化' : 'クリックで有効化'})`"
+    :aria-pressed="enabled"
+    :aria-label="`${label}: ${enabled ? '有効' : '無効'}`"
     @click="handleClick"
   >
     <div class="relative mb-2">

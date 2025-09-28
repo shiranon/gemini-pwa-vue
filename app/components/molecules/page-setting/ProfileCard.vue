@@ -158,6 +158,7 @@ import type { SettingsProfile } from '~/types/settings'
 import { truncateText } from '~/lib/format'
 import { useProfileImageUpload } from '~/composables/useImageUpload'
 import { PROFILE_NAME_MAX_LENGTH } from '~/constants/constants'
+import { findProfileById, getValidProfileId, hasValidProfiles } from '~/utils/profileUtils'
 
 const props = defineProps<{
   profiles: SettingsProfile[]
@@ -190,7 +191,7 @@ watch(
 watch(
   () => props.profiles,
   (profiles) => {
-    if (!profiles?.length) {
+    if (!hasValidProfiles(profiles)) {
       if (selectedId.value !== null) {
         selectedId.value = null
         emit('update:modelValue', null)
@@ -200,17 +201,7 @@ watch(
 
     const exists = profiles.some((profile) => profile.id === selectedId.value)
     if (!exists) {
-      const modelValueExists = profiles.some((profile) => profile.id === props.modelValue)
-      if (modelValueExists) {
-        const nextValue = props.modelValue
-        if (selectedId.value !== nextValue) {
-          selectedId.value = nextValue
-          emit('update:modelValue', nextValue)
-        }
-        return
-      }
-      const defaultProfile = profiles.find((profile) => profile.isDefault)
-      const nextValue = defaultProfile?.id ?? null
+      const nextValue = getValidProfileId(profiles, props.modelValue)
       if (selectedId.value !== nextValue) {
         selectedId.value = nextValue
         emit('update:modelValue', nextValue)
@@ -220,7 +211,7 @@ watch(
 )
 
 const selectedProfile = computed(() => {
-  return props.profiles.find((profile) => profile.id === selectedId.value) ?? null
+  return findProfileById(props.profiles, selectedId.value)
 })
 
 const truncatedName = computed(() => truncateText(selectedProfile.value?.name ?? '', PROFILE_NAME_MAX_LENGTH))

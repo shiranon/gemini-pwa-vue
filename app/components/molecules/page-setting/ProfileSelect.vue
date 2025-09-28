@@ -127,6 +127,7 @@ import { computed } from 'vue'
 import type { AcceptableValue } from 'reka-ui'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '~/components/ui/select'
 import type { SettingsProfile } from '~/types/settings'
+import { findProfileById, isValidProfileId } from '~/utils/profileUtils'
 
 export interface ProfileSelectProps {
   /** プロファイル一覧 */
@@ -152,7 +153,7 @@ const emit = defineEmits<{
 }>()
 
 const selectedProfile = computed(() => {
-  return props.profiles.find((profile) => profile.id === props.selectedProfileId) ?? null
+  return findProfileById(props.profiles, props.selectedProfileId)
 })
 
 const handleProfileChange = (value: AcceptableValue) => {
@@ -162,7 +163,7 @@ const handleProfileChange = (value: AcceptableValue) => {
   }
 
   const profileId = typeof value === 'string' || typeof value === 'number' ? String(value) : ''
-  if (!profileId || profileId === 'null' || profileId === 'undefined') {
+  if (!isValidProfileId(profileId)) {
     emit('update:selectedProfileId', null)
     return
   }

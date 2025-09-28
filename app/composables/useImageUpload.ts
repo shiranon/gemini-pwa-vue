@@ -44,6 +44,12 @@ export function useImageUpload(options: ImageUploadOptions = {}) {
         reader.onload = () => {
           const result = reader.result
           if (typeof result === 'string') {
+            // Base64エンコード後のサイズ制限（元ファイルサイズの約1.33倍 + 余裕を持って1.5倍）
+            const base64SizeLimit = maxSize * 1.5
+            if (result.length > base64SizeLimit) {
+              reject(new Error('エンコード後のファイルサイズが上限を超えています'))
+              return
+            }
             resolve(result)
           } else {
             reject(new Error('ファイルの読み込みに失敗しました'))
