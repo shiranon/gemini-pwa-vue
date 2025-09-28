@@ -1,13 +1,17 @@
 <template>
-  <div class="w-auto max-w-48">
+  <div
+    class="w-auto max-w-48"
+    :class="props.mode === 'avatar-only' ? 'py-2' : ''"
+  >
     <Select
       :model-value="selectedProfileId"
       @update:model-value="handleProfileChange"
     >
       <SelectTrigger
+        class="cursor-pointer"
         :class="
           props.mode === 'avatar-only'
-            ? 'hover:bg-muted/50 focus:ring-primary/30 size-10 rounded-full border-0 bg-transparent p-0 focus:ring-2 [&_svg]:hidden'
+            ? 'size-10 rounded-full border-0 bg-transparent p-0 sm:size-13 [&_svg]:hidden'
             : 'border-border/60 text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-primary/30 bg-background h-10 w-full rounded-xl border px-3 py-2 text-sm transition focus:ring-2 focus:outline-none'
         "
         :disabled="!profiles.length"
@@ -21,12 +25,12 @@
             <div class="flex items-center gap-2">
               <div
                 v-if="selectedProfile?.settings.profileImage"
-                class="h-6 w-6 flex-shrink-0 overflow-hidden rounded-full"
+                class="size-6 flex-shrink-0 overflow-hidden rounded-full sm:size-9"
               >
                 <img
                   :src="selectedProfile.settings.profileImage"
                   :alt="selectedProfile.name"
-                  class="h-full w-full object-cover"
+                  class="size-full cursor-pointer object-cover"
                 />
               </div>
               <div
@@ -46,7 +50,7 @@
           >
             <div
               v-if="selectedProfile?.settings.profileImage"
-              class="h-8 w-8 overflow-hidden rounded-full"
+              class="size-10 overflow-hidden rounded-full sm:size-13"
             >
               <img
                 :src="selectedProfile.settings.profileImage"
@@ -56,7 +60,7 @@
             </div>
             <div
               v-else
-              class="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-pink-400 to-purple-500"
+              class="flex size-10 items-center justify-center rounded-full bg-gradient-to-br from-pink-400 to-purple-500 sm:size-13"
             >
               <span class="text-sm font-medium text-white">
                 {{ selectedProfile?.name?.charAt(0)?.toUpperCase() ?? '?' }}

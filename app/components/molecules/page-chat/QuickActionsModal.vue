@@ -2,10 +2,13 @@
   <Dialog v-model:open="isOpen">
     <DialogTrigger
       as-child
-      class="size-10 rounded-md"
+      class="size-10 rounded-md sm:size-13"
     >
       <Button :disabled="disabled">
-        <Icon icon="icon-park-solid:scan-setting" />
+        <Icon
+          icon="icon-park-solid:scan-setting"
+          class="size-6 sm:size-9"
+        />
       </Button>
     </DialogTrigger>
     <DialogContent class="max-w-2xl">
