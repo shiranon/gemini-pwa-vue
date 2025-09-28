@@ -16,7 +16,6 @@ A Nuxt 3 Progressive Web App for Gemini AI chat interactions, specifically desig
 - `bun run typecheck` - Run TypeScript type checking
 - `bun run lint` - Run ESLint
 - `bun lint --fix` - Auto-fix ESLint issues
-- `bun format:fix` - Format code with Prettier
 - `bun run test` - Run all Vitest tests with TZ=Asia/Tokyo
 - `bun test [file]` - Run specific test file (e.g., `bun test rollDice.spec.ts`)
 - `bun run check-all` - Run lint --fix, typecheck, and test in sequence
@@ -308,8 +307,7 @@ Pre-commit hooks run in parallel:
 ## Quality Gates (MANDATORY)
 After code changes, always run:
 ```bash
-bun lint --fix    # Auto-fix linting issues
-bun format:fix    # Format code with Prettier
+bun lint --fix    # Auto-fix linting issues (includes Prettier formatting)
 bun typecheck     # Verify TypeScript types
 bun test          # Run unit tests
 bun run build     # Confirm production build

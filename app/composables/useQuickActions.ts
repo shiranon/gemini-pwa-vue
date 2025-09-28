@@ -208,7 +208,7 @@ export const useQuickActions = () => {
    * @param actionId - 切り替えるアクションのID
    * @param value - 設定する値（true/false）
    */
-  const toggleActionInternal = (actionId: string, value: boolean) => {
+  const toggleActionInternal = (actionId: string, value: boolean): void => {
     try {
       const action = quickActions.value.find((a: QuickAction) => a.id === actionId)
       if (!action) {
