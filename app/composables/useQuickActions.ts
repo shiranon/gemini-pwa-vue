@@ -437,14 +437,24 @@ export const useQuickActions = () => {
    * コンポーネントのアンマウント時にリソースをクリーンアップします
    */
   const cleanup = () => {
-    // モーダルrefsをクリア
-    functionToggleModalRef.value = undefined
-    profileSwitchModalRef.value = undefined
+    try {
+      // モーダルrefsをクリア
+      functionToggleModalRef.value = undefined
+      profileSwitchModalRef.value = undefined
 
-    // モーダルを閉じる
-    isOpen.value = false
+      // モーダルを閉じる
+      isOpen.value = false
 
-    logger.debug('[Quick Actions] リソースをクリーンアップしました', { component: 'useQuickActions' })
+      // 一時的な設定をクリア
+      profilesStore.clearTemporarySettings()
+
+      logger.debug('[Quick Actions] リソースをクリーンアップしました', { component: 'useQuickActions' })
+    } catch (error) {
+      logger.warn('[Quick Actions] クリーンアップ中にエラーが発生しました', {
+        component: 'useQuickActions',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      })
+    }
   }
 
   // コンポーネントのアンマウント時にクリーンアップを実行

@@ -14,15 +14,12 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
 import { useChatStore } from '~/stores/chat'
-import { useSettingsStore } from '~/stores/settings'
 import ChatInterface from '~/components/organisms/page-chat/ChatInterface.vue'
 
 const chatStore = useChatStore()
-const settingsStore = useSettingsStore()
 
 onMounted(async () => {
   await chatStore.initialize()
-  settingsStore.initialize()
 })
 </script>
 

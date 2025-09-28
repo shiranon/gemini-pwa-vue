@@ -107,6 +107,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import { useChatStore } from '~/stores/chat'
 import { useSettingsStore } from '~/stores/settings'
@@ -145,6 +146,7 @@ onBeforeRouteLeave(() => {
 const inputText = ref('')
 const messageContainer = ref<HTMLElement>()
 const backgroundUrl = ref<string | null>(null)
+const isProfileLoading = ref(false)
 
 // プロファイル関連の変数
 const profiles = computed(() => profilesStore.sortedProfiles)
@@ -424,11 +426,14 @@ const handleProfileChange = async (profileId: string | null) => {
   if (!profileId) return
 
   try {
+    // プロファイル切り替え中のローディング状態を設定
+    isProfileLoading.value = true
     // プロファイルを切り替えて設定を適用
     profilesStore.applyProfileToSettings(profileId)
     await profilesStore.saveProfiles() // アクティブプロファイルを永続化
 
-    // ローカル設定を更新して表示を切り替える
+    // 状態更新完了を待ってからUIを更新
+    await nextTick()
     syncLocalSettings()
     // プロファイル設定も自動的に読み込まれる（useProfileSettingsのwatchで）
 
@@ -437,6 +442,8 @@ const handleProfileChange = async (profileId: string | null) => {
   } catch (error) {
     logger.error('プロファイル切り替え時の保存に失敗', { component: 'ChatInterface' }, error)
     toast.error('プロファイルの切り替えに失敗しました')
+  } finally {
+    isProfileLoading.value = false
   }
 }
 

@@ -160,27 +160,51 @@ export const useSettingsProfilesStore = defineStore('settingsProfiles', () => {
   }
 
   const setActiveProfile = (profileId: string | null) => {
-    if (profileId && !profiles.value.find((p) => p.id === profileId)) {
-      throw new Error(`プロファイルが見つかりません: ${profileId}`)
-    }
+    try {
+      if (profileId && !profiles.value.find((p) => p.id === profileId)) {
+        const error = new Error(`プロファイルが見つかりません: ${profileId}`)
+        logger.error('無効なプロファイルIDでアクティブプロファイルを設定しようとしました', {
+          component: 'settingsProfiles',
+          profileId,
+          availableProfiles: profiles.value.map((p) => p.id),
+        })
+        throw error
+      }
 
-    // プロファイルが変更される前に一時的な設定をクリア
-    if (activeProfileId.value !== profileId) {
-      clearTemporarySettings()
-    }
+      // プロファイルが変更される前に一時的な設定をクリア
+      if (activeProfileId.value !== profileId) {
+        clearTemporarySettings()
+      }
 
-    activeProfileId.value = profileId
-    logger.info('アクティブプロファイルを変更', { profileId })
+      activeProfileId.value = profileId
+      logger.info('アクティブプロファイルを変更', { profileId })
+    } catch (error) {
+      logger.error('アクティブプロファイルの設定に失敗しました:', { component: 'settingsProfiles' }, error)
+      throw error
+    }
   }
 
   const applyProfileToSettings = (profileId: string): Partial<AppSettings> => {
-    const profile = profiles.value.find((p) => p.id === profileId)
-    if (!profile) {
-      throw new Error(`プロファイルが見つかりません: ${profileId}`)
-    }
+    try {
+      const profile = profiles.value.find((p) => p.id === profileId)
+      if (!profile) {
+        const error = new Error(`プロファイルが見つかりません: ${profileId}`)
+        logger.error('存在しないプロファイルを適用しようとしました', {
+          component: 'settingsProfiles',
+          profileId,
+          availableProfiles: profiles.value.map((p) => p.id),
+        })
+        throw error
+      }
 
-    setActiveProfile(profileId)
-    return cloneProfileSettings(profile.settings)
+      setActiveProfile(profileId)
+      const settings = cloneProfileSettings(profile.settings)
+      logger.info('プロファイル設定を適用しました', { profileId, profileName: profile.name })
+      return settings
+    } catch (error) {
+      logger.error('プロファイル設定の適用に失敗しました:', { component: 'settingsProfiles' }, error)
+      throw error
+    }
   }
 
   const saveProfiles = async () => {
@@ -208,22 +232,41 @@ export const useSettingsProfilesStore = defineStore('settingsProfiles', () => {
         activeProfileId.value = result.data.activeProfileId
 
         if (profiles.value.length === 0) {
+          logger.info('プロファイルが存在しないため、デフォルトプロファイルを作成します')
           await createDefaultProfile()
         }
       } else {
+        logger.warn('プロファイルの読み込みに失敗、デフォルトプロファイルを作成', {
+          error: result.error,
+        })
         await createDefaultProfile()
       }
     } catch (error) {
       logger.error('プロファイルの読み込みエラー:', { component: 'settingsProfiles' }, error)
-      await createDefaultProfile()
+      // エラー時はデフォルトプロファイルを作成してアプリを継続
+      try {
+        await createDefaultProfile()
+        logger.info('エラー回復: デフォルトプロファイルを作成しました')
+      } catch (createError) {
+        logger.error('デフォルトプロファイルの作成にも失敗しました:', { component: 'settingsProfiles' }, createError)
+        // 最後の手段として空のプロファイルリストで継続
+        profiles.value = []
+        activeProfileId.value = null
+      }
     } finally {
       isLoading.value = false
     }
   }
 
   const createDefaultProfile = async () => {
-    const defaultProfile = await createProfile('デフォルト', 'デフォルトの設定プロファイル', DEFAULT_SETTINGS, true)
-    setActiveProfile(defaultProfile.id)
+    try {
+      const defaultProfile = await createProfile('デフォルト', 'デフォルトの設定プロファイル', DEFAULT_SETTINGS, true)
+      setActiveProfile(defaultProfile.id)
+      logger.info('デフォルトプロファイルを作成しました', { profileId: defaultProfile.id })
+    } catch (error) {
+      logger.error('デフォルトプロファイルの作成に失敗しました:', { component: 'settingsProfiles' }, error)
+      throw error // 呼び出し元でエラーハンドリングを行うため再スロー
+    }
   }
 
   const exportProfile = (profileId: string): string => {

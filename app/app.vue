@@ -9,8 +9,7 @@ const profilesStore = useSettingsProfilesStore()
 
 onMounted(async () => {
   try {
-    await settingsStore.initialize()
-    await profilesStore.initialize()
+    await Promise.all([settingsStore.initialize(), profilesStore.initialize()])
   } catch (error) {
     logger.error('[Stores] 初期化に失敗しました:', { component: 'app' }, error)
   }

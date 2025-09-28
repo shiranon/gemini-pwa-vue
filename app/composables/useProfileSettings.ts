@@ -1,4 +1,4 @@
-import { computed, readonly, ref, watch } from 'vue'
+import { computed, onUnmounted, readonly, ref, watch } from 'vue'
 import { useSettingsProfilesStore } from '~/stores/settingsProfiles'
 import type { SettingsProfileData } from '~/types/settings'
 import { logger } from '~/utils/logger'
@@ -191,8 +191,11 @@ export function useProfileSettings() {
     })
   }
 
+  // watcherの参照を保持してクリーンアップ用
+  const watchers: Array<() => void> = []
+
   // アクティブプロファイルが変更されたら設定を読み込む
-  watch(
+  const stopActiveProfileWatcher = watch(
     () => profilesStore.activeProfile,
     (newProfile) => {
       if (newProfile) {
@@ -201,9 +204,10 @@ export function useProfileSettings() {
     },
     { immediate: true }
   )
+  watchers.push(stopActiveProfileWatcher)
 
   // Function Calling と Google Search の排他制御
-  watch(
+  const stopFunctionCallingWatcher = watch(
     () => localProfileSettings.value.geminiEnableFunctionCalling,
     (newValue, oldValue) => {
       if (newValue !== oldValue && newValue && localProfileSettings.value.geminiEnableGrounding) {
@@ -214,8 +218,9 @@ export function useProfileSettings() {
       }
     }
   )
+  watchers.push(stopFunctionCallingWatcher)
 
-  watch(
+  const stopGroundingWatcher = watch(
     () => localProfileSettings.value.geminiEnableGrounding,
     (newValue, oldValue) => {
       if (newValue !== oldValue && newValue && localProfileSettings.value.geminiEnableFunctionCalling) {
@@ -226,6 +231,13 @@ export function useProfileSettings() {
       }
     }
   )
+  watchers.push(stopGroundingWatcher)
+
+  // クリーンアップ処理
+  onUnmounted(() => {
+    watchers.forEach((stop) => stop())
+    logger.debug('[Profile Settings] watchersをクリーンアップしました', { component: 'useProfileSettings' })
+  })
 
   /**
    * プロファイル設定を更新（一時的な変更）
