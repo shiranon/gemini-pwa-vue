@@ -7,7 +7,7 @@
       <Button :disabled="disabled">
         <Icon
           icon="icon-park-solid:scan-setting"
-          class="size-6 sm:size-9"
+          class="size-6 sm:size-8"
         />
       </Button>
     </DialogTrigger>

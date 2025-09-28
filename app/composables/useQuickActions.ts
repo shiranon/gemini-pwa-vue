@@ -273,14 +273,14 @@ export const useQuickActions = () => {
       if (actionId === 'google-search' && newValue) {
         // Google Search を有効にする場合、Function Calling を無効化
         const functionCallingAction = quickActions.value.find((a) => a.id === 'functionCalling')
-        if (functionCallingAction && functionCallingAction.enabled) {
+        if (functionCallingAction && currentSettings.value.geminiEnableFunctionCalling) {
           logger.debug('[Quick Actions] Google Search有効化によりFunction Callingを無効化', { component: 'useQuickActions' })
           toggleActionInternal('functionCalling', false)
         }
       } else if (actionId === 'functionCalling' && newValue) {
         // Function Calling を有効にする場合、Google Search を無効化
         const googleSearchAction = quickActions.value.find((a) => a.id === 'google-search')
-        if (googleSearchAction && googleSearchAction.enabled) {
+        if (googleSearchAction && currentSettings.value.geminiEnableGrounding) {
           logger.debug('[Quick Actions] Function Calling有効化によりGoogle Searchを無効化', { component: 'useQuickActions' })
           toggleActionInternal('google-search', false)
         }
