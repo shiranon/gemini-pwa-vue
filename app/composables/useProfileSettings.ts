@@ -95,6 +95,7 @@ export function useProfileSettings() {
     }
 
     logger.info('プロファイル設定を読み込みました', {
+      component: 'useProfileSettings',
       profileId: profilesStore.activeProfile.id,
       profileName: profilesStore.activeProfile.name,
     })

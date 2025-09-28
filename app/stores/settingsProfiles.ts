@@ -321,7 +321,7 @@ export const useSettingsProfilesStore = defineStore('settingsProfiles', () => {
 
   const initialize = async () => {
     await loadProfiles()
-    logger.info('プロファイルストアを初期化', { profileCount: profiles.value.length })
+    logger.info('プロファイルストアを初期化', { component: 'settingsProfiles' }, { profileCount: profiles.value.length })
   }
 
   return {

@@ -37,7 +37,7 @@
           :description="action.description"
           :disabled="action.disabled || (action.id === 'summarize' && !props.canSummarize)"
           :loading="action.id === 'summarize' && props.isSummarizing"
-          @click="handleActionClick(action.id)"
+          @click="handleActionClick(action.id, onSummarize)"
         />
       </div>
 
@@ -48,7 +48,7 @@
       <DialogFooter>
         <Button
           variant="outline"
-          @click="isOpen = false"
+          @click="closeModal"
         >
           閉じる
         </Button>
@@ -58,7 +58,6 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '~/components/ui/dialog'
 import { Button } from '~/components/ui/button'
@@ -86,30 +85,11 @@ const emit = defineEmits<{
   summarize: []
 }>()
 
-const isOpen = ref(false)
-const functionToggleModalRef = ref()
-const profileSwitchModalRef = ref()
-const { quickActions, toggleAction, executableActions, executeAction } = useQuickActions()
+// useQuickActionsからモーダル制御機能を含む全ての機能を取得
+const { quickActions, executableActions, isOpen, functionToggleModalRef, profileSwitchModalRef, closeModal, handleActionClick, handleToggle } = useQuickActions()
 
-const handleToggle = (actionId: string) => {
-  toggleAction(actionId)
-}
-
-const handleActionClick = async (actionId: string) => {
-  const result = await executeAction(actionId)
-
-  if (result.type === 'modal') {
-    switch (result.payload) {
-      case 'function-toggle':
-        functionToggleModalRef.value?.open()
-        break
-      case 'profile-switch':
-        profileSwitchModalRef.value?.open()
-        break
-    }
-  } else if (result.type === 'function' && result.payload === 'summarize') {
-    emit('summarize')
-    isOpen.value = false
-  }
+// 要約アクション用のコールバック関数
+const onSummarize = () => {
+  emit('summarize')
 }
 </script>

@@ -1,6 +1,6 @@
 import { Bot, Brain, BrainCircuit, FileText, FunctionSquare, Languages, MessagesSquare, RefreshCw, Search, Settings, SpellCheck, User, UserCircle } from 'lucide-vue-next'
 import type { Component } from 'vue'
-import { computed, markRaw } from 'vue'
+import { computed, markRaw, ref } from 'vue'
 import { useSettingsStore } from '~/stores/settings'
 import { useSettingsProfilesStore } from '~/stores/settingsProfiles'
 import type { SettingsProfileData } from '~/types/settings'
@@ -23,9 +23,19 @@ interface ExecutableAction {
   disabled?: boolean
 }
 
+interface ModalRef {
+  open: () => void
+  close: () => void
+}
+
 export const useQuickActions = () => {
   const settingsStore = useSettingsStore()
   const profilesStore = useSettingsProfilesStore()
+
+  // モーダル制御の状態管理
+  const isOpen = ref(false)
+  const functionToggleModalRef = ref<ModalRef>()
+  const profileSwitchModalRef = ref<ModalRef>()
 
   // プロファイル設定とグローバル設定を統合した設定を取得
   const currentSettings = computed(() => {
@@ -183,19 +193,63 @@ export const useQuickActions = () => {
   ])
 
   const executeAction = async (actionId: string): Promise<{ type: 'modal' | 'function'; payload?: string }> => {
-    logger.info(`[Quick Actions] アクションを実行: ${actionId}`, { component: 'useQuickActions' })
+    try {
+      logger.info(`[Quick Actions] アクションを実行: ${actionId}`, { component: 'useQuickActions' })
 
-    switch (actionId) {
-      case 'summarize':
-        return { type: 'function', payload: 'summarize' }
-      case 'toggle-functions':
-        return { type: 'modal', payload: 'function-toggle' }
-      case 'switch-profile':
-        return { type: 'modal', payload: 'profile-switch' }
-      default:
-        logger.warn(`[Quick Actions] 未知のアクション: ${actionId}`, { component: 'useQuickActions' })
-        return { type: 'function' }
+      switch (actionId) {
+        case 'summarize':
+          return { type: 'function', payload: 'summarize' }
+        case 'toggle-functions':
+          return { type: 'modal', payload: 'function-toggle' }
+        case 'switch-profile':
+          return { type: 'modal', payload: 'profile-switch' }
+        default:
+          logger.warn(`[Quick Actions] 未知のアクション: ${actionId}`, { component: 'useQuickActions' })
+          return { type: 'function' }
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      logger.error(`[Quick Actions] アクション実行エラー: ${actionId}`, {
+        error: errorMessage,
+        component: 'useQuickActions',
+      })
+
+      // エラーが発生した場合は安全なデフォルト値を返す
+      return { type: 'function' }
     }
+  }
+
+  // モーダル制御関数
+  const openModal = () => {
+    isOpen.value = true
+  }
+
+  const closeModal = () => {
+    isOpen.value = false
+  }
+
+  // アクションクリックハンドラー（モーダル制御を含む）
+  const handleActionClick = async (actionId: string, onSummarize?: () => void) => {
+    const result = await executeAction(actionId)
+
+    if (result.type === 'modal') {
+      switch (result.payload) {
+        case 'function-toggle':
+          functionToggleModalRef.value?.open()
+          break
+        case 'profile-switch':
+          profileSwitchModalRef.value?.open()
+          break
+      }
+    } else if (result.type === 'function' && result.payload === 'summarize') {
+      onSummarize?.()
+      closeModal()
+    }
+  }
+
+  // 設定トグルハンドラー
+  const handleToggle = (actionId: string) => {
+    toggleAction(actionId)
   }
 
   // プロファイル設定を更新する関数（一時的な変更のみ）
@@ -212,11 +266,21 @@ export const useQuickActions = () => {
   }
 
   return {
+    // 既存の機能
     quickActions,
     toggleAction,
     executableActions,
     executeAction,
     updateProfileSetting,
     getActiveProfileSettings,
+
+    // 新しく追加したモーダル制御機能
+    isOpen,
+    functionToggleModalRef,
+    profileSwitchModalRef,
+    openModal,
+    closeModal,
+    handleActionClick,
+    handleToggle,
   }
 }
