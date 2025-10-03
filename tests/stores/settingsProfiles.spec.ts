@@ -3,6 +3,18 @@ import { createPinia, setActivePinia } from 'pinia'
 import { useSettingsProfilesStore } from '~/stores/settingsProfiles'
 import type { SettingsProfile } from '~/types/settings'
 
+// loggerをモック（Bunの場合は直接置き換え）
+import { logger } from '~/utils/logger'
+
+// loggerのモック
+const mockLogger = {
+  error: () => {},
+  info: () => {},
+  warn: () => {},
+  debug: () => {},
+}
+Object.assign(logger, mockLogger)
+
 describe('useSettingsProfilesStore', () => {
   let store: ReturnType<typeof useSettingsProfilesStore>
 
