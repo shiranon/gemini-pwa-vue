@@ -33,6 +33,16 @@
     <Button
       variant="ghost"
       size="default"
+      :class="['justify-start gap-2', currentPage === 'image' && 'bg-accent text-accent-foreground']"
+      @click="$emit('navigate', 'image')"
+    >
+      <Icon icon="material-symbols:image" />
+      <span>画像</span>
+    </Button>
+
+    <Button
+      variant="ghost"
+      size="default"
       :class="['justify-start gap-2', currentPage === 'settings' && 'bg-accent text-accent-foreground']"
       @click="$emit('navigate', 'settings')"
     >

@@ -139,6 +139,28 @@ export interface AppMetaRecord {
   updatedAt: number
 }
 
+/** キャラクター画像アセットテーブルのレコード */
+export interface CharacterImageAssetRecord {
+  /** 画像ID（プライマリキー） */
+  id: string
+  /** キャラクター名 */
+  character: string
+  /** 服装 */
+  cloth: string
+  /** 表情・シーン */
+  expression: string
+  /** Base64エンコードされた画像データ */
+  base64Data: string
+  /** MIMEタイプ */
+  mimeType: string
+  /** ファイルサイズ（バイト） */
+  size: number
+  /** 作成日時 */
+  createdAt: number
+  /** 更新日時 */
+  updatedAt: number
+}
+
 // ============================================================================
 // インデックス定義型
 // ============================================================================
@@ -186,6 +208,25 @@ export interface DatabaseIndexes {
   }
 
   appMeta: {
+    /** 更新日時でのソート用 */
+    updatedAt: number
+  }
+
+  characterImageAssets: {
+    /** キャラクター名での絞り込み用 */
+    character: string
+    /** 服装での絞り込み用 */
+    cloth: string
+    /** 表情・シーンでの絞り込み用 */
+    expression: string
+    /** 複合インデックス: キャラクター + 服装 */
+    '[character+cloth]': [string, string]
+    /** 複合インデックス: キャラクター + 服装 + 表情 */
+    '[character+cloth+expression]': [string, string, string]
+    /** 複合インデックス: キャラクター + 表情 */
+    '[character+expression]': [string, string]
+    /** 作成日時でのソート用 */
+    createdAt: number
     /** 更新日時でのソート用 */
     updatedAt: number
   }

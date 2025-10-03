@@ -9,6 +9,7 @@ import type { AttachedFile, ChatSession, Message, UserMessage } from '~/types/ch
 import type {
   AppMetaRecord,
   AttachedFileRecord,
+  CharacterImageAssetRecord,
   ChatQueryOptions,
   ChatRecord,
   DatabaseOperationResult,
@@ -34,6 +35,7 @@ export const TABLES = {
   settings: 'settings',
   settingsProfiles: 'settingsProfiles',
   appMeta: 'appMeta',
+  characterImageAssets: 'characterImageAssets',
 } as const
 
 const APP_META_KEYS = {
@@ -61,6 +63,7 @@ export class GeminiDatabase extends Dexie {
   settings!: Table<SettingsRecord>
   settingsProfiles!: Table<SettingsProfileRecord, string>
   appMeta!: Table<AppMetaRecord>
+  characterImageAssets!: Table<CharacterImageAssetRecord>
 
   // Change listeners
   private changeListeners = new Set<(changeType: string, table: string, key: string | number | null) => void>()
@@ -95,6 +98,13 @@ export class GeminiDatabase extends Dexie {
 
         await tx.table('messages').bulkPut(updatedMessages)
         logger.info(`要約フラグを追加しました: ${updatedMessages.length}件のメッセージ`, { component: 'Database' })
+      })
+    this.version(5)
+      .stores({
+        characterImageAssets: 'id, character, cloth, expression, [character+cloth], [character+cloth+expression], [character+expression], createdAt, updatedAt',
+      })
+      .upgrade(() => {
+        logger.info('キャラクター画像管理機能のためにバージョン5へアップグレード中...', { component: 'Database' })
       })
 
     this.setupHooks()
@@ -146,6 +156,16 @@ export class GeminiDatabase extends Dexie {
     })
     this.appMeta.hook('deleting', (primKey) => {
       this.notifyChange('delete', 'appMeta', primKey)
+    })
+
+    this.characterImageAssets.hook('creating', () => {
+      this.notifyChange('create', 'characterImageAssets', null)
+    })
+    this.characterImageAssets.hook('updating', (_modifications, primKey) => {
+      this.notifyChange('update', 'characterImageAssets', primKey)
+    })
+    this.characterImageAssets.hook('deleting', (primKey) => {
+      this.notifyChange('delete', 'characterImageAssets', primKey)
     })
   }
 

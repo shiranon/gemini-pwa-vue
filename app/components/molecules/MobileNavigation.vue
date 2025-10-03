@@ -31,6 +31,15 @@
     </Button>
 
     <Button
+      :variant="currentPage === 'image' ? 'secondary' : 'ghost'"
+      class="flex w-full items-center justify-start gap-3 px-4 py-3 text-left"
+      @click="$emit('navigate', 'image')"
+    >
+      <Icon icon="material-symbols:image" />
+      <span>画像</span>
+    </Button>
+
+    <Button
       :variant="currentPage === 'settings' ? 'secondary' : 'ghost'"
       class="flex w-full items-center justify-start gap-3 px-4 py-3 text-left"
       @click="$emit('navigate', 'settings')"

@@ -16,6 +16,7 @@ export const useNavigation = () => {
     if (path === '/history') return 'history'
     if (path === '/settings') return 'settings'
     if (path === '/data') return 'data'
+    if (path === '/image') return 'image'
     return 'chat'
   })
 
@@ -30,6 +31,8 @@ export const useNavigation = () => {
         return 'チャット'
       case 'data':
         return 'データ管理'
+      case 'image':
+        return '画像管理'
       default:
         return 'Gemini Pwa Assistant'
     }
@@ -42,6 +45,7 @@ export const useNavigation = () => {
       history: '/history',
       settings: '/settings',
       data: '/data',
+      image: '/image',
     }
     router.push(routes[page as keyof typeof routes] || '/')
   }
