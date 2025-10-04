@@ -7,7 +7,7 @@ export interface ImageUploadOptions {
 }
 
 const DEFAULT_MAX_SIZE = 5 * 1024 * 1024 // 5MB
-const DEFAULT_ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+const DEFAULT_ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif']
 
 export function useImageUpload(options: ImageUploadOptions = {}) {
   const { maxSize = DEFAULT_MAX_SIZE, allowedTypes = DEFAULT_ALLOWED_TYPES } = options
@@ -29,8 +29,22 @@ export function useImageUpload(options: ImageUploadOptions = {}) {
     }
 
     // ファイル形式チェック
-    if (!allowedTypes.includes(file.type)) {
-      error.value = 'サポートされていないファイル形式です'
+    const fileExtension = file.name.toLowerCase().split('.').pop()
+    const isValidMimeType = allowedTypes.includes(file.type)
+    const isValidExtension = fileExtension && ['jpeg', 'jpg', 'png', 'gif', 'webp', 'avif'].includes(fileExtension)
+
+    // デバッグ用ログ
+    console.log('File upload debug:', {
+      fileName: file.name,
+      fileType: file.type,
+      fileExtension,
+      isValidMimeType,
+      isValidExtension,
+      allowedTypes,
+    })
+
+    if (!isValidMimeType && !isValidExtension) {
+      error.value = `サポートされていないファイル形式です (MIME: ${file.type}, 拡張子: ${fileExtension})`
       return null
     }
 
@@ -127,20 +141,20 @@ export function useImageUpload(options: ImageUploadOptions = {}) {
 export function useAvatarImageUpload() {
   return useImageUpload({
     maxSize: 5 * 1024 * 1024, // 5MB
-    allowedTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
+    allowedTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif'],
   })
 }
 
 export function useBackgroundImageUpload() {
   return useImageUpload({
     maxSize: 5 * 1024 * 1024, // 5MB
-    allowedTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
+    allowedTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif'],
   })
 }
 
 export function useProfileImageUpload() {
   return useImageUpload({
     maxSize: 5 * 1024 * 1024, // 5MB
-    allowedTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
+    allowedTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif'],
   })
 }

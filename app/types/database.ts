@@ -139,20 +139,50 @@ export interface AppMetaRecord {
   updatedAt: number
 }
 
-/** キャラクター画像アセットテーブルのレコード */
-export interface CharacterImageAssetRecord {
-  /** 画像ID（プライマリキー） */
+/** キャラクターテーブルのレコード */
+export interface CharacterRecord {
+  /** キャラクターID（プライマリキー） */
   id: string
   /** キャラクター名 */
-  character: string
-  /** 服装 */
-  cloth: string
-  /** 表情・シーン */
+  name: string
+  /** キャラクター説明 */
+  description?: string
+  /** 作成日時 */
+  createdAt: number
+  /** 更新日時 */
+  updatedAt: number
+}
+
+/** キャラクター衣装テーブルのレコード */
+export interface CharacterOutfitRecord {
+  /** 衣装ID（プライマリキー） */
+  id: string
+  /** 所属するキャラクターID（外部キー） */
+  characterId: string
+  /** 衣装名 */
+  name: string
+  /** 衣装説明 */
+  description?: string
+  /** 作成日時 */
+  createdAt: number
+  /** 更新日時 */
+  updatedAt: number
+}
+
+/** キャラクター画像テーブルのレコード */
+export interface CharacterImageRecord {
+  /** 画像ID（プライマリキー） */
+  id: string
+  /** 所属するキャラクターID（外部キー） */
+  characterId: string
+  /** 所属する衣装ID（外部キー） */
+  outfitId: string
+  /** 表情・シーン名 */
   expression: string
-  /** Base64エンコードされた画像データ */
-  base64Data: string
   /** MIMEタイプ */
   mimeType: string
+  /** Base64エンコードされた画像データ */
+  base64Data: string
   /** ファイルサイズ（バイト） */
   size: number
   /** 作成日時 */
@@ -212,19 +242,39 @@ export interface DatabaseIndexes {
     updatedAt: number
   }
 
-  characterImageAssets: {
+  characters: {
     /** キャラクター名での絞り込み用 */
-    character: string
-    /** 服装での絞り込み用 */
-    cloth: string
-    /** 表情・シーンでの絞り込み用 */
+    name: string
+    /** 作成日時でのソート用 */
+    createdAt: number
+    /** 更新日時でのソート用 */
+    updatedAt: number
+  }
+
+  characterOutfits: {
+    /** キャラクターIDでの絞り込み用 */
+    characterId: string
+    /** 衣装名での絞り込み用 */
+    name: string
+    /** 複合インデックス: キャラクター + 衣装名 */
+    '[characterId+name]': [string, string]
+    /** 作成日時でのソート用 */
+    createdAt: number
+    /** 更新日時でのソート用 */
+    updatedAt: number
+  }
+
+  characterImages: {
+    /** キャラクターIDでの絞り込み用 */
+    characterId: string
+    /** 衣装IDでの絞り込み用 */
+    outfitId: string
+    /** 表情名での絞り込み用 */
     expression: string
-    /** 複合インデックス: キャラクター + 服装 */
-    '[character+cloth]': [string, string]
-    /** 複合インデックス: キャラクター + 服装 + 表情 */
-    '[character+cloth+expression]': [string, string, string]
-    /** 複合インデックス: キャラクター + 表情 */
-    '[character+expression]': [string, string]
+    /** 複合インデックス: キャラクター + 衣装 */
+    '[characterId+outfitId]': [string, string]
+    /** 複合インデックス: キャラクター + 衣装 + 表情 */
+    '[characterId+outfitId+expression]': [string, string, string]
     /** 作成日時でのソート用 */
     createdAt: number
     /** 更新日時でのソート用 */

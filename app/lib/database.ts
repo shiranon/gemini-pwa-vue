@@ -9,7 +9,9 @@ import type { AttachedFile, ChatSession, Message, UserMessage } from '~/types/ch
 import type {
   AppMetaRecord,
   AttachedFileRecord,
-  CharacterImageAssetRecord,
+  CharacterImageRecord,
+  CharacterOutfitRecord,
+  CharacterRecord,
   ChatQueryOptions,
   ChatRecord,
   DatabaseOperationResult,
@@ -35,7 +37,9 @@ export const TABLES = {
   settings: 'settings',
   settingsProfiles: 'settingsProfiles',
   appMeta: 'appMeta',
-  characterImageAssets: 'characterImageAssets',
+  characters: 'characters',
+  characterOutfits: 'characterOutfits',
+  characterImages: 'characterImages',
 } as const
 
 const APP_META_KEYS = {
@@ -63,7 +67,9 @@ export class GeminiDatabase extends Dexie {
   settings!: Table<SettingsRecord>
   settingsProfiles!: Table<SettingsProfileRecord, string>
   appMeta!: Table<AppMetaRecord>
-  characterImageAssets!: Table<CharacterImageAssetRecord>
+  characters!: Table<CharacterRecord>
+  characterOutfits!: Table<CharacterOutfitRecord>
+  characterImages!: Table<CharacterImageRecord>
 
   // Change listeners
   private changeListeners = new Set<(changeType: string, table: string, key: string | number | null) => void>()
@@ -101,10 +107,86 @@ export class GeminiDatabase extends Dexie {
       })
     this.version(5)
       .stores({
-        characterImageAssets: 'id, character, cloth, expression, [character+cloth], [character+cloth+expression], [character+expression], createdAt, updatedAt',
+        characters: 'id, name, description, createdAt, updatedAt',
+        characterOutfits: 'id, characterId, name, description, createdAt, updatedAt, [characterId+name]',
+        characterImages: 'id, characterId, outfitId, expression, mimeType, base64Data, size, createdAt, updatedAt, [characterId+outfitId], [characterId+outfitId+expression]',
       })
-      .upgrade(() => {
+      .upgrade(async (tx) => {
         logger.info('キャラクター画像管理機能のためにバージョン5へアップグレード中...', { component: 'Database' })
+
+        // 既存のcharacterImageAssetsテーブルから新しいテーブル構造に移行
+        const existingAssets = await tx.table('characterImageAssets').toArray()
+
+        if (existingAssets.length > 0) {
+          logger.info(`既存のキャラクター画像データを移行中: ${existingAssets.length}件`, { component: 'Database' })
+
+          // キャラクター、衣装、画像のマップを作成
+          const characterMap = new Map<string, string>()
+          const outfitMap = new Map<string, string>()
+
+          // キャラクターレコードを作成
+          const characterRecords: CharacterRecord[] = []
+          const outfitRecords: CharacterOutfitRecord[] = []
+          const imageRecords: CharacterImageRecord[] = []
+
+          for (const asset of existingAssets) {
+            // キャラクターIDを取得または作成
+            let characterId = characterMap.get(asset.character)
+            if (!characterId) {
+              characterId = crypto.randomUUID()
+              characterMap.set(asset.character, characterId)
+              characterRecords.push({
+                id: characterId,
+                name: asset.character,
+                description: '',
+                createdAt: asset.createdAt,
+                updatedAt: asset.updatedAt,
+              })
+            }
+
+            // 衣装IDを取得または作成
+            const outfitKey = `${asset.character}-${asset.cloth}`
+            let outfitId = outfitMap.get(outfitKey)
+            if (!outfitId) {
+              outfitId = crypto.randomUUID()
+              outfitMap.set(outfitKey, outfitId)
+              outfitRecords.push({
+                id: outfitId,
+                characterId,
+                name: asset.cloth,
+                description: '',
+                createdAt: asset.createdAt,
+                updatedAt: asset.updatedAt,
+              })
+            }
+
+            // 画像レコードを作成
+            imageRecords.push({
+              id: asset.id,
+              characterId,
+              outfitId,
+              expression: asset.expression,
+              mimeType: asset.mimeType,
+              base64Data: asset.base64Data,
+              size: asset.size,
+              createdAt: asset.createdAt,
+              updatedAt: asset.updatedAt,
+            })
+          }
+
+          // 新しいテーブルにデータを保存
+          if (characterRecords.length > 0) {
+            await tx.table('characters').bulkPut(characterRecords)
+          }
+          if (outfitRecords.length > 0) {
+            await tx.table('characterOutfits').bulkPut(outfitRecords)
+          }
+          if (imageRecords.length > 0) {
+            await tx.table('characterImages').bulkPut(imageRecords)
+          }
+
+          logger.info(`移行完了: キャラクター${characterRecords.length}件、衣装${outfitRecords.length}件、画像${imageRecords.length}件`, { component: 'Database' })
+        }
       })
 
     this.setupHooks()
@@ -158,14 +240,34 @@ export class GeminiDatabase extends Dexie {
       this.notifyChange('delete', 'appMeta', primKey)
     })
 
-    this.characterImageAssets.hook('creating', () => {
-      this.notifyChange('create', 'characterImageAssets', null)
+    this.characters.hook('creating', () => {
+      this.notifyChange('create', 'characters', null)
     })
-    this.characterImageAssets.hook('updating', (_modifications, primKey) => {
-      this.notifyChange('update', 'characterImageAssets', primKey)
+    this.characters.hook('updating', (_modifications, primKey) => {
+      this.notifyChange('update', 'characters', primKey)
     })
-    this.characterImageAssets.hook('deleting', (primKey) => {
-      this.notifyChange('delete', 'characterImageAssets', primKey)
+    this.characters.hook('deleting', (primKey) => {
+      this.notifyChange('delete', 'characters', primKey)
+    })
+
+    this.characterOutfits.hook('creating', () => {
+      this.notifyChange('create', 'characterOutfits', null)
+    })
+    this.characterOutfits.hook('updating', (_modifications, primKey) => {
+      this.notifyChange('update', 'characterOutfits', primKey)
+    })
+    this.characterOutfits.hook('deleting', (primKey) => {
+      this.notifyChange('delete', 'characterOutfits', primKey)
+    })
+
+    this.characterImages.hook('creating', () => {
+      this.notifyChange('create', 'characterImages', null)
+    })
+    this.characterImages.hook('updating', (_modifications, primKey) => {
+      this.notifyChange('update', 'characterImages', primKey)
+    })
+    this.characterImages.hook('deleting', (primKey) => {
+      this.notifyChange('delete', 'characterImages', primKey)
     })
   }
 
@@ -962,6 +1064,466 @@ export async function importData(data: ExportedData): Promise<DatabaseOperationR
     }
   } catch (error) {
     logger.error('データのインポートに失敗しました:', { component: 'database' }, error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+// ============================================================================
+// キャラクター画像管理
+// ============================================================================
+
+/** キャラクターを作成 */
+export async function dbCreateCharacter(name: string, description?: string): Promise<DatabaseOperationResult<CharacterRecord>> {
+  try {
+    const startTime = Date.now()
+
+    // 同名のキャラクターが存在するかチェック
+    const existingCharacter = await db.characters.where('name').equals(name).first()
+    if (existingCharacter) {
+      return {
+        success: false,
+        error: '同じ名前のキャラクターが既に存在します',
+      }
+    }
+
+    const character: CharacterRecord = {
+      id: crypto.randomUUID(),
+      name,
+      description: description || '',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    }
+
+    await db.characters.add(character)
+
+    const executionTime = Date.now() - startTime
+    return {
+      success: true,
+      data: character,
+      performance: {
+        queryType: 'createCharacter',
+        executionTime,
+        resultCount: 1,
+      },
+    }
+  } catch (error) {
+    logger.error('キャラクターの作成に失敗しました:', { component: 'database' }, error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+/** 全キャラクターを取得 */
+export async function dbGetAllCharacters(): Promise<DatabaseOperationResult<CharacterRecord[]>> {
+  try {
+    const startTime = Date.now()
+
+    const characters = await db.characters.orderBy('createdAt').reverse().toArray()
+
+    const executionTime = Date.now() - startTime
+    return {
+      success: true,
+      data: characters,
+      performance: {
+        queryType: 'getAllCharacters',
+        executionTime,
+        resultCount: characters.length,
+      },
+    }
+  } catch (error) {
+    logger.error('キャラクター一覧の取得に失敗しました:', { component: 'database' }, error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+/** キャラクターを更新 */
+export async function dbUpdateCharacter(id: string, updates: Partial<Pick<CharacterRecord, 'name' | 'description'>>): Promise<DatabaseOperationResult<CharacterRecord>> {
+  try {
+    const startTime = Date.now()
+
+    // 名前の重複チェック（名前が変更される場合）
+    if (updates.name) {
+      const existingCharacter = await db.characters.where('name').equals(updates.name).first()
+      if (existingCharacter && existingCharacter.id !== id) {
+        return {
+          success: false,
+          error: '同じ名前のキャラクターが既に存在します',
+        }
+      }
+    }
+
+    const updateData = {
+      ...updates,
+      updatedAt: Date.now(),
+    }
+
+    await db.characters.update(id, updateData)
+    const updatedCharacter = await db.characters.get(id)
+
+    if (!updatedCharacter) {
+      return {
+        success: false,
+        error: 'キャラクターが見つかりません',
+      }
+    }
+
+    const executionTime = Date.now() - startTime
+    return {
+      success: true,
+      data: updatedCharacter,
+      performance: {
+        queryType: 'updateCharacter',
+        executionTime,
+        resultCount: 1,
+      },
+    }
+  } catch (error) {
+    logger.error('キャラクターの更新に失敗しました:', { component: 'database' }, error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+/** キャラクターを削除 */
+export async function dbDeleteCharacter(id: string): Promise<DatabaseOperationResult<boolean>> {
+  try {
+    const startTime = Date.now()
+
+    await db.transaction('rw', [db.characters, db.characterOutfits, db.characterImages], async () => {
+      // 関連する衣装と画像も削除
+      await db.characterImages.where('characterId').equals(id).delete()
+      await db.characterOutfits.where('characterId').equals(id).delete()
+      await db.characters.delete(id)
+    })
+
+    const executionTime = Date.now() - startTime
+    return {
+      success: true,
+      data: true,
+      performance: {
+        queryType: 'deleteCharacter',
+        executionTime,
+        resultCount: 1,
+      },
+    }
+  } catch (error) {
+    logger.error('キャラクターの削除に失敗しました:', { component: 'database' }, error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+/** 衣装を作成 */
+export async function dbCreateCharacterOutfit(characterId: string, name: string, description?: string): Promise<DatabaseOperationResult<CharacterOutfitRecord>> {
+  try {
+    const startTime = Date.now()
+
+    // キャラクターの存在確認
+    const character = await db.characters.get(characterId)
+    if (!character) {
+      return {
+        success: false,
+        error: '指定されたキャラクターが見つかりません',
+      }
+    }
+
+    // 同じキャラクターの同名衣装が存在するかチェック
+    const existingOutfit = await db.characterOutfits.where('[characterId+name]').equals([characterId, name]).first()
+    if (existingOutfit) {
+      return {
+        success: false,
+        error: '同じキャラクターの同名衣装が既に存在します',
+      }
+    }
+
+    const outfit: CharacterOutfitRecord = {
+      id: crypto.randomUUID(),
+      characterId,
+      name,
+      description: description || '',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    }
+
+    await db.characterOutfits.add(outfit)
+
+    const executionTime = Date.now() - startTime
+    return {
+      success: true,
+      data: outfit,
+      performance: {
+        queryType: 'createCharacterOutfit',
+        executionTime,
+        resultCount: 1,
+      },
+    }
+  } catch (error) {
+    logger.error('衣装の作成に失敗しました:', { component: 'database' }, error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+/** キャラクターの衣装一覧を取得 */
+export async function dbGetCharacterOutfits(characterId: string): Promise<DatabaseOperationResult<CharacterOutfitRecord[]>> {
+  try {
+    const startTime = Date.now()
+
+    const outfits = await db.characterOutfits.where('characterId').equals(characterId).reverse().sortBy('createdAt')
+
+    const executionTime = Date.now() - startTime
+    return {
+      success: true,
+      data: outfits,
+      performance: {
+        queryType: 'getCharacterOutfits',
+        executionTime,
+        resultCount: outfits.length,
+      },
+    }
+  } catch (error) {
+    logger.error('衣装一覧の取得に失敗しました:', { component: 'database' }, error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+/** 衣装を更新 */
+export async function dbUpdateCharacterOutfit(id: string, updates: Partial<Pick<CharacterOutfitRecord, 'name' | 'description'>>): Promise<DatabaseOperationResult<CharacterOutfitRecord>> {
+  try {
+    const startTime = Date.now()
+
+    const outfit = await db.characterOutfits.get(id)
+    if (!outfit) {
+      return {
+        success: false,
+        error: '衣装が見つかりません',
+      }
+    }
+
+    // 名前の重複チェック（名前が変更される場合）
+    if (updates.name) {
+      const existingOutfit = await db.characterOutfits.where('[characterId+name]').equals([outfit.characterId, updates.name]).first()
+      if (existingOutfit && existingOutfit.id !== id) {
+        return {
+          success: false,
+          error: '同じキャラクターの同名衣装が既に存在します',
+        }
+      }
+    }
+
+    const updateData = {
+      ...updates,
+      updatedAt: Date.now(),
+    }
+
+    await db.characterOutfits.update(id, updateData)
+    const updatedOutfit = await db.characterOutfits.get(id)
+
+    const executionTime = Date.now() - startTime
+    return {
+      success: true,
+      data: updatedOutfit!,
+      performance: {
+        queryType: 'updateCharacterOutfit',
+        executionTime,
+        resultCount: 1,
+      },
+    }
+  } catch (error) {
+    logger.error('衣装の更新に失敗しました:', { component: 'database' }, error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+/** 衣装を削除 */
+export async function dbDeleteCharacterOutfit(id: string): Promise<DatabaseOperationResult<boolean>> {
+  try {
+    const startTime = Date.now()
+
+    await db.transaction('rw', [db.characterOutfits, db.characterImages], async () => {
+      // 関連する画像も削除
+      await db.characterImages.where('outfitId').equals(id).delete()
+      await db.characterOutfits.delete(id)
+    })
+
+    const executionTime = Date.now() - startTime
+    return {
+      success: true,
+      data: true,
+      performance: {
+        queryType: 'deleteCharacterOutfit',
+        executionTime,
+        resultCount: 1,
+      },
+    }
+  } catch (error) {
+    logger.error('衣装の削除に失敗しました:', { component: 'database' }, error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+/** 画像をアップロード */
+export async function dbUploadCharacterImage(
+  characterId: string,
+  outfitId: string,
+  expression: string,
+  base64Data: string,
+  mimeType: string,
+  size: number
+): Promise<DatabaseOperationResult<CharacterImageRecord>> {
+  try {
+    const startTime = Date.now()
+
+    // キャラクターと衣装の存在確認
+    const [character, outfit] = await Promise.all([db.characters.get(characterId), db.characterOutfits.get(outfitId)])
+
+    if (!character) {
+      return {
+        success: false,
+        error: '指定されたキャラクターが見つかりません',
+      }
+    }
+
+    if (!outfit) {
+      return {
+        success: false,
+        error: '指定された衣装が見つかりません',
+      }
+    }
+
+    if (outfit.characterId !== characterId) {
+      return {
+        success: false,
+        error: '衣装が指定されたキャラクターに属していません',
+      }
+    }
+
+    // 同じ組み合わせの画像が存在するかチェック
+    const existingImage = await db.characterImages.where('[characterId+outfitId+expression]').equals([characterId, outfitId, expression]).first()
+    if (existingImage) {
+      return {
+        success: false,
+        error: '同じキャラクター、衣装、表情の組み合わせの画像が既に存在します',
+      }
+    }
+
+    const image: CharacterImageRecord = {
+      id: crypto.randomUUID(),
+      characterId,
+      outfitId,
+      expression,
+      mimeType,
+      base64Data,
+      size,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    }
+
+    await db.characterImages.add(image)
+
+    const executionTime = Date.now() - startTime
+    return {
+      success: true,
+      data: image,
+      performance: {
+        queryType: 'uploadCharacterImage',
+        executionTime,
+        resultCount: 1,
+      },
+    }
+  } catch (error) {
+    logger.error('画像のアップロードに失敗しました:', { component: 'database' }, error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+/** 衣装の画像一覧を取得 */
+export async function dbGetOutfitImages(characterId: string, outfitId: string): Promise<DatabaseOperationResult<CharacterImageRecord[]>> {
+  try {
+    const startTime = Date.now()
+
+    // 衣装が指定されたキャラクターに属しているかを検証
+    const outfit = await db.characterOutfits.get(outfitId)
+    if (!outfit) {
+      return {
+        success: false,
+        error: '指定された衣装が見つかりません',
+      }
+    }
+
+    if (outfit.characterId !== characterId) {
+      return {
+        success: false,
+        error: '衣装が指定されたキャラクターに属していません',
+      }
+    }
+
+    const images = await db.characterImages.where('outfitId').equals(outfitId).reverse().sortBy('createdAt')
+
+    const executionTime = Date.now() - startTime
+    return {
+      success: true,
+      data: images,
+      performance: {
+        queryType: 'getOutfitImages',
+        executionTime,
+        resultCount: images.length,
+      },
+    }
+  } catch (error) {
+    logger.error('画像一覧の取得に失敗しました:', { component: 'database' }, error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+/** 画像を削除 */
+export async function dbDeleteCharacterImage(id: string): Promise<DatabaseOperationResult<boolean>> {
+  try {
+    const startTime = Date.now()
+
+    await db.characterImages.delete(id)
+
+    const executionTime = Date.now() - startTime
+    return {
+      success: true,
+      data: true,
+      performance: {
+        queryType: 'deleteCharacterImage',
+        executionTime,
+        resultCount: 1,
+      },
+    }
+  } catch (error) {
+    logger.error('画像の削除に失敗しました:', { component: 'database' }, error)
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
