@@ -1,0 +1,103 @@
+<template>
+  <div class="character-image-renderer">
+    <div
+      v-if="isLoading"
+      class="flex items-center justify-center p-4"
+    >
+      <Icon
+        icon="material-symbols:loading"
+        class="text-muted-foreground h-6 w-6 animate-spin"
+      />
+    </div>
+    <div
+      v-else-if="error"
+      class="text-destructive flex items-center justify-center p-4"
+    >
+      <Icon
+        icon="material-symbols:error"
+        class="mr-2 h-5 w-5"
+      />
+      <span class="text-sm">{{ error }}</span>
+    </div>
+    <img
+      v-else-if="imageData"
+      :src="`data:${imageData.mimeType};base64,${imageData.base64Data}`"
+      :alt="alt || `${characterName} - ${outfitName} - ${expression}`"
+      :title="title || `${characterName} - ${outfitName} - ${expression}`"
+      class="character-image"
+      loading="lazy"
+      decoding="async"
+    />
+    <div
+      v-else
+      class="text-muted-foreground flex items-center justify-center p-4"
+    >
+      <Icon
+        icon="material-symbols:image-not-supported"
+        class="mr-2 h-5 w-5"
+      />
+      <span class="text-sm">画像が見つかりません</span>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
+import { Icon } from '@iconify/vue'
+import type { CharacterImageRecord } from '~/types/database'
+import { useCharacterImages } from '~/composables/useCharacterImages'
+
+interface Props {
+  characterName: string
+  outfitName: string
+  expression: string
+  alt?: string
+  title?: string | null
+}
+
+const props = defineProps<Props>()
+
+const { getCharacterImageByNames } = useCharacterImages()
+const imageData = ref<CharacterImageRecord | null>(null)
+const isLoading = ref(false)
+const error = ref<string | null>(null)
+
+const loadImage = async () => {
+  isLoading.value = true
+  error.value = null
+
+  try {
+    const result = await getCharacterImageByNames(props.characterName, props.outfitName, props.expression)
+
+    if (result) {
+      imageData.value = result
+    } else {
+      error.value = '指定された画像が見つかりません'
+    }
+  } catch (err) {
+    error.value = '画像の読み込みに失敗しました'
+    console.error('CharacterImageRenderer: 画像の読み込みエラー:', err)
+  } finally {
+    isLoading.value = false
+  }
+}
+
+onMounted(() => {
+  loadImage()
+})
+</script>
+
+<style scoped>
+.character-image-renderer {
+  display: inline-block;
+  max-width: 100%;
+}
+
+.character-image {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+}
+</style>

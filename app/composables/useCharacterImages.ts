@@ -353,6 +353,73 @@ export function useCharacterImages() {
     )
   }
 
+  /** キャラクターの最初の画像を取得 */
+  const getCharacterFirstImage = async (characterId: string): Promise<CharacterImageRecord | null> => {
+    const result = await handleImageOperation(
+      async () => {
+        // キャラクターの全画像を取得
+        const images = await getCharacterAllExpressions(characterId)
+
+        if (images.length === 0) {
+          return null
+        }
+
+        // 作成日時でソートして最初の画像を返す
+        const sortedImages = images.sort((a, b) => a.createdAt - b.createdAt)
+        return sortedImages[0]
+      },
+      'キャラクターの最初の画像取得に失敗しました',
+      `キャラクターの最初の画像を取得: ${characterId}`,
+      null
+    )
+    return result ?? null
+  }
+
+  /** キャラクター名、衣装名、表情から画像を取得 */
+  const getCharacterImageByNames = async (characterName: string, outfitName: string, expression: string): Promise<CharacterImageRecord | null> => {
+    const result = await handleImageOperation(
+      async () => {
+        // 全キャラクターを取得
+        const charactersResult = await dbGetAllCharacters()
+        if (!charactersResult.success || !charactersResult.data) {
+          throw new Error(charactersResult.error || 'キャラクター一覧の取得に失敗しました')
+        }
+
+        // 指定された名前のキャラクターを検索
+        const character = charactersResult.data.find((c) => c.name === characterName)
+        if (!character) {
+          return null
+        }
+
+        // キャラクターの衣装を取得
+        const outfitsResult = await dbGetCharacterOutfits(character.id)
+        if (!outfitsResult.success || !outfitsResult.data) {
+          throw new Error(outfitsResult.error || '衣装の取得に失敗しました')
+        }
+
+        // 指定された名前の衣装を検索
+        const outfit = outfitsResult.data.find((o) => o.name === outfitName)
+        if (!outfit) {
+          return null
+        }
+
+        // 指定された表情の画像を取得
+        const imagesResult = await dbGetOutfitImages(character.id, outfit.id)
+        if (!imagesResult.success || !imagesResult.data) {
+          throw new Error(imagesResult.error || '画像の取得に失敗しました')
+        }
+
+        // 指定された表情の画像を検索
+        const image = imagesResult.data.find((img) => img.expression === expression)
+        return image || null
+      },
+      'キャラクター画像の取得に失敗しました',
+      `キャラクター画像を取得: ${characterName}/${outfitName}/${expression}`,
+      null
+    )
+    return result ?? null
+  }
+
   /** キャラクター別に画像をグループ化して取得 */
   const getImagesGroupedByCharacter = async (): Promise<Record<string, CharacterImageRecord[]>> => {
     const result = await handleImageOperation(
@@ -409,6 +476,8 @@ export function useCharacterImages() {
     deleteExpressionImage,
     bulkUploadExpressions,
     getImagesGroupedByCharacter,
+    getCharacterFirstImage,
+    getCharacterImageByNames,
 
     // ユーティリティ
     clearAllErrors,

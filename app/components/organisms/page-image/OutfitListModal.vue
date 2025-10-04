@@ -294,6 +294,15 @@
         </form>
       </DialogContent>
     </Dialog>
+
+    <!-- 確認ダイアログ -->
+    <ConfirmDialog
+      v-model="isConfirmDialogOpen"
+      :title="confirmTitle"
+      :message="confirmMessage"
+      @confirm="handleConfirmOk"
+      @cancel="handleConfirmCancel"
+    />
   </Dialog>
 </template>
 
@@ -303,6 +312,7 @@ import { Icon } from '@iconify/vue'
 import { Button } from '~/components/ui/button'
 import { Input } from '~/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '~/components/ui/dialog'
+import ConfirmDialog from '~/components/molecules/dialogs/ConfirmDialog.vue'
 import EmptyState from '~/components/common/ImageEmptyState.vue'
 import OutfitEditModal from '~/components/organisms/page-image/OutfitEditModal.vue'
 import ExpressionUploadModal from '~/components/organisms/page-image/ExpressionUploadModal.vue'
@@ -337,6 +347,41 @@ const isCreating = ref(false)
 const editingOutfit = ref<CharacterOutfitRecord | null>(null)
 const showUploadModal = ref(false)
 const showCreateOutfitModal = ref(false)
+
+// ダイアログの状態管理
+const isConfirmDialogOpen = ref(false)
+const confirmTitle = ref('')
+const confirmMessage = ref('')
+const confirmResolve = ref<((value: boolean) => void) | null>(null)
+
+// ダイアログ表示関数
+const showConfirm = (message: string, title = '確認'): Promise<boolean> => {
+  return new Promise((resolve) => {
+    confirmTitle.value = title
+    confirmMessage.value = message
+    confirmResolve.value = resolve
+    isConfirmDialogOpen.value = true
+  })
+}
+
+// ダイアログハンドラー
+const handleConfirmOk = () => {
+  if (confirmResolve.value) {
+    confirmResolve.value(true)
+    confirmResolve.value = null
+  }
+  confirmTitle.value = ''
+  confirmMessage.value = ''
+}
+
+const handleConfirmCancel = () => {
+  if (confirmResolve.value) {
+    confirmResolve.value(false)
+    confirmResolve.value = null
+  }
+  confirmTitle.value = ''
+  confirmMessage.value = ''
+}
 
 // 衣装一覧を読み込み
 const loadOutfits = async () => {
@@ -384,7 +429,8 @@ const editOutfit = (outfit: CharacterOutfitRecord) => {
 
 // 衣装を削除
 const deleteOutfit = async (outfit: CharacterOutfitRecord) => {
-  if (!confirm(`「${outfit.name}」を削除しますか？関連する画像もすべて削除されます。`)) {
+  const confirmed = await showConfirm(`「${outfit.name}」を削除しますか？関連する画像もすべて削除されます。`, '衣装の削除')
+  if (!confirmed) {
     return
   }
 
@@ -428,7 +474,8 @@ const clearSelection = () => {
 
 // 単一画像を削除
 const deleteImage = async (image: CharacterImageRecord) => {
-  if (!confirm(`「${image.expression}」の画像を削除しますか？`)) {
+  const confirmed = await showConfirm(`「${image.expression}」の画像を削除しますか？`, '画像の削除')
+  if (!confirmed) {
     return
   }
 
@@ -448,7 +495,8 @@ const deleteSelectedImages = async () => {
   if (selectedImages.value.size === 0) return
 
   const selectedCount = selectedImages.value.size
-  if (!confirm(`選択した${selectedCount}枚の画像を削除しますか？`)) {
+  const confirmed = await showConfirm(`選択した${selectedCount}枚の画像を削除しますか？`, '画像の一括削除')
+  if (!confirmed) {
     return
   }
 

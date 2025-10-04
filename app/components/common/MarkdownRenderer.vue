@@ -12,6 +12,7 @@
 import { computed, defineComponent, h, resolveComponent } from 'vue'
 import type { PropType, VNode, VNodeChild } from 'vue'
 import MarkdownImage from '~/components/common/MarkdownImage.vue'
+import CharacterImageRenderer from '~/components/common/CharacterImageRenderer.vue'
 import { parseMarkdown, type MarkdownBlockNode, type MarkdownInlineNode, type MarkdownListItemNode } from '~/lib/markdown'
 
 const props = defineProps({
@@ -59,6 +60,15 @@ const renderInlineNodes = (inlineNodes: MarkdownInlineNode[]): VNodeChild[] => {
           title: node.title ?? undefined,
           loading: 'lazy',
           decoding: 'async',
+        })
+      case 'characterImage':
+        return h(CharacterImageRenderer, {
+          key: index,
+          characterName: node.characterName,
+          outfitName: node.outfitName,
+          expression: node.expression,
+          alt: node.alt,
+          title: node.title,
         })
       default:
         return null

@@ -1,21 +1,26 @@
 <template>
   <div
-    class="border-border bg-card hover:bg-muted/50 group cursor-pointer rounded-xl border p-6 transition-all duration-200 hover:shadow-md"
+    class="border-border bg-card hover:bg-muted/50 group cursor-pointer rounded-xl border p-2 transition-all duration-200 hover:shadow-md"
     @click="selectCharacter"
   >
-    <div class="flex flex-col items-center text-center">
-      <!-- キャラクターアイコン -->
-      <div class="border-border bg-muted mb-4 flex h-20 w-20 items-center justify-center rounded-full border sm:h-24 sm:w-24">
+    <div class="flex flex-col items-center justify-center text-center">
+      <!-- キャラクターサムネイル -->
+      <div class="border-border bg-muted mb-4 flex w-full items-center justify-center overflow-hidden rounded-2xl border">
+        <img
+          v-if="thumbnailImage"
+          :src="`data:${thumbnailImage.mimeType};base64,${thumbnailImage.base64Data}`"
+          :alt="character.name"
+          class="h-full w-full object-cover"
+        />
         <Icon
+          v-else
           icon="material-symbols:person"
           class="text-muted-foreground h-8 w-8 sm:h-10 sm:w-10"
         />
       </div>
 
-      <!-- キャラクター名 -->
       <h3 class="mb-2 line-clamp-2 text-lg font-semibold">{{ character.name }}</h3>
 
-      <!-- 説明 -->
       <div
         v-if="character.description"
         class="text-muted-foreground line-clamp-3 text-sm"
@@ -55,9 +60,11 @@
 </template>
 
 <script setup lang="ts">
+import { ref, onMounted } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Button } from '~/components/ui/button'
-import type { CharacterRecord } from '~/types/database'
+import type { CharacterRecord, CharacterImageRecord } from '~/types/database'
+import { useCharacterImages } from '~/composables/useCharacterImages'
 
 interface Props {
   character: CharacterRecord
@@ -71,6 +78,18 @@ interface Emits {
 
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
+
+const { getCharacterFirstImage } = useCharacterImages()
+const thumbnailImage = ref<CharacterImageRecord | null>(null)
+
+// サムネイル画像を読み込み
+const loadThumbnail = async () => {
+  try {
+    thumbnailImage.value = await getCharacterFirstImage(props.character.id)
+  } catch (error) {
+    console.error('サムネイル画像の読み込みに失敗:', error)
+  }
+}
 
 // キャラクターを選択
 const selectCharacter = () => {
@@ -86,4 +105,9 @@ const editCharacter = () => {
 const deleteCharacter = () => {
   emit('delete', props.character)
 }
+
+// コンポーネントマウント時にサムネイルを読み込み
+onMounted(() => {
+  loadThumbnail()
+})
 </script>

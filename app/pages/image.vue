@@ -26,7 +26,7 @@
     <!-- キャラクター一覧 -->
     <div
       v-else
-      class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+      class="grid grid-cols-2 gap-4 sm:grid-cols-3"
     >
       <!-- キャラクター追加カード（常に最初に表示） -->
       <div
@@ -41,7 +41,7 @@
             />
           </div>
           <h3 class="mb-2 text-lg font-semibold">キャラクターを追加</h3>
-          <p class="text-muted-foreground text-sm">新しいキャラクターを作成</p>
+          <p class="text-muted-foreground text-sm">キャラクター画像を追加できます</p>
         </div>
       </div>
 
@@ -79,12 +79,22 @@
       @back="handleOutfitListClosed"
       @outfit-selected="handleOutfitSelected"
     />
+
+    <!-- 確認ダイアログ -->
+    <ConfirmDialog
+      v-model="isConfirmDialogOpen"
+      :title="confirmTitle"
+      :message="confirmMessage"
+      @confirm="handleConfirmOk"
+      @cancel="handleConfirmCancel"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { Icon } from '@iconify/vue'
+import ConfirmDialog from '~/components/molecules/dialogs/ConfirmDialog.vue'
 import CharacterCreateModal from '~/components/organisms/page-image/CharacterCreateModal.vue'
 import CharacterCard from '~/components/organisms/page-image/CharacterCard.vue'
 import CharacterEditModal from '~/components/organisms/page-image/CharacterEditModal.vue'
@@ -107,6 +117,41 @@ const selectedCharacter = ref<CharacterRecord | null>(null)
 const selectedOutfit = ref<CharacterOutfitRecord | null>(null)
 const editingCharacter = ref<CharacterRecord | null>(null)
 
+// ダイアログの状態管理
+const isConfirmDialogOpen = ref(false)
+const confirmTitle = ref('')
+const confirmMessage = ref('')
+const confirmResolve = ref<((value: boolean) => void) | null>(null)
+
+// ダイアログ表示関数
+const showConfirm = (message: string, title = '確認'): Promise<boolean> => {
+  return new Promise((resolve) => {
+    confirmTitle.value = title
+    confirmMessage.value = message
+    confirmResolve.value = resolve
+    isConfirmDialogOpen.value = true
+  })
+}
+
+// ダイアログハンドラー
+const handleConfirmOk = () => {
+  if (confirmResolve.value) {
+    confirmResolve.value(true)
+    confirmResolve.value = null
+  }
+  confirmTitle.value = ''
+  confirmMessage.value = ''
+}
+
+const handleConfirmCancel = () => {
+  if (confirmResolve.value) {
+    confirmResolve.value(false)
+    confirmResolve.value = null
+  }
+  confirmTitle.value = ''
+  confirmMessage.value = ''
+}
+
 // キャラクター一覧を読み込み
 const loadCharacters = async () => {
   try {
@@ -128,7 +173,8 @@ const editCharacter = (character: CharacterRecord) => {
 
 // キャラクターを削除
 const deleteCharacter = async (character: CharacterRecord) => {
-  if (!confirm(`「${character.name}」を削除しますか？関連する衣装と画像もすべて削除されます。`)) {
+  const confirmed = await showConfirm(`「${character.name}」を削除しますか？関連する衣装と画像もすべて削除されます。`, 'キャラクターの削除')
+  if (!confirmed) {
     return
   }
 
