@@ -323,12 +323,6 @@
             </div>
           </div>
 
-          <!-- プログレス表示 -->
-          <BulkUploadProgress
-            v-if="isCreating && selectedFolder"
-            :progress="folderUpload.progress.value"
-          />
-
           <div class="flex flex-col gap-2 sm:flex-row sm:justify-end">
             <Button
               type="button"
@@ -381,7 +375,6 @@ import ConfirmDialog from '~/components/molecules/dialogs/ConfirmDialog.vue'
 import EmptyState from '~/components/common/ImageEmptyState.vue'
 import OutfitEditModal from '~/components/organisms/page-image/OutfitEditModal.vue'
 import ExpressionUploadModal from '~/components/organisms/page-image/ExpressionUploadModal.vue'
-import BulkUploadProgress from '~/components/molecules/BulkUploadProgress.vue'
 import { useCharacterImages } from '~/composables/useCharacterImages'
 import { useFolderUpload, type FolderStructure } from '~/composables/useFolderUpload'
 import { logger } from '~/utils/logger'

@@ -78,12 +78,6 @@
           </div>
         </div>
 
-        <!-- プログレス表示 -->
-        <BulkUploadProgress
-          v-if="isCreating && selectedFolder"
-          :progress="folderUpload.progress.value"
-        />
-
         <!-- ボタン -->
         <div class="flex flex-col gap-2 sm:flex-row sm:justify-end">
           <Button
@@ -124,7 +118,6 @@ import { Icon } from '@iconify/vue'
 import { Button } from '~/components/ui/button'
 import { Input } from '~/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '~/components/ui/dialog'
-import BulkUploadProgress from '~/components/molecules/BulkUploadProgress.vue'
 import { useCharacterImages } from '~/composables/useCharacterImages'
 import { useFolderUpload, type FolderStructure } from '~/composables/useFolderUpload'
 import { logger } from '~/utils/logger'

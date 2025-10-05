@@ -30,23 +30,8 @@ export interface OutfitStructure {
   images: File[]
 }
 
-export interface BulkUploadProgress {
-  totalFiles: number
-  processedFiles: number
-  currentFile: string
-  isComplete: boolean
-  errors: string[]
-}
-
 export function useFolderUpload() {
   const isSupported = ref(false)
-  const progress = ref<BulkUploadProgress>({
-    totalFiles: 0,
-    processedFiles: 0,
-    currentFile: '',
-    isComplete: false,
-    errors: [],
-  })
 
   // File System Access APIのサポート確認
   const checkSupport = () => {
@@ -184,38 +169,10 @@ export function useFolderUpload() {
     }
   }
 
-  // 一括アップロードの進捗をリセット
-  const resetProgress = () => {
-    progress.value = {
-      totalFiles: 0,
-      processedFiles: 0,
-      currentFile: '',
-      isComplete: false,
-      errors: [],
-    }
-  }
-
-  // 進捗を更新
-  const updateProgress = (currentFile: string, processedFiles: number, totalFiles: number) => {
-    progress.value.currentFile = currentFile
-    progress.value.processedFiles = processedFiles
-    progress.value.totalFiles = totalFiles
-    progress.value.isComplete = processedFiles >= totalFiles
-  }
-
-  // エラーを追加
-  const addError = (error: string) => {
-    progress.value.errors.push(error)
-  }
-
   return {
     isSupported,
-    progress: readonly(progress),
     checkSupport,
     selectFolder,
     selectOutfitFolder,
-    resetProgress,
-    updateProgress,
-    addError,
   }
 }

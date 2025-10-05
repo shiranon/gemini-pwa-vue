@@ -153,8 +153,6 @@ export function useCharacterImages() {
   }> => {
     return handleBulkOperation(
       async () => {
-        folderUpload.resetProgress()
-
         // 1. キャラクターを作成
         const character = await createCharacter(folderStructure.characterName, description)
         if (!character) {
@@ -181,13 +179,6 @@ export function useCharacterImages() {
             totalSuccess += result.success
             totalFailed += result.failed
             allErrors.push(...result.errors.map((error) => `衣装「${outfitData.outfitName}」: ${error}`))
-
-            // 進捗を更新
-            folderUpload.updateProgress(
-              `衣装「${outfitData.outfitName}」を処理中`,
-              totalSuccess + totalFailed,
-              folderStructure.outfits.reduce((sum, o) => sum + o.images.length, 0)
-            )
           } catch (outfitError) {
             const errorMessage = outfitError instanceof Error ? outfitError.message : '衣装処理エラー'
             allErrors.push(`衣装「${outfitData.outfitName}」: ${errorMessage}`)
@@ -225,8 +216,6 @@ export function useCharacterImages() {
   }> => {
     return handleBulkOperation(
       async () => {
-        folderUpload.resetProgress()
-
         let totalSuccess = 0
         let totalFailed = 0
         const allErrors: string[] = []
@@ -247,13 +236,6 @@ export function useCharacterImages() {
             totalSuccess += result.success
             totalFailed += result.failed
             allErrors.push(...result.errors.map((error) => `衣装「${outfitData.outfitName}」: ${error}`))
-
-            // 進捗を更新
-            folderUpload.updateProgress(
-              `衣装「${outfitData.outfitName}」を処理中`,
-              totalSuccess + totalFailed,
-              folderStructure.outfits.reduce((sum, o) => sum + o.images.length, 0)
-            )
           } catch (outfitError) {
             const errorMessage = outfitError instanceof Error ? outfitError.message : '衣装処理エラー'
             allErrors.push(`衣装「${outfitData.outfitName}」: ${errorMessage}`)
