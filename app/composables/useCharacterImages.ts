@@ -7,6 +7,7 @@ import {
   dbDeleteCharacterImage,
   dbDeleteCharacterOutfit,
   dbGetAllCharacters,
+  dbGetCharacterImageByNames,
   dbGetCharacterOutfits,
   dbGetOutfitImages,
   dbUpdateCharacter,
@@ -375,43 +376,16 @@ export function useCharacterImages() {
     return result ?? null
   }
 
-  /** キャラクター名、衣装名、表情から画像を取得 */
+  /** キャラクター名、衣装名、表情から画像を取得（最適化版） */
   const getCharacterImageByNames = async (characterName: string, outfitName: string, expression: string): Promise<CharacterImageRecord | null> => {
     const result = await handleImageOperation(
       async () => {
-        // 全キャラクターを取得
-        const charactersResult = await dbGetAllCharacters()
-        if (!charactersResult.success || !charactersResult.data) {
-          throw new Error(charactersResult.error || 'キャラクター一覧の取得に失敗しました')
+        // 最適化されたデータベース関数を使用
+        const imageResult = await dbGetCharacterImageByNames(characterName, outfitName, expression)
+        if (!imageResult.success) {
+          throw new Error(imageResult.error || 'キャラクター画像の取得に失敗しました')
         }
-
-        // 指定された名前のキャラクターを検索
-        const character = charactersResult.data.find((c) => c.name === characterName)
-        if (!character) {
-          return null
-        }
-
-        // キャラクターの衣装を取得
-        const outfitsResult = await dbGetCharacterOutfits(character.id)
-        if (!outfitsResult.success || !outfitsResult.data) {
-          throw new Error(outfitsResult.error || '衣装の取得に失敗しました')
-        }
-
-        // 指定された名前の衣装を検索
-        const outfit = outfitsResult.data.find((o) => o.name === outfitName)
-        if (!outfit) {
-          return null
-        }
-
-        // 指定された表情の画像を取得
-        const imagesResult = await dbGetOutfitImages(character.id, outfit.id)
-        if (!imagesResult.success || !imagesResult.data) {
-          throw new Error(imagesResult.error || '画像の取得に失敗しました')
-        }
-
-        // 指定された表情の画像を検索
-        const image = imagesResult.data.find((img) => img.expression === expression)
-        return image || null
+        return imageResult.data
       },
       'キャラクター画像の取得に失敗しました',
       `キャラクター画像を取得: ${characterName}/${outfitName}/${expression}`,

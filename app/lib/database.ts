@@ -1456,3 +1456,58 @@ export async function dbDeleteCharacterImage(id: string): Promise<DatabaseOperat
     }
   }
 }
+
+/** キャラクター名、衣装名、表情から画像を直接取得 */
+export async function dbGetCharacterImageByNames(characterName: string, outfitName: string, expression: string): Promise<DatabaseOperationResult<CharacterImageRecord | null>> {
+  try {
+    const startTime = Date.now()
+
+    // 1. キャラクター名からIDを取得（インデックス使用）
+    const character = await db.characters.where('name').equals(characterName).first()
+    if (!character) {
+      return {
+        success: true,
+        data: null,
+        performance: {
+          queryType: 'getCharacterImageByNames',
+          executionTime: Date.now() - startTime,
+          resultCount: 0,
+        },
+      }
+    }
+
+    // 2. 衣装名からIDを取得（複合インデックス使用）
+    const outfit = await db.characterOutfits.where('[characterId+name]').equals([character.id, outfitName]).first()
+    if (!outfit) {
+      return {
+        success: true,
+        data: null,
+        performance: {
+          queryType: 'getCharacterImageByNames',
+          executionTime: Date.now() - startTime,
+          resultCount: 0,
+        },
+      }
+    }
+
+    // 3. 画像を直接取得（複合インデックス使用）
+    const image = await db.characterImages.where('[characterId+outfitId+expression]').equals([character.id, outfit.id, expression]).first()
+
+    const executionTime = Date.now() - startTime
+    return {
+      success: true,
+      data: image || null,
+      performance: {
+        queryType: 'getCharacterImageByNames',
+        executionTime,
+        resultCount: image ? 1 : 0,
+      },
+    }
+  } catch (error) {
+    logger.error('キャラクター画像の取得に失敗しました:', { component: 'database' }, error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}

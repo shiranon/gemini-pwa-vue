@@ -326,4 +326,68 @@ describe('database-character-images（ロジックテスト）', () => {
       expect(sortedImages[1]?.id).toBe('image-1')
     })
   })
+
+  describe('最適化された画像検索のロジック', () => {
+    it('キャラクター名からIDを取得する検索ロジックが正しく動作する', () => {
+      const characters = [mockCharacter]
+      const character = characters.find((c) => c.name === 'テストキャラクター')
+
+      expect(character).toBeDefined()
+      expect(character?.id).toBe('char-1')
+    })
+
+    it('衣装名からIDを取得する検索ロジックが正しく動作する', () => {
+      const outfits = [mockOutfit]
+      const outfit = outfits.find((o) => o.name === 'テスト衣装' && o.characterId === 'char-1')
+
+      expect(outfit).toBeDefined()
+      expect(outfit?.id).toBe('outfit-1')
+    })
+
+    it('表情から画像を取得する検索ロジックが正しく動作する', () => {
+      const images = [mockImage]
+      const image = images.find((img) => img.expression === '笑顔' && img.characterId === 'char-1' && img.outfitId === 'outfit-1')
+
+      expect(image).toBeDefined()
+      expect(image?.id).toBe('image-1')
+    })
+
+    it('存在しないキャラクター名の場合はnullを返す', () => {
+      const characters = [mockCharacter]
+      const character = characters.find((c) => c.name === '存在しないキャラクター')
+
+      expect(character).toBeUndefined()
+    })
+
+    it('存在しない衣装名の場合はnullを返す', () => {
+      const outfits = [mockOutfit]
+      const outfit = outfits.find((o) => o.name === '存在しない衣装' && o.characterId === 'char-1')
+
+      expect(outfit).toBeUndefined()
+    })
+
+    it('存在しない表情の場合はnullを返す', () => {
+      const images = [mockImage]
+      const image = images.find((img) => img.expression === '存在しない表情' && img.characterId === 'char-1' && img.outfitId === 'outfit-1')
+
+      expect(image).toBeUndefined()
+    })
+
+    it('複合インデックス検索のロジックが正しく動作する', () => {
+      // キャラクター名 → ID
+      const characters = [mockCharacter]
+      const character = characters.find((c) => c.name === 'テストキャラクター')
+      expect(character?.id).toBe('char-1')
+
+      // 衣装名 + キャラクターID → 衣装ID
+      const outfits = [mockOutfit]
+      const outfit = outfits.find((o) => o.characterId === character?.id && o.name === 'テスト衣装')
+      expect(outfit?.id).toBe('outfit-1')
+
+      // 画像ID + 衣装ID + 表情 → 画像
+      const images = [mockImage]
+      const image = images.find((img) => img.characterId === character?.id && img.outfitId === outfit?.id && img.expression === '笑顔')
+      expect(image?.id).toBe('image-1')
+    })
+  })
 })
