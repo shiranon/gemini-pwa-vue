@@ -90,6 +90,11 @@
           @update-setting="handleUpdateSetting"
         />
 
+        <ImageOptimizationSettingsSection
+          :local-settings="localSettings as AppSettings"
+          :update-local-setting="updateLocalSetting"
+        />
+
         <ProofreadingSettingsSection
           :local-settings="localSettings as AppSettings"
           @update-setting="handleUpdateSetting"
@@ -167,6 +172,7 @@ import AvatarSettingsSection from '~/components/organisms/page-setting/AvatarSet
 import AdvancedSettingsSection from '~/components/organisms/page-setting/AdvancedSettingsSection.vue'
 import DummyPromptSettingsSection from '~/components/organisms/page-setting/DummyPromptSettingsSection.vue'
 import BackgroundImageSettingsSection from '~/components/organisms/page-setting/BackgroundImageSettingsSection.vue'
+import ImageOptimizationSettingsSection from '~/components/organisms/page-setting/ImageOptimizationSettingsSection.vue'
 import { settingsFormSchema, type SettingsFormData } from '~/lib/validation'
 import type { AppSettings, SettingsProfileData } from '~/types/settings'
 import { DEFAULT_SETTINGS } from '~/types/settings'

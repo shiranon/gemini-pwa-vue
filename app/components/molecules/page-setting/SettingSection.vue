@@ -46,14 +46,16 @@ export interface SettingSectionProps {
   title: string
   description?: string
   singleColumn?: boolean
+  defaultOpen?: boolean
 }
 
-withDefaults(defineProps<SettingSectionProps>(), {
+const props = withDefaults(defineProps<SettingSectionProps>(), {
   description: undefined,
   singleColumn: false,
+  defaultOpen: true,
 })
 
-const isOpen = ref(true)
+const isOpen = ref(props.defaultOpen)
 
 const toggleSection = () => {
   isOpen.value = !isOpen.value

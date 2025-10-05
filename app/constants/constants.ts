@@ -20,6 +20,13 @@ export const LIMITS = {
 export const IMAGE_LIMITS = {
   // 最大ファイルサイズ（5MB）
   MAX_FILE_SIZE: 5 * 1024 * 1024,
+  // 最大解像度（1920x1080）
+  MAX_WIDTH: 1920,
+  MAX_HEIGHT: 1080,
+  // 圧縮品質（0.8 = 80%）
+  COMPRESSION_QUALITY: 0.8,
+  // WebP変換の品質（0.9 = 90%）
+  WEBP_QUALITY: 0.9,
 } as const
 
 // ランダム文字列の文字セット

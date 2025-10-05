@@ -1,4 +1,6 @@
 import { readonly, ref } from 'vue'
+import { useSettingsStore } from '~/stores/settings'
+import { useImageOptimization, type ImageOptimizationOptions } from './useImageOptimization'
 import { useStorageQuota } from './useStorageQuota'
 
 export interface ImageUploadOptions {
@@ -6,17 +8,20 @@ export interface ImageUploadOptions {
   allowedTypes?: string[]
   quality?: number // 0-1 (JPEG圧縮品質)
   checkStorageQuota?: boolean // ストレージクォータをチェックするか
+  enableOptimization?: boolean // 画像最適化を有効にするか
+  optimizationOptions?: ImageOptimizationOptions // 最適化オプション
 }
 
 const DEFAULT_MAX_SIZE = 5 * 1024 * 1024 // 5MB
 const DEFAULT_ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif']
 
 export function useImageUpload(options: ImageUploadOptions = {}) {
-  const { maxSize = DEFAULT_MAX_SIZE, allowedTypes = DEFAULT_ALLOWED_TYPES, checkStorageQuota = true } = options
+  const { maxSize = DEFAULT_MAX_SIZE, allowedTypes = DEFAULT_ALLOWED_TYPES, checkStorageQuota = true, enableOptimization = true, optimizationOptions = {} } = options
 
   const isUploading = ref(false)
   const error = ref<string | null>(null)
   const { checkStorageCapacity, estimateBase64Size, calculateBase64Size } = useStorageQuota()
+  const { optimizeImage, isProcessing: isOptimizing } = useImageOptimization()
 
   const uploadImage = async (file: File): Promise<string | null> => {
     if (!file) {
@@ -24,16 +29,35 @@ export function useImageUpload(options: ImageUploadOptions = {}) {
       return null
     }
 
-    // ファイルサイズチェック
-    if (file.size > maxSize) {
+    let processedFile = file
+
+    // 画像最適化処理
+    if (enableOptimization) {
+      const optimizationResult = await optimizeImage(file, optimizationOptions)
+      if (optimizationResult) {
+        processedFile = optimizationResult.file
+        console.log('画像最適化完了:', {
+          originalSize: optimizationResult.originalSize,
+          optimizedSize: optimizationResult.optimizedSize,
+          compressionRatio: optimizationResult.compressionRatio,
+          details: optimizationResult.details,
+        })
+      } else {
+        error.value = '画像の最適化に失敗しました'
+        return null
+      }
+    }
+
+    // ファイルサイズチェック（最適化後）
+    if (processedFile.size > maxSize) {
       const maxSizeMB = Math.round(maxSize / 1024 / 1024)
       error.value = `ファイルサイズが${maxSizeMB}MBを超えています`
       return null
     }
 
-    // ストレージクォータチェック（オプション）
+    // ストレージクォータチェック（最適化後のサイズで）
     if (checkStorageQuota) {
-      const estimatedBase64Size = estimateBase64Size(file.size)
+      const estimatedBase64Size = estimateBase64Size(processedFile.size)
       const capacityCheck = await checkStorageCapacity(estimatedBase64Size)
 
       if (!capacityCheck.canAdd) {
@@ -47,23 +71,24 @@ export function useImageUpload(options: ImageUploadOptions = {}) {
       }
     }
 
-    // ファイル形式チェック
-    const fileExtension = file.name.toLowerCase().split('.').pop()
-    const isValidMimeType = allowedTypes.includes(file.type)
+    // ファイル形式チェック（最適化後のファイルで）
+    const fileExtension = processedFile.name.toLowerCase().split('.').pop()
+    const isValidMimeType = allowedTypes.includes(processedFile.type)
     const isValidExtension = fileExtension && ['jpeg', 'jpg', 'png', 'gif', 'webp', 'avif'].includes(fileExtension)
 
     // デバッグ用ログ
     console.log('File upload debug:', {
-      fileName: file.name,
-      fileType: file.type,
+      fileName: processedFile.name,
+      fileType: processedFile.type,
       fileExtension,
       isValidMimeType,
       isValidExtension,
       allowedTypes,
+      optimized: enableOptimization,
     })
 
     if (!isValidMimeType && !isValidExtension) {
-      error.value = `サポートされていないファイル形式です (MIME: ${file.type}, 拡張子: ${fileExtension})`
+      error.value = `サポートされていないファイル形式です (MIME: ${processedFile.type}, 拡張子: ${fileExtension})`
       return null
     }
 
@@ -101,7 +126,7 @@ export function useImageUpload(options: ImageUploadOptions = {}) {
           reject(new Error('ファイルの読み込み中にエラーが発生しました'))
         }
 
-        reader.readAsDataURL(file)
+        reader.readAsDataURL(processedFile)
       })
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'アップロードに失敗しました'
@@ -153,6 +178,7 @@ export function useImageUpload(options: ImageUploadOptions = {}) {
 
   return {
     isUploading: readonly(isUploading),
+    isOptimizing: readonly(isOptimizing),
     error: readonly(error),
     uploadImage,
     handleFileInput,
@@ -161,27 +187,55 @@ export function useImageUpload(options: ImageUploadOptions = {}) {
     clearError,
     maxSize,
     allowedTypes,
+    enableOptimization,
   }
 }
 
-// 特定用途向けのプリセット
+// 特定用途向けのプリセット（設定に基づいて最適化を有効化）
 export function useAvatarImageUpload() {
+  const settingsStore = useSettingsStore()
   return useImageUpload({
     maxSize: 5 * 1024 * 1024, // 5MB
     allowedTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif'],
+    enableOptimization: settingsStore.settings.enableImageOptimization,
+    optimizationOptions: {
+      maxWidth: settingsStore.settings.maxImageWidth,
+      maxHeight: settingsStore.settings.maxImageHeight,
+      quality: settingsStore.settings.compressionQuality,
+      enableWebP: settingsStore.settings.enableWebPConversion,
+      webpQuality: settingsStore.settings.webpQuality,
+    },
   })
 }
 
 export function useBackgroundImageUpload() {
+  const settingsStore = useSettingsStore()
   return useImageUpload({
     maxSize: 5 * 1024 * 1024, // 5MB
     allowedTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif'],
+    enableOptimization: settingsStore.settings.enableImageOptimization,
+    optimizationOptions: {
+      maxWidth: settingsStore.settings.maxImageWidth,
+      maxHeight: settingsStore.settings.maxImageHeight,
+      quality: settingsStore.settings.compressionQuality,
+      enableWebP: settingsStore.settings.enableWebPConversion,
+      webpQuality: settingsStore.settings.webpQuality,
+    },
   })
 }
 
 export function useProfileImageUpload() {
+  const settingsStore = useSettingsStore()
   return useImageUpload({
     maxSize: 5 * 1024 * 1024, // 5MB
     allowedTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif'],
+    enableOptimization: settingsStore.settings.enableImageOptimization,
+    optimizationOptions: {
+      maxWidth: settingsStore.settings.maxImageWidth,
+      maxHeight: settingsStore.settings.maxImageHeight,
+      quality: settingsStore.settings.compressionQuality,
+      enableWebP: settingsStore.settings.enableWebPConversion,
+      webpQuality: settingsStore.settings.webpQuality,
+    },
   })
 }

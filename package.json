@@ -23,6 +23,7 @@
     "@vite-pwa/assets-generator": "1.0.1",
     "@vite-pwa/nuxt": "1.0.4",
     "@vueuse/core": "13.9.0",
+    "browser-image-compression": "2.0.2",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
     "dexie": "4.2.0",

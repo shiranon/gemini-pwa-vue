@@ -16,6 +16,7 @@ import {
   dbUpdateCharacterOutfit,
   dbUploadCharacterImage,
 } from '~/lib/database'
+import { useSettingsStore } from '~/stores/settings'
 import type { CharacterImageRecord, CharacterOutfitRecord, CharacterRecord, DatabaseOperationResult } from '~/types/database'
 import { logger } from '~/utils/logger'
 
@@ -26,10 +27,19 @@ export function useCharacterImages() {
   const isLoading = ref(false)
   const error = ref<string | null>(null)
 
-  // 画像アップロード機能
+  // 画像アップロード機能（設定に基づいて最適化を有効化）
+  const settingsStore = useSettingsStore()
   const imageUpload = useImageUpload({
     maxSize: IMAGE_LIMITS.MAX_FILE_SIZE,
     allowedTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif'],
+    enableOptimization: settingsStore.settings.enableImageOptimization,
+    optimizationOptions: {
+      maxWidth: settingsStore.settings.maxImageWidth,
+      maxHeight: settingsStore.settings.maxImageHeight,
+      quality: settingsStore.settings.compressionQuality,
+      enableWebP: settingsStore.settings.enableWebPConversion,
+      webpQuality: settingsStore.settings.webpQuality,
+    },
   })
 
   // フォルダアップロード機能
