@@ -7,15 +7,20 @@
       <!-- キャラクターサムネイル -->
       <div class="border-border bg-muted mb-4 flex w-full items-center justify-center overflow-hidden rounded-2xl border">
         <img
-          v-if="thumbnailImage"
+          v-if="thumbnailImage && !isLoadingThumbnail"
           :src="`data:${thumbnailImage.mimeType};base64,${thumbnailImage.base64Data}`"
           :alt="character.name"
           class="h-full w-full object-cover"
         />
         <Icon
+          v-else-if="isLoadingThumbnail"
+          icon="line-md:loading-alt-loop"
+          class="text-muted-foreground size-20 animate-spin sm:size-24"
+        />
+        <Icon
           v-else
           icon="material-symbols:person"
-          class="text-muted-foreground h-8 w-8 sm:h-10 sm:w-10"
+          class="text-muted-foreground size-20 sm:size-24"
         />
       </div>
 
@@ -81,13 +86,17 @@ const emit = defineEmits<Emits>()
 
 const { getCharacterFirstImage } = useCharacterImages()
 const thumbnailImage = ref<CharacterImageRecord | null>(null)
+const isLoadingThumbnail = ref(true)
 
 // サムネイル画像を読み込み
 const loadThumbnail = async () => {
   try {
+    isLoadingThumbnail.value = true
     thumbnailImage.value = await getCharacterFirstImage(props.character.id)
   } catch (error) {
     console.error('サムネイル画像の読み込みに失敗:', error)
+  } finally {
+    isLoadingThumbnail.value = false
   }
 }
 
