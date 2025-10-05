@@ -22,10 +22,10 @@
 
         <div>
           <label class="text-sm font-medium">説明（任意）</label>
-          <textarea
+          <Textarea
             v-model="editForm.description"
             placeholder="衣装の説明を入力"
-            class="border-border bg-background text-foreground placeholder:text-muted-foreground ring-offset-background focus-visible:ring-ring mt-1 flex min-h-[80px] w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+            class="mt-1 min-h-[80px]"
             :disabled="isUpdating"
           />
         </div>
@@ -67,6 +67,7 @@ import { ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Button } from '~/components/ui/button'
 import { Input } from '~/components/ui/input'
+import { Textarea } from '~/components/ui/textarea'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '~/components/ui/dialog'
 import { useCharacterImages } from '~/composables/useCharacterImages'
 import { logger } from '~/utils/logger'

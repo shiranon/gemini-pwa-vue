@@ -1,4 +1,5 @@
 import { computed, ref } from 'vue'
+import { useFolderUpload, type FolderStructure } from '~/composables/useFolderUpload'
 import { useImageUpload } from '~/composables/useImageUpload'
 import { IMAGE_LIMITS } from '~/constants/constants'
 import {
@@ -30,6 +31,9 @@ export function useCharacterImages() {
     maxSize: IMAGE_LIMITS.MAX_FILE_SIZE,
     allowedTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif'],
   })
+
+  // フォルダアップロード機能
+  const folderUpload = useFolderUpload()
 
   // ============================================================================
   // 共通ユーティリティ
@@ -105,6 +109,147 @@ export function useCharacterImages() {
   const clearAllErrors = () => {
     error.value = null
     imageUpload.clearError()
+  }
+
+  // ============================================================================
+  // フォルダ一括アップロード
+  // ============================================================================
+
+  /** フォルダからキャラクターと衣装を一括作成・アップロード */
+  const bulkUploadFromFolder = async (
+    folderStructure: FolderStructure,
+    description?: string
+  ): Promise<{
+    character: CharacterRecord | null
+    success: number
+    failed: number
+    errors: string[]
+  }> => {
+    return handleBulkOperation(
+      async () => {
+        folderUpload.resetProgress()
+
+        // 1. キャラクターを作成
+        const character = await createCharacter(folderStructure.characterName, description)
+        if (!character) {
+          throw new Error('キャラクターの作成に失敗しました')
+        }
+
+        let totalSuccess = 0
+        let totalFailed = 0
+        const allErrors: string[] = []
+
+        // 2. 各衣装を作成して画像をアップロード
+        for (const outfitData of folderStructure.outfits) {
+          try {
+            // 衣装を作成
+            const outfit = await createOutfit(character.id, outfitData.outfitName)
+            if (!outfit) {
+              allErrors.push(`衣装「${outfitData.outfitName}」の作成に失敗しました`)
+              totalFailed += outfitData.images.length
+              continue
+            }
+
+            // 画像を一括アップロード
+            const result = await bulkUploadExpressions(character.id, outfit.id, outfitData.images)
+            totalSuccess += result.success
+            totalFailed += result.failed
+            allErrors.push(...result.errors.map((error) => `衣装「${outfitData.outfitName}」: ${error}`))
+
+            // 進捗を更新
+            folderUpload.updateProgress(
+              `衣装「${outfitData.outfitName}」を処理中`,
+              totalSuccess + totalFailed,
+              folderStructure.outfits.reduce((sum, o) => sum + o.images.length, 0)
+            )
+          } catch (outfitError) {
+            const errorMessage = outfitError instanceof Error ? outfitError.message : '衣装処理エラー'
+            allErrors.push(`衣装「${outfitData.outfitName}」: ${errorMessage}`)
+            totalFailed += outfitData.images.length
+            logger.error(`衣装処理エラー: ${outfitData.outfitName}`, { component: 'useCharacterImages' }, outfitError)
+          }
+        }
+
+        logger.info(`フォルダ一括アップロード完了: 成功${totalSuccess}件、失敗${totalFailed}件`, { component: 'useCharacterImages' })
+        return {
+          character,
+          success: totalSuccess,
+          failed: totalFailed,
+          errors: allErrors,
+        }
+      },
+      'フォルダ一括アップロードに失敗しました',
+      {
+        character: null as CharacterRecord | null,
+        success: 0,
+        failed: folderStructure.outfits.reduce((sum, o) => sum + o.images.length, 0),
+        errors: ['フォルダ一括アップロードに失敗しました'],
+      }
+    )
+  }
+
+  /** 既存キャラクターにフォルダから衣装を一括追加 */
+  const bulkAddOutfitsFromFolder = async (
+    characterId: string,
+    folderStructure: FolderStructure
+  ): Promise<{
+    success: number
+    failed: number
+    errors: string[]
+  }> => {
+    return handleBulkOperation(
+      async () => {
+        folderUpload.resetProgress()
+
+        let totalSuccess = 0
+        let totalFailed = 0
+        const allErrors: string[] = []
+
+        // 各衣装を作成して画像をアップロード
+        for (const outfitData of folderStructure.outfits) {
+          try {
+            // 衣装を作成
+            const outfit = await createOutfit(characterId, outfitData.outfitName)
+            if (!outfit) {
+              allErrors.push(`衣装「${outfitData.outfitName}」の作成に失敗しました`)
+              totalFailed += outfitData.images.length
+              continue
+            }
+
+            // 画像を一括アップロード
+            const result = await bulkUploadExpressions(characterId, outfit.id, outfitData.images)
+            totalSuccess += result.success
+            totalFailed += result.failed
+            allErrors.push(...result.errors.map((error) => `衣装「${outfitData.outfitName}」: ${error}`))
+
+            // 進捗を更新
+            folderUpload.updateProgress(
+              `衣装「${outfitData.outfitName}」を処理中`,
+              totalSuccess + totalFailed,
+              folderStructure.outfits.reduce((sum, o) => sum + o.images.length, 0)
+            )
+          } catch (outfitError) {
+            const errorMessage = outfitError instanceof Error ? outfitError.message : '衣装処理エラー'
+            allErrors.push(`衣装「${outfitData.outfitName}」: ${errorMessage}`)
+            totalFailed += outfitData.images.length
+            logger.error(`衣装処理エラー: ${outfitData.outfitName}`, { component: 'useCharacterImages' }, outfitError)
+          }
+        }
+
+        logger.info(`衣装一括追加完了: 成功${totalSuccess}件、失敗${totalFailed}件`, { component: 'useCharacterImages' })
+        return {
+          success: totalSuccess,
+          failed: totalFailed,
+          errors: allErrors,
+        }
+      },
+      '衣装一括追加に失敗しました',
+      {
+        success: 0,
+        failed: folderStructure.outfits.reduce((sum, o) => sum + o.images.length, 0),
+        errors: ['衣装一括追加に失敗しました'],
+      }
+    )
   }
 
   // ============================================================================
@@ -453,6 +598,11 @@ export function useCharacterImages() {
     getImagesGroupedByCharacter,
     getCharacterFirstImage,
     getCharacterImageByNames,
+
+    // フォルダ一括アップロード
+    bulkUploadFromFolder,
+    bulkAddOutfitsFromFolder,
+    folderUpload,
 
     // ユーティリティ
     clearAllErrors,

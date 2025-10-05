@@ -1,6 +1,6 @@
 <template>
   <div
-    class="border-border bg-card hover:bg-muted/50 group cursor-pointer rounded-xl border p-2 transition-all duration-200 hover:shadow-md"
+    class="border-border bg-card hover:bg-muted/50 group relative cursor-pointer rounded-xl border p-2 transition-all duration-200 hover:shadow-md"
     @click="selectCharacter"
   >
     <div class="flex flex-col items-center justify-center text-center">

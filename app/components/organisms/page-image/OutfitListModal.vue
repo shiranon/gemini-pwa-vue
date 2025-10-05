@@ -276,6 +276,59 @@
             />
           </div>
 
+          <!-- フォルダ選択オプション -->
+          <div class="space-y-2">
+            <label class="text-sm font-medium">画像を一括登録（オプション）</label>
+            <div class="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                class="flex-1"
+                :disabled="isCreating || !folderUpload.isSupported"
+                @click="handleSelectFolder"
+              >
+                <Icon
+                  icon="material-symbols:folder-open"
+                  class="mr-2 h-4 w-4"
+                />
+                フォルダを選択
+              </Button>
+              <Button
+                v-if="selectedFolder"
+                type="button"
+                variant="ghost"
+                size="sm"
+                :disabled="isCreating"
+                @click="clearSelectedFolder"
+              >
+                <Icon
+                  icon="material-symbols:close"
+                  class="h-4 w-4"
+                />
+              </Button>
+            </div>
+            <div
+              v-if="selectedFolder"
+              class="bg-muted rounded-md p-3 text-sm"
+            >
+              <div class="font-medium">選択されたフォルダ:</div>
+              <div class="text-muted-foreground">{{ selectedFolder.characterName }}</div>
+              <div class="mt-1 text-xs">{{ selectedFolder.outfits.length }}個の衣装、{{ totalImages }}枚の画像</div>
+            </div>
+            <div
+              v-if="!folderUpload.isSupported"
+              class="text-muted-foreground text-xs"
+            >
+              このブラウザはフォルダ選択をサポートしていません
+            </div>
+          </div>
+
+          <!-- プログレス表示 -->
+          <BulkUploadProgress
+            v-if="isCreating && selectedFolder"
+            :progress="folderUpload.progress.value"
+          />
+
           <div class="flex flex-col gap-2 sm:flex-row sm:justify-end">
             <Button
               type="button"
@@ -300,7 +353,7 @@
                 icon="material-symbols:add"
                 class="mr-2 h-4 w-4"
               />
-              作成
+              {{ selectedFolder ? '作成して画像を登録' : '作成' }}
             </Button>
           </div>
         </form>
@@ -319,7 +372,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { computed, ref, onMounted, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Button } from '~/components/ui/button'
 import { Input } from '~/components/ui/input'
@@ -328,7 +381,9 @@ import ConfirmDialog from '~/components/molecules/dialogs/ConfirmDialog.vue'
 import EmptyState from '~/components/common/ImageEmptyState.vue'
 import OutfitEditModal from '~/components/organisms/page-image/OutfitEditModal.vue'
 import ExpressionUploadModal from '~/components/organisms/page-image/ExpressionUploadModal.vue'
+import BulkUploadProgress from '~/components/molecules/BulkUploadProgress.vue'
 import { useCharacterImages } from '~/composables/useCharacterImages'
+import { useFolderUpload, type FolderStructure } from '~/composables/useFolderUpload'
 import { logger } from '~/utils/logger'
 import type { CharacterRecord, CharacterOutfitRecord, CharacterImageRecord } from '~/types/database'
 
@@ -345,7 +400,8 @@ interface Emits {
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
-const { getOutfits, createOutfit, deleteOutfit: deleteOutfitFromDB, getOutfitAllExpressions, deleteImage: deleteImageFromDB, error } = useCharacterImages()
+const { getOutfits, createOutfit, deleteOutfit: deleteOutfitFromDB, getOutfitAllExpressions, deleteImage: deleteImageFromDB, bulkAddOutfitsFromFolder, error } = useCharacterImages()
+const folderUpload = useFolderUpload()
 
 // Dialogの開閉状態
 const isOpen = ref(true)
@@ -360,6 +416,13 @@ const isCreating = ref(false)
 const editingOutfit = ref<CharacterOutfitRecord | null>(null)
 const showUploadModal = ref(false)
 const showCreateOutfitModal = ref(false)
+const selectedFolder = ref<FolderStructure | null>(null)
+
+// 計算プロパティ
+const totalImages = computed(() => {
+  if (!selectedFolder.value) return 0
+  return selectedFolder.value.outfits.reduce((sum, outfit) => sum + outfit.images.length, 0)
+})
 
 // ダイアログの状態管理
 const isConfirmDialogOpen = ref(false)
@@ -405,20 +468,61 @@ const loadOutfits = async () => {
   }
 }
 
+// フォルダを選択
+const handleSelectFolder = async () => {
+  try {
+    const folderStructure = await folderUpload.selectFolder()
+    if (folderStructure) {
+      selectedFolder.value = folderStructure
+      // フォルダ名を衣装名に自動設定（最初の衣装名を使用）
+      if (!newOutfitName.value.trim() && folderStructure.outfits.length > 0) {
+        newOutfitName.value = folderStructure.outfits[0]?.outfitName || ''
+      }
+    }
+  } catch (error) {
+    logger.error('フォルダ選択に失敗', { component: 'OutfitListModal' }, error)
+  }
+}
+
+// 選択されたフォルダをクリア
+const clearSelectedFolder = () => {
+  selectedFolder.value = null
+}
+
 // 衣装を作成
 const handleCreateOutfit = async () => {
   if (!newOutfitName.value.trim()) return
 
   try {
     isCreating.value = true
-    const newOutfit = await createOutfit(props.character.id, newOutfitName.value.trim())
-    if (newOutfit) {
+
+    if (selectedFolder.value) {
+      // フォルダから一括作成
+      const result = await bulkAddOutfitsFromFolder(props.character.id, selectedFolder.value)
+
+      // 結果をログに記録
+      if (result.errors.length > 0) {
+        logger.warn(`一括アップロード完了: 成功${result.success}件、失敗${result.failed}件`, { component: 'OutfitListModal' })
+        logger.warn('アップロードエラー:', { component: 'OutfitListModal' }, result.errors)
+      } else {
+        logger.info(`一括アップロード完了: 成功${result.success}件`, { component: 'OutfitListModal' })
+      }
+
       newOutfitName.value = ''
+      selectedFolder.value = null
       showCreateOutfitModal.value = false
       await loadOutfits()
-      // 新しく作成された衣装を自動選択
+    } else {
+      // 通常の作成
+      const newOutfit = await createOutfit(props.character.id, newOutfitName.value.trim())
       if (newOutfit) {
-        await selectOutfit(newOutfit)
+        newOutfitName.value = ''
+        showCreateOutfitModal.value = false
+        await loadOutfits()
+        // 新しく作成された衣装を自動選択
+        if (newOutfit) {
+          await selectOutfit(newOutfit)
+        }
       }
     }
   } catch (err) {
