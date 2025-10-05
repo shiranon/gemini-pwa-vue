@@ -15,7 +15,7 @@
     "generate-pwa-assets": "pwa-assets-generator --preset minimal-2023 public/icon.png"
   },
   "dependencies": {
-    "@google/genai": "1.21.0",
+    "@google/genai": "1.22.0",
     "@pinia-plugin-persistedstate/nuxt": "1.2.1",
     "@pinia/nuxt": "0.11.2",
     "@tailwindcss/vite": "4.1.13",
