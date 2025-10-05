@@ -17,6 +17,8 @@
         @export-chats="exportChatsOnly"
       />
 
+      <ImageExportSection />
+
       <ImportSection
         :import-options="importOptions"
         @file-selected="processFile"
@@ -59,6 +61,7 @@ import { useDataManagement } from '~/composables/useDataManagement'
 import AlertDialog from '~/components/molecules/dialogs/AlertDialog.vue'
 import ConfirmDialog from '~/components/molecules/dialogs/ConfirmDialog.vue'
 import ExportSection from '~/components/organisms/page-data/ExportSection.vue'
+import ImageExportSection from '~/components/organisms/page-data/ImageExportSection.vue'
 import ImportSection from '~/components/organisms/page-data/ImportSection.vue'
 import DangerSection from '~/components/organisms/page-data/DangerSection.vue'
 import ImportResultDisplay from '~/components/molecules/page-data/ImportResult.vue'

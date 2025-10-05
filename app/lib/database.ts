@@ -1511,3 +1511,93 @@ export async function dbGetCharacterImageByNames(characterName: string, outfitNa
     }
   }
 }
+
+/** 全キャラクター画像を取得（エクスポート用） */
+export async function dbGetAllCharacterImages(): Promise<DatabaseOperationResult<CharacterImageRecord[]>> {
+  try {
+    const startTime = Date.now()
+
+    const images = await db.characterImages.orderBy('createdAt').reverse().toArray()
+
+    const executionTime = Date.now() - startTime
+    return {
+      success: true,
+      data: images,
+      performance: {
+        queryType: 'getAllCharacterImages',
+        executionTime,
+        resultCount: images.length,
+      },
+    }
+  } catch (error) {
+    logger.error('全キャラクター画像の取得に失敗しました:', { component: 'database' }, error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+/** キャラクター画像の統計情報を取得 */
+export async function dbGetCharacterImageStats(): Promise<
+  DatabaseOperationResult<{
+    totalImages: number
+    totalSize: number
+    characters: { id: string; name: string; imageCount: number }[]
+    outfits: { id: string; characterId: string; name: string; imageCount: number }[]
+  }>
+> {
+  try {
+    const startTime = Date.now()
+
+    // 全画像を取得
+    const images = await db.characterImages.toArray()
+
+    // 全キャラクターを取得
+    const characters = await db.characters.toArray()
+
+    // 全衣装を取得
+    const outfits = await db.characterOutfits.toArray()
+
+    // 統計情報を計算
+    const totalImages = images.length
+    const totalSize = images.reduce((sum, img) => sum + img.size, 0)
+
+    // キャラクター別の画像数
+    const characterStats = characters.map((char) => ({
+      id: char.id,
+      name: char.name,
+      imageCount: images.filter((img) => img.characterId === char.id).length,
+    }))
+
+    // 衣装別の画像数
+    const outfitStats = outfits.map((outfit) => ({
+      id: outfit.id,
+      characterId: outfit.characterId,
+      name: outfit.name,
+      imageCount: images.filter((img) => img.outfitId === outfit.id).length,
+    }))
+
+    const executionTime = Date.now() - startTime
+    return {
+      success: true,
+      data: {
+        totalImages,
+        totalSize,
+        characters: characterStats,
+        outfits: outfitStats,
+      },
+      performance: {
+        queryType: 'getCharacterImageStats',
+        executionTime,
+        resultCount: 1,
+      },
+    }
+  } catch (error) {
+    logger.error('キャラクター画像統計の取得に失敗しました:', { component: 'database' }, error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
