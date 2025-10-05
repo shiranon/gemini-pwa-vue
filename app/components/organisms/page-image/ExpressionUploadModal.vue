@@ -264,6 +264,7 @@ import { Input } from '~/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '~/components/ui/dialog'
 import { useCharacterImages } from '~/composables/useCharacterImages'
 import { useStorageQuota } from '~/composables/useStorageQuota'
+import { logger } from '~/utils/logger'
 import type { CharacterRecord, CharacterOutfitRecord } from '~/types/database'
 
 interface Props {
@@ -379,7 +380,7 @@ const uploadSingleImage = async () => {
       resetSingleFileInput()
     }
   } catch (err) {
-    console.error('単一画像アップロードに失敗:', err)
+    logger.error('単一画像アップロードに失敗', { component: 'ExpressionUploadModal' }, err)
     uploadResult.value = { success: 0, failed: 1, errors: [err instanceof Error ? err.message : 'アップロードに失敗しました'] }
     // エラー時もファイル入力をリセット
     resetSingleFileInput()
@@ -418,7 +419,7 @@ const uploadBulkImages = async () => {
       }, 2000)
     }
   } catch (err) {
-    console.error('一括画像アップロードに失敗:', err)
+    logger.error('一括画像アップロードに失敗', { component: 'ExpressionUploadModal' }, err)
     uploadResult.value = { success: 0, failed: selectedBulkFiles.value.length, errors: [err instanceof Error ? err.message : 'アップロードに失敗しました'] }
   } finally {
     isUploading.value = false

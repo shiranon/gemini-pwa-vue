@@ -16,6 +16,12 @@ export const LIMITS = {
   MAX_DICE_MODIFIER: 10000,
 } as const
 
+// 画像関連の制限値
+export const IMAGE_LIMITS = {
+  // 最大ファイルサイズ（5MB）
+  MAX_FILE_SIZE: 5 * 1024 * 1024,
+} as const
+
 // ランダム文字列の文字セット
 export const CHARSETS = {
   UPPERCASE: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',

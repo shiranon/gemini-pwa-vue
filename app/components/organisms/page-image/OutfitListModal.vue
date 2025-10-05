@@ -329,6 +329,7 @@ import EmptyState from '~/components/common/ImageEmptyState.vue'
 import OutfitEditModal from '~/components/organisms/page-image/OutfitEditModal.vue'
 import ExpressionUploadModal from '~/components/organisms/page-image/ExpressionUploadModal.vue'
 import { useCharacterImages } from '~/composables/useCharacterImages'
+import { logger } from '~/utils/logger'
 import type { CharacterRecord, CharacterOutfitRecord, CharacterImageRecord } from '~/types/database'
 
 interface Props {
@@ -400,7 +401,7 @@ const loadOutfits = async () => {
   try {
     outfits.value = await getOutfits(props.character.id)
   } catch (err) {
-    console.error('衣装一覧の読み込みに失敗:', err)
+    logger.error('衣装一覧の読み込みに失敗', { component: 'OutfitListModal' }, err)
   }
 }
 
@@ -421,7 +422,7 @@ const handleCreateOutfit = async () => {
       }
     }
   } catch (err) {
-    console.error('衣装の作成に失敗:', err)
+    logger.error('衣装の作成に失敗', { component: 'OutfitListModal' }, err)
   } finally {
     isCreating.value = false
   }
@@ -452,7 +453,7 @@ const deleteOutfit = async (outfit: CharacterOutfitRecord) => {
       await loadOutfits()
     }
   } catch (err) {
-    console.error('衣装の削除に失敗:', err)
+    logger.error('衣装の削除に失敗', { component: 'OutfitListModal' }, err)
   }
 }
 
@@ -461,7 +462,7 @@ const loadImages = async (outfit: CharacterOutfitRecord) => {
   try {
     images.value = await getOutfitAllExpressions(props.character.id, outfit.id)
   } catch (err) {
-    console.error('画像一覧の読み込みに失敗:', err)
+    logger.error('画像一覧の読み込みに失敗', { component: 'OutfitListModal' }, err)
   }
 }
 
@@ -498,7 +499,7 @@ const deleteImage = async (image: CharacterImageRecord) => {
       selectedImages.value.delete(image.id)
     }
   } catch (err) {
-    console.error('画像の削除に失敗:', err)
+    logger.error('画像の削除に失敗', { component: 'OutfitListModal' }, err)
   }
 }
 
@@ -526,7 +527,7 @@ const deleteSelectedImages = async () => {
       selectedImages.value.clear()
     }
   } catch (err) {
-    console.error('一括削除に失敗:', err)
+    logger.error('一括削除に失敗', { component: 'OutfitListModal' }, err)
   }
 }
 

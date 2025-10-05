@@ -1,5 +1,6 @@
 import { computed, ref } from 'vue'
 import { useImageUpload } from '~/composables/useImageUpload'
+import { IMAGE_LIMITS } from '~/constants/constants'
 import {
   dbCreateCharacter,
   dbCreateCharacterOutfit,
@@ -26,8 +27,8 @@ export function useCharacterImages() {
 
   // 画像アップロード機能
   const imageUpload = useImageUpload({
-    maxSize: 5 * 1024 * 1024, // 5MB
-    allowedTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
+    maxSize: IMAGE_LIMITS.MAX_FILE_SIZE,
+    allowedTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif'],
   })
 
   // ============================================================================

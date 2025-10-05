@@ -70,6 +70,7 @@ import { Icon } from '@iconify/vue'
 import { Button } from '~/components/ui/button'
 import type { CharacterRecord, CharacterImageRecord } from '~/types/database'
 import { useCharacterImages } from '~/composables/useCharacterImages'
+import { logger } from '~/utils/logger'
 
 interface Props {
   character: CharacterRecord
@@ -94,7 +95,7 @@ const loadThumbnail = async () => {
     isLoadingThumbnail.value = true
     thumbnailImage.value = await getCharacterFirstImage(props.character.id)
   } catch (error) {
-    console.error('サムネイル画像の読み込みに失敗:', error)
+    logger.error('サムネイル画像の読み込みに失敗', { component: 'CharacterCard' }, error)
   } finally {
     isLoadingThumbnail.value = false
   }

@@ -46,6 +46,7 @@ import { ref, onMounted } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { CharacterImageRecord } from '~/types/database'
 import { useCharacterImages } from '~/composables/useCharacterImages'
+import { logger } from '~/utils/logger'
 
 interface Props {
   characterName: string
@@ -76,7 +77,7 @@ const loadImage = async () => {
     }
   } catch (err) {
     error.value = '画像の読み込みに失敗しました'
-    console.error('CharacterImageRenderer: 画像の読み込みエラー:', err)
+    logger.error('CharacterImageRenderer: 画像の読み込みエラー', { component: 'CharacterImageRenderer' }, err)
   } finally {
     isLoading.value = false
   }

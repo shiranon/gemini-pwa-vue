@@ -69,6 +69,7 @@ import { Button } from '~/components/ui/button'
 import { Input } from '~/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '~/components/ui/dialog'
 import { useCharacterImages } from '~/composables/useCharacterImages'
+import { logger } from '~/utils/logger'
 import type { CharacterOutfitRecord } from '~/types/database'
 
 interface Props {
@@ -124,7 +125,7 @@ const handleUpdate = async () => {
       emit('updated')
     }
   } catch (err) {
-    console.error('衣装の更新に失敗:', err)
+    logger.error('衣装の更新に失敗', { component: 'OutfitEditModal' }, err)
   } finally {
     isUpdating.value = false
   }

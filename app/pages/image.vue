@@ -100,6 +100,7 @@ import CharacterCard from '~/components/organisms/page-image/CharacterCard.vue'
 import CharacterEditModal from '~/components/organisms/page-image/CharacterEditModal.vue'
 import OutfitListModal from '~/components/organisms/page-image/OutfitListModal.vue'
 import { useCharacterImages } from '~/composables/useCharacterImages'
+import { logger } from '~/utils/logger'
 import type { CharacterRecord, CharacterOutfitRecord } from '~/types/database'
 
 // ページメタデータ
@@ -157,7 +158,7 @@ const loadCharacters = async () => {
   try {
     characters.value = await getCharacters()
   } catch (err) {
-    console.error('キャラクター一覧の読み込みに失敗:', err)
+    logger.error('キャラクター一覧の読み込みに失敗', { component: 'image.vue' }, err)
   }
 }
 
@@ -184,7 +185,7 @@ const deleteCharacter = async (character: CharacterRecord) => {
       await loadCharacters()
     }
   } catch (err) {
-    console.error('キャラクターの削除に失敗:', err)
+    logger.error('キャラクターの削除に失敗', { component: 'image.vue' }, err)
   }
 }
 
