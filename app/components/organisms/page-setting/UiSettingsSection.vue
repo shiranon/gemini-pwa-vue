@@ -3,6 +3,7 @@
     title="メッセージ表示設定"
     description="フォントとメッセージバブル全体の見た目をまとめて調整"
     single-column
+    :default-open="false"
   >
     <div class="space-y-6">
       <SettingItem

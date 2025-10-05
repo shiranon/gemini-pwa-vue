@@ -2,6 +2,7 @@
   <SettingSection
     title="高度な設定"
     description="詳細な動作調整"
+    :default-open="false"
   >
     <SettingItem
       name="streamingSpeed"

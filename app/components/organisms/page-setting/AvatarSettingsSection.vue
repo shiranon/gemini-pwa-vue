@@ -3,6 +3,7 @@
     title="アイコン設定"
     description="メッセージアイコンの表示設定とアバター画像"
     single-column
+    :default-open="false"
   >
     <div class="space-y-6">
       <SettingToggle

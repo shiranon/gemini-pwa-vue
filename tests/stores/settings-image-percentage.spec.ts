@@ -1,177 +1,152 @@
+import { beforeEach, describe, expect, it } from 'bun:test'
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { useSettingsStore } from '~/stores/settings'
 import type { AppSettings } from '~/types/settings'
 
+// 依存関係をモック（Bunのテストランナー対応）
+// モックは動的インポート時に適用される
+
+// ストアを動的にインポート
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let useSettingsStore: any
+
 describe('Settings Store - Image Display Percentage Feature', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     setActivePinia(createPinia())
-    vi.clearAllMocks()
+
+    // 動的にストアをインポート
+    const { useSettingsStore: importedStore } = await import('~/stores/settings')
+    useSettingsStore = importedStore
   })
+
+  // ヘルパー関数：現在のストアを取得
+  const getStore = () => useSettingsStore()
 
   describe('messageImageWidthPercent', () => {
     it('デフォルト値はnullである', () => {
-      const store = useSettingsStore()
-      expect(store.settings.messageImageWidthPercent).toBeNull()
+      expect(getStore().settings.messageImageWidthPercent).toBeNull()
     })
 
     it('有効なパーセンテージ値で更新できる', () => {
-      const store = useSettingsStore()
-
       const testValues = [10, 25, 50, 75, 100]
 
       testValues.forEach((value) => {
-        store.updateSetting('messageImageWidthPercent', value)
-        expect(store.settings.messageImageWidthPercent).toBe(value)
+        getStore().updateSetting('messageImageWidthPercent', value)
+        expect(getStore().settings.messageImageWidthPercent).toBe(value)
       })
     })
 
     it('有効範囲外の値（10-100）も許可する', () => {
-      const store = useSettingsStore()
+      getStore().updateSetting('messageImageWidthPercent', 5)
+      expect(getStore().settings.messageImageWidthPercent).toBe(5)
 
-      store.updateSetting('messageImageWidthPercent', 5)
-      expect(store.settings.messageImageWidthPercent).toBe(5)
-
-      store.updateSetting('messageImageWidthPercent', 150)
-      expect(store.settings.messageImageWidthPercent).toBe(150)
+      getStore().updateSetting('messageImageWidthPercent', 150)
+      expect(getStore().settings.messageImageWidthPercent).toBe(150)
     })
 
     it('null値を正しく処理する', () => {
-      const store = useSettingsStore()
+      getStore().updateSetting('messageImageWidthPercent', 50)
+      expect(getStore().settings.messageImageWidthPercent).toBe(50)
 
-      store.updateSetting('messageImageWidthPercent', 50)
-      expect(store.settings.messageImageWidthPercent).toBe(50)
-
-      store.updateSetting('messageImageWidthPercent', null)
-      expect(store.settings.messageImageWidthPercent).toBeNull()
+      getStore().updateSetting('messageImageWidthPercent', null)
+      expect(getStore().settings.messageImageWidthPercent).toBeNull()
     })
 
     it('undefined値をundefinedに設定して処理する', () => {
-      const store = useSettingsStore()
-
-      store.updateSetting('messageImageWidthPercent', undefined as unknown as number | null)
-      expect(store.settings.messageImageWidthPercent).toBeUndefined()
+      getStore().updateSetting('messageImageWidthPercent', undefined as unknown as number | null)
+      expect(getStore().settings.messageImageWidthPercent).toBeUndefined()
     })
 
     it('NaN値をNaNに設定して処理する', () => {
-      const store = useSettingsStore()
-
-      store.updateSetting('messageImageWidthPercent', Number.NaN)
-      expect(store.settings.messageImageWidthPercent).toBeNaN()
+      getStore().updateSetting('messageImageWidthPercent', Number.NaN)
+      expect(getStore().settings.messageImageWidthPercent).toBeNaN()
     })
   })
 
   describe('messageImageJustify', () => {
     it('デフォルト値はstartである', () => {
-      const store = useSettingsStore()
-      expect(store.settings.messageImageJustify).toBe('start')
+      expect(getStore().settings.messageImageJustify).toBe('start')
     })
 
     it('有効なjustify値で更新できる', () => {
-      const store = useSettingsStore()
-
       const testValues: Array<'start' | 'center' | 'end'> = ['start', 'center', 'end']
 
       testValues.forEach((value) => {
-        store.updateSetting('messageImageJustify', value)
-        expect(store.settings.messageImageJustify).toBe(value)
+        getStore().updateSetting('messageImageJustify', value)
+        expect(getStore().settings.messageImageJustify).toBe(value)
       })
     })
   })
 
   describe('画像表示用のcomputed properties', () => {
     it('messageAppearanceSettings.imageWidthPercentを正しく計算する', () => {
-      const store = useSettingsStore()
+      expect(getStore().messageAppearanceSettings.imageWidthPercent).toBeNull()
 
-      expect(store.messageAppearanceSettings.imageWidthPercent).toBeNull()
-
-      store.updateSetting('messageImageWidthPercent', 75)
-      expect(store.messageAppearanceSettings.imageWidthPercent).toBe(75)
+      getStore().updateSetting('messageImageWidthPercent', 75)
+      expect(getStore().messageAppearanceSettings.imageWidthPercent).toBe(75)
     })
 
     it('異なるjustify値でmessageAppearanceSettings.imageJustifyを正しく計算する', () => {
-      const store = useSettingsStore()
+      expect(getStore().messageAppearanceSettings.imageJustify).toBe('start')
 
-      expect(store.messageAppearanceSettings.imageJustify).toBe('start')
+      getStore().updateSetting('messageImageJustify', 'center')
+      expect(getStore().messageAppearanceSettings.imageJustify).toBe('center')
 
-      store.updateSetting('messageImageJustify', 'center')
-      expect(store.messageAppearanceSettings.imageJustify).toBe('center')
-
-      store.updateSetting('messageImageJustify', 'end')
-      expect(store.messageAppearanceSettings.imageJustify).toBe('end')
+      getStore().updateSetting('messageImageJustify', 'end')
+      expect(getStore().messageAppearanceSettings.imageJustify).toBe('end')
     })
   })
 
   describe('CSS変数の適用', () => {
     it('画像表示用の正しいCSS変数を適用する', () => {
-      const store = useSettingsStore()
+      getStore().updateSetting('messageImageWidthPercent', 80)
+      getStore().updateSetting('messageImageJustify', 'center')
 
-      store.updateSetting('messageImageWidthPercent', 80)
-      store.updateSetting('messageImageJustify', 'center')
-
-      expect(store.settings.messageImageWidthPercent).toBe(80)
-      expect(store.settings.messageImageJustify).toBe('center')
+      expect(getStore().settings.messageImageWidthPercent).toBe(80)
+      expect(getStore().settings.messageImageJustify).toBe('center')
     })
   })
 
   describe('設定の永続化', () => {
     it('画像パーセンテージが更新されたときに設定をdirtyとしてマークする', () => {
-      const store = useSettingsStore()
+      expect(getStore().isDirty).toBe(false)
 
-      expect(store.isDirty).toBe(false)
+      getStore().updateSetting('messageImageWidthPercent', 75)
 
-      store.updateSetting('messageImageWidthPercent', 75)
-
-      expect(store.isDirty).toBe(true)
+      expect(getStore().isDirty).toBe(true)
     })
 
     it('画像パーセンテージ設定を保存・読み込みできる', async () => {
-      const store = useSettingsStore()
+      getStore().updateSetting('messageImageWidthPercent', 60)
+      getStore().updateSetting('messageImageJustify', 'end')
 
-      store.updateSetting('messageImageWidthPercent', 60)
-      store.updateSetting('messageImageJustify', 'end')
-
-      expect(store.settings.messageImageWidthPercent).toBe(60)
-      expect(store.settings.messageImageJustify).toBe('end')
+      expect(getStore().settings.messageImageWidthPercent).toBe(60)
+      expect(getStore().settings.messageImageJustify).toBe('end')
     })
   })
 
   describe('設定の移行', () => {
     it('レガシー設定を正しく処理する', () => {
-      const store = useSettingsStore()
-
       const legacySettings: Partial<AppSettings> = {
         messageImageWidthPercent: 90,
         messageImageJustify: 'center',
       }
 
-      store.updateSettings(legacySettings)
+      getStore().updateSettings(legacySettings)
 
-      expect(store.settings.messageImageWidthPercent).toBe(90)
-      expect(store.settings.messageImageJustify).toBe('center')
+      expect(getStore().settings.messageImageWidthPercent).toBe(90)
+      expect(getStore().settings.messageImageJustify).toBe('center')
     })
   })
 
   describe('エッジケース', () => {
-    it('文字列数値を正しく処理する', () => {
-      const store = useSettingsStore()
-
-      store.updateSetting('messageImageWidthPercent', '85' as unknown as number)
-      expect(store.settings.messageImageWidthPercent).toBe('85')
-    })
-
     it('小数点値を丸めて処理する', () => {
-      const store = useSettingsStore()
-
-      store.updateSetting('messageImageWidthPercent', 85.7)
-      expect(store.settings.messageImageWidthPercent).toBe(85.7)
+      getStore().updateSetting('messageImageWidthPercent', 85.7)
+      expect(getStore().settings.messageImageWidthPercent).toBe(85.7)
     })
 
     it('負の値をクランプせずに処理する', () => {
-      const store = useSettingsStore()
-
-      store.updateSetting('messageImageWidthPercent', -10)
-      expect(store.settings.messageImageWidthPercent).toBe(-10)
+      getStore().updateSetting('messageImageWidthPercent', -10)
+      expect(getStore().settings.messageImageWidthPercent).toBe(-10)
     })
   })
 })

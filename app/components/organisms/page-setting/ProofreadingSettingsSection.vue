@@ -2,6 +2,7 @@
   <SettingSection
     title="校正機能設定"
     description="文章校正機能の詳細設定"
+    :default-open="false"
   >
     <SettingToggle
       :model-value="localSettings.enableProofreading"

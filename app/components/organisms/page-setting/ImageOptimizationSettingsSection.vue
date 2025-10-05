@@ -2,6 +2,7 @@
   <SettingSection
     title="画像最適化設定"
     description="画像の自動圧縮とWebP変換でストレージ効率を向上"
+    :default-open="false"
   >
     <!-- 画像最適化の有効/無効 -->
     <SettingToggle

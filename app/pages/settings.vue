@@ -150,7 +150,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Form } from 'vee-validate'
 import { toTypedSchema } from '@vee-validate/zod'
@@ -237,18 +237,19 @@ const handleConfirmCancel = () => {
   confirmDescription.value = ''
 }
 
+// Piniaストアを直接使用
+const settingsStore = useSettingsStore()
+
 // useSettings()にダイアログ関数を渡す（グローバル設定用）
-const {
-  localSettings,
-  saving: globalSaving,
-  isDirty: globalIsDirty,
-  lastSavedAt,
-  formatLastSaved,
-  saveSettings,
-  resetToDefaults,
-  syncLocalSettings,
-  updateLocalSetting,
-} = useSettings({ showAlert, showConfirm })
+const { localSettings, saving: globalSaving, isDirty: globalIsDirty, saveSettings, resetToDefaults, syncLocalSettings, updateLocalSetting } = useSettings({ showAlert, showConfirm })
+
+// lastSavedAtをPiniaストアから直接取得
+const lastSavedAt = computed(() => settingsStore.lastSavedAt)
+const formatLastSaved = computed(() => {
+  if (!lastSavedAt.value) return ''
+  const date = new Date(lastSavedAt.value)
+  return date.toLocaleString('ja-JP')
+})
 
 // useProfileSettings()（プロファイル設定用）
 const {

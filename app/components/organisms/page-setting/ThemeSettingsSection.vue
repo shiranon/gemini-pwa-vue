@@ -3,6 +3,7 @@
     title="テーマ設定"
     description="アプリ全体のカラーパレットをプリセットから選択"
     single-column
+    :default-open="false"
   >
     <SettingItem
       label="テーマプリセット"
