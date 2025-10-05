@@ -89,15 +89,23 @@ onMounted(() => {
 
 <style scoped>
 .character-image-renderer {
-  display: inline-block;
-  max-width: 100%;
+  background-color: color-mix(in srgb, var(--muted) 75%, rgba(0, 0, 0, 0));
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  overflow: hidden;
+  width: min(100%, var(--message-image-width, 100%));
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-inline-start: var(--message-image-margin-inline-start, 0);
+  margin-inline-end: var(--message-image-margin-inline-end, 0);
 }
 
 .character-image {
   display: block;
+  width: 100%;
   max-width: 100%;
   height: auto;
-  border-radius: 0.5rem;
-  border: 1px solid var(--border);
+  border-radius: inherit;
 }
 </style>

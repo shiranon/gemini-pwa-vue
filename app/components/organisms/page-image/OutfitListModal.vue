@@ -1,6 +1,6 @@
 <template>
   <Dialog v-model:open="isOpen">
-    <DialogContent class="flex min-h-[600px] w-full max-w-[95vw] flex-col overflow-hidden sm:max-w-3xl">
+    <DialogContent class="flex h-[80vh] min-h-[600px] w-full max-w-[95vw] flex-col overflow-hidden sm:max-w-3xl">
       <DialogHeader class="flex-shrink-0">
         <DialogTitle>キャラクター画像管理</DialogTitle>
         <DialogDescription>{{ character.name }}の衣装と画像</DialogDescription>
@@ -15,213 +15,225 @@
       </div>
 
       <!-- メインコンテンツ -->
-      <div class="flex-1 space-y-4 overflow-y-auto">
+      <div class="flex flex-1 flex-col overflow-hidden">
         <!-- 衣装タブ -->
         <div
           v-if="outfits.length > 0"
-          class="space-y-4"
+          class="flex flex-col space-y-4"
         >
-          <!-- タブナビゲーション -->
-          <div class="border-border flex flex-wrap gap-2 rounded-lg border p-2">
-            <!-- 衣装追加ボタン -->
-            <button
-              class="border-border bg-muted/50 hover:bg-muted flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition-colors"
-              @click="showCreateOutfitModal = true"
-            >
-              <Icon
-                icon="material-symbols:add"
-                class="h-4 w-4"
-              />
-              <span class="hidden sm:inline">衣装を追加</span>
-            </button>
+          <!-- タブナビゲーション（固定） -->
+          <div class="flex-shrink-0">
+            <div class="border-border flex flex-wrap gap-2 rounded-lg border p-2">
+              <!-- 衣装追加ボタン -->
+              <button
+                class="border-border bg-muted/50 hover:bg-muted flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition-colors"
+                @click="showCreateOutfitModal = true"
+              >
+                <Icon
+                  icon="material-symbols:add"
+                  class="h-4 w-4"
+                />
+                <span class="hidden sm:inline">衣装を追加</span>
+              </button>
 
-            <!-- 衣装タブ -->
-            <button
-              v-for="outfit in outfits"
-              :key="outfit.id"
-              class="rounded-md px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors"
-              :class="{
-                'bg-primary text-primary-foreground': selectedOutfit?.id === outfit.id,
-                'text-muted-foreground hover:text-foreground': selectedOutfit?.id !== outfit.id,
-              }"
-              @click="selectOutfit(outfit)"
-            >
-              {{ outfit.name }}
-            </button>
+              <!-- 衣装タブ -->
+              <button
+                v-for="outfit in outfits"
+                :key="outfit.id"
+                class="rounded-md px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors"
+                :class="{
+                  'bg-primary text-primary-foreground': selectedOutfit?.id === outfit.id,
+                  'text-muted-foreground hover:text-foreground': selectedOutfit?.id !== outfit.id,
+                }"
+                @click="selectOutfit(outfit)"
+              >
+                {{ outfit.name }}
+              </button>
+            </div>
           </div>
 
           <!-- 選択された衣装の画像一覧 -->
           <div
             v-if="selectedOutfit"
-            class="space-y-4"
+            class="flex flex-1 flex-col overflow-hidden"
           >
-            <!-- 操作バー -->
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div class="flex flex-wrap items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  @click="showUploadModal = true"
-                >
-                  <Icon
-                    icon="material-symbols:add"
-                    class="h-4 w-4"
-                  />
-                  画像を追加
-                </Button>
-                <Button
-                  v-if="selectedImages.size > 0"
-                  variant="destructive"
-                  size="sm"
-                  @click="deleteSelectedImages"
-                >
-                  <Icon
-                    icon="material-symbols:delete"
-                    class="h-4 w-4"
-                  />
-                  選択削除 ({{ selectedImages.size }})
-                </Button>
-              </div>
-              <div class="flex flex-wrap items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  @click="selectAllImages"
-                >
-                  <Icon
-                    icon="material-symbols:select-all"
-                    class="h-4 w-4"
-                  />
-                  <span class="hidden sm:inline">すべて選択</span>
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  @click="clearSelection"
-                >
-                  <Icon
-                    icon="material-symbols:clear-all"
-                    class="h-4 w-4"
-                  />
-                  <span class="hidden sm:inline">選択解除</span>
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  @click="editOutfit(selectedOutfit)"
-                >
-                  <Icon
-                    icon="material-symbols:edit"
-                    class="h-4 w-4"
-                  />
-                  <span class="hidden sm:inline">衣装を編集</span>
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  @click="deleteOutfit(selectedOutfit)"
-                >
-                  <Icon
-                    icon="material-symbols:delete"
-                    class="h-4 w-4"
-                  />
-                  <span class="hidden sm:inline">衣装を削除</span>
-                </Button>
-              </div>
-            </div>
-
-            <!-- 画像グリッド -->
-            <div
-              v-if="images.length > 0"
-              class="grid grid-cols-2 gap-3 px-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
-            >
-              <div
-                v-for="image in images"
-                :key="image.id"
-                class="border-border bg-card group relative cursor-pointer rounded-lg border p-2 transition-all duration-200 hover:shadow-lg"
-                :class="{ 'ring-primary ring-2': selectedImages.has(image.id) }"
-                @click="toggleImageSelection(image.id)"
-              >
-                <!-- 選択チェックボックス -->
-                <div class="absolute top-2 left-2 z-10">
-                  <div
-                    class="border-border bg-background flex h-5 w-5 items-center justify-center rounded border"
-                    :class="{ 'bg-primary border-primary': selectedImages.has(image.id) }"
+            <div class="mb-4 flex-shrink-0">
+              <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div class="flex flex-wrap items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    @click="showUploadModal = true"
                   >
                     <Icon
-                      v-if="selectedImages.has(image.id)"
-                      icon="material-symbols:check"
-                      class="text-primary-foreground h-3 w-3"
+                      icon="material-symbols:add"
+                      class="h-4 w-4"
                     />
-                  </div>
-                </div>
-
-                <!-- 画像 -->
-                <div class="aspect-square overflow-hidden rounded">
-                  <img
-                    :src="`data:${image.mimeType};base64,${image.base64Data}`"
-                    :alt="`${image.expression}の画像`"
-                    class="h-full w-full object-cover"
-                  />
-                </div>
-
-                <!-- 表情名 -->
-                <div class="mt-2 text-center">
-                  <div class="truncate text-sm font-medium">{{ image.expression }}</div>
-                  <div class="text-muted-foreground text-xs">
-                    {{ formatFileSize(image.size) }}
-                  </div>
-                </div>
-
-                <!-- ホバー時の削除ボタン -->
-                <div class="absolute top-2 right-2 opacity-0 transition-opacity group-hover:opacity-100">
+                    画像を追加
+                  </Button>
                   <Button
+                    v-if="selectedImages.size > 0"
                     variant="destructive"
                     size="sm"
-                    @click.stop="deleteImage(image)"
+                    @click="deleteSelectedImages"
                   >
                     <Icon
                       icon="material-symbols:delete"
-                      class="h-3 w-3"
+                      class="h-4 w-4"
                     />
+                    選択削除 ({{ selectedImages.size }})
+                  </Button>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    @click="selectAllImages"
+                  >
+                    <Icon
+                      icon="material-symbols:select-all"
+                      class="h-4 w-4"
+                    />
+                    <span class="hidden sm:inline">すべて選択</span>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    @click="clearSelection"
+                  >
+                    <Icon
+                      icon="material-symbols:clear-all"
+                      class="h-4 w-4"
+                    />
+                    <span class="hidden sm:inline">選択解除</span>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    @click="editOutfit(selectedOutfit)"
+                  >
+                    <Icon
+                      icon="material-symbols:edit"
+                      class="h-4 w-4"
+                    />
+                    <span class="hidden sm:inline">衣装を編集</span>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    @click="deleteOutfit(selectedOutfit)"
+                  >
+                    <Icon
+                      icon="material-symbols:delete"
+                      class="h-4 w-4"
+                    />
+                    <span class="hidden sm:inline">衣装を削除</span>
                   </Button>
                 </div>
               </div>
             </div>
 
-            <!-- 空状態 -->
-            <EmptyState
-              v-else
-              icon="material-symbols:image"
-              title="画像がありません"
-              description="最初の画像をアップロードしてください"
+            <div
+              v-if="images.length > 0"
+              class="max-h-[65vh] min-h-0 flex-1 overflow-y-auto"
             >
-              <Button @click="showUploadModal = true">
-                <Icon
-                  icon="material-symbols:add"
-                  class="mr-2 h-4 w-4"
-                />
-                画像をアップロード
-              </Button>
-            </EmptyState>
+              <div class="grid grid-cols-2 gap-3 px-2 sm:grid-cols-3">
+                <div
+                  v-for="image in images"
+                  :key="image.id"
+                  class="border-border bg-card group relative cursor-pointer rounded-lg border p-2 transition-all duration-200 hover:shadow-lg"
+                  :class="{ 'ring-primary ring-2': selectedImages.has(image.id) }"
+                  @click="toggleImageSelection(image.id)"
+                >
+                  <!-- 選択チェックボックス -->
+                  <div class="absolute top-2 left-2 z-10">
+                    <div
+                      class="border-border bg-background flex h-5 w-5 items-center justify-center rounded border"
+                      :class="{ 'bg-primary border-primary': selectedImages.has(image.id) }"
+                    >
+                      <Icon
+                        v-if="selectedImages.has(image.id)"
+                        icon="material-symbols:check"
+                        class="text-primary-foreground h-3 w-3"
+                      />
+                    </div>
+                  </div>
+
+                  <!-- 画像 -->
+                  <div class="aspect-square overflow-hidden rounded">
+                    <img
+                      :src="`data:${image.mimeType};base64,${image.base64Data}`"
+                      :alt="`${image.expression}の画像`"
+                      class="h-full w-full object-cover"
+                    />
+                  </div>
+
+                  <!-- 表情名 -->
+                  <div class="mt-2 text-center">
+                    <div class="truncate text-sm font-medium">{{ image.expression }}</div>
+                    <div class="text-muted-foreground text-xs">
+                      {{ formatFileSize(image.size) }}
+                    </div>
+                  </div>
+
+                  <!-- ホバー時の削除ボタン -->
+                  <div class="absolute top-2 right-2 opacity-0 transition-opacity group-hover:opacity-100">
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      @click.stop="deleteImage(image)"
+                    >
+                      <Icon
+                        icon="material-symbols:delete"
+                        class="h-3 w-3"
+                      />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 空状態 -->
+            <div
+              v-else
+              class="flex max-h-[50vh] min-h-0 flex-1 items-center justify-center"
+            >
+              <EmptyState
+                icon="material-symbols:image"
+                title="画像がありません"
+                description="最初の画像をアップロードしてください"
+              >
+                <Button @click="showUploadModal = true">
+                  <Icon
+                    icon="material-symbols:add"
+                    class="mr-2 h-4 w-4"
+                  />
+                  画像をアップロード
+                </Button>
+              </EmptyState>
+            </div>
           </div>
         </div>
 
         <!-- 衣装が存在しない場合の空状態 -->
-        <EmptyState
+        <div
           v-else
-          icon="material-symbols:checkroom"
-          title="衣装がありません"
-          description="最初の衣装を作成してください"
+          class="flex flex-1 items-center justify-center"
         >
-          <Button @click="showCreateOutfitModal = true">
-            <Icon
-              icon="material-symbols:add"
-              class="mr-2 h-4 w-4"
-            />
-            衣装を追加
-          </Button>
-        </EmptyState>
+          <EmptyState
+            icon="material-symbols:checkroom"
+            title="衣装がありません"
+            description="最初の衣装を作成してください"
+          >
+            <Button @click="showCreateOutfitModal = true">
+              <Icon
+                icon="material-symbols:add"
+                class="mr-2 h-4 w-4"
+              />
+              衣装を追加
+            </Button>
+          </EmptyState>
+        </div>
       </div>
     </DialogContent>
 
