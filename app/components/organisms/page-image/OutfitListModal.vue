@@ -312,8 +312,8 @@
               class="bg-muted rounded-md p-3 text-sm"
             >
               <div class="font-medium">選択されたフォルダ:</div>
-              <div class="text-muted-foreground">{{ selectedFolder.characterName }}</div>
-              <div class="mt-1 text-xs">{{ selectedFolder.outfits.length }}個の衣装、{{ totalImages }}枚の画像</div>
+              <div class="text-muted-foreground">{{ selectedFolder.outfits[0]?.outfitName || '不明' }}</div>
+              <div class="mt-1 text-xs">{{ totalImages }}枚の画像</div>
             </div>
             <div
               v-if="!folderUpload.isSupported"
@@ -471,7 +471,7 @@ const loadOutfits = async () => {
 // フォルダを選択
 const handleSelectFolder = async () => {
   try {
-    const folderStructure = await folderUpload.selectFolder()
+    const folderStructure = await folderUpload.selectOutfitFolder()
     if (folderStructure) {
       selectedFolder.value = folderStructure
       // フォルダ名を衣装名に自動設定（最初の衣装名を使用）
