@@ -1,19 +1,22 @@
 import { readonly, ref } from 'vue'
+import { useStorageQuota } from './useStorageQuota'
 
 export interface ImageUploadOptions {
   maxSize?: number // バイト単位
   allowedTypes?: string[]
   quality?: number // 0-1 (JPEG圧縮品質)
+  checkStorageQuota?: boolean // ストレージクォータをチェックするか
 }
 
 const DEFAULT_MAX_SIZE = 5 * 1024 * 1024 // 5MB
 const DEFAULT_ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif']
 
 export function useImageUpload(options: ImageUploadOptions = {}) {
-  const { maxSize = DEFAULT_MAX_SIZE, allowedTypes = DEFAULT_ALLOWED_TYPES } = options
+  const { maxSize = DEFAULT_MAX_SIZE, allowedTypes = DEFAULT_ALLOWED_TYPES, checkStorageQuota = true } = options
 
   const isUploading = ref(false)
   const error = ref<string | null>(null)
+  const { checkStorageCapacity, estimateBase64Size, calculateBase64Size } = useStorageQuota()
 
   const uploadImage = async (file: File): Promise<string | null> => {
     if (!file) {
@@ -26,6 +29,22 @@ export function useImageUpload(options: ImageUploadOptions = {}) {
       const maxSizeMB = Math.round(maxSize / 1024 / 1024)
       error.value = `ファイルサイズが${maxSizeMB}MBを超えています`
       return null
+    }
+
+    // ストレージクォータチェック（オプション）
+    if (checkStorageQuota) {
+      const estimatedBase64Size = estimateBase64Size(file.size)
+      const capacityCheck = await checkStorageCapacity(estimatedBase64Size)
+
+      if (!capacityCheck.canAdd) {
+        error.value = capacityCheck.warning?.message || 'ストレージ容量が不足しています'
+        return null
+      }
+
+      // 警告がある場合はログに記録
+      if (capacityCheck.warning) {
+        console.warn('ストレージ容量警告:', capacityCheck.warning.message)
+      }
     }
 
     // ファイル形式チェック
@@ -64,6 +83,14 @@ export function useImageUpload(options: ImageUploadOptions = {}) {
               reject(new Error('エンコード後のファイルサイズが上限を超えています'))
               return
             }
+
+            // 実際のBase64データサイズを計算して検証
+            const actualBase64Size = calculateBase64Size(result)
+            if (actualBase64Size > maxSize * 1.5) {
+              reject(new Error('Base64エンコード後の実際のサイズが上限を超えています'))
+              return
+            }
+
             resolve(result)
           } else {
             reject(new Error('ファイルの読み込みに失敗しました'))

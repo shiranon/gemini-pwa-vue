@@ -62,6 +62,28 @@
               />
               {{ selectedSingleFile ? selectedSingleFile.name : '画像を選択' }}
             </Button>
+
+            <!-- ファイル情報とストレージ警告 -->
+            <div
+              v-if="selectedSingleFile"
+              class="mt-2 space-y-2"
+            >
+              <div class="text-muted-foreground text-sm">サイズ: {{ formatFileSize(selectedSingleFile.size) }}</div>
+
+              <!-- ストレージ警告 -->
+              <div
+                v-if="storageWarning"
+                class="rounded-md border border-yellow-200 bg-yellow-50 p-2 text-sm text-yellow-700 dark:border-yellow-800 dark:bg-yellow-950 dark:text-yellow-300"
+              >
+                <div class="flex items-center gap-2">
+                  <Icon
+                    icon="material-symbols:warning"
+                    class="h-4 w-4"
+                  />
+                  {{ storageWarning }}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -122,6 +144,19 @@
           v-if="selectedBulkFiles.length > 0"
           class="space-y-2"
         >
+          <!-- ストレージ警告 -->
+          <div
+            v-if="storageWarning"
+            class="rounded-md border border-yellow-200 bg-yellow-50 p-2 text-sm text-yellow-700 dark:border-yellow-800 dark:bg-yellow-950 dark:text-yellow-300"
+          >
+            <div class="flex items-center gap-2">
+              <Icon
+                icon="material-symbols:warning"
+                class="h-4 w-4"
+              />
+              {{ storageWarning }}
+            </div>
+          </div>
           <h4 class="text-sm font-medium">選択されたファイル</h4>
           <div class="max-h-40 space-y-1 overflow-y-auto">
             <div
@@ -191,6 +226,29 @@
               {{ errorMessage }}
             </li>
           </ul>
+          <!-- リトライボタン -->
+          <div class="mt-3">
+            <Button
+              v-if="uploadMode === 'single' && selectedSingleFile"
+              :disabled="isUploading"
+              variant="outline"
+              size="sm"
+              @click="retrySingleUpload"
+            >
+              <RefreshCw class="mr-2 h-4 w-4" />
+              再試行
+            </Button>
+            <Button
+              v-else-if="uploadMode === 'bulk' && selectedBulkFiles.length > 0"
+              variant="outline"
+              size="sm"
+              :disabled="isUploading"
+              @click="retryBulkUpload"
+            >
+              <RefreshCw class="mr-2 h-4 w-4" />
+              再試行
+            </Button>
+          </div>
         </div>
       </div>
     </DialogContent>
@@ -200,10 +258,12 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
+import { RefreshCw } from 'lucide-vue-next'
 import { Button } from '~/components/ui/button'
 import { Input } from '~/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '~/components/ui/dialog'
 import { useCharacterImages } from '~/composables/useCharacterImages'
+import { useStorageQuota } from '~/composables/useStorageQuota'
 import type { CharacterRecord, CharacterOutfitRecord } from '~/types/database'
 
 interface Props {
@@ -220,6 +280,7 @@ const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
 const { uploadImage, bulkUploadExpressions, error } = useCharacterImages()
+const { checkStorageCapacity, estimateBase64Size } = useStorageQuota()
 
 // Dialogの開閉状態
 const isOpen = ref(true)
@@ -231,25 +292,61 @@ const selectedSingleFile = ref<File | null>(null)
 const selectedBulkFiles = ref<File[]>([])
 const isUploading = ref(false)
 const uploadResult = ref<{ success: number; failed: number; errors: string[] } | null>(null)
+const storageWarning = ref<string | null>(null)
 
 // ファイル入力の参照
 const singleFileInput = ref<HTMLInputElement>()
 const bulkFileInput = ref<HTMLInputElement>()
 
 // 単一ファイル選択
-const handleSingleFileSelect = (event: Event) => {
+const handleSingleFileSelect = async (event: Event) => {
   const target = event.target as HTMLInputElement
   const file = target.files?.[0] || null
   selectedSingleFile.value = file
   uploadResult.value = null
+  storageWarning.value = null
+
+  if (file) {
+    // ストレージ容量チェック
+    const estimatedSize = estimateBase64Size(file.size)
+    const capacityCheck = await checkStorageCapacity(estimatedSize)
+
+    if (!capacityCheck.canAdd) {
+      storageWarning.value = capacityCheck.warning?.message || 'ストレージ容量が不足しています'
+    } else if (capacityCheck.warning) {
+      storageWarning.value = capacityCheck.warning.message
+    }
+  }
+}
+
+// 単一ファイル入力をリセット
+const resetSingleFileInput = () => {
+  selectedSingleFile.value = null
+  if (singleFileInput.value) {
+    singleFileInput.value.value = ''
+  }
 }
 
 // 一括ファイル選択
-const handleBulkFileSelect = (event: Event) => {
+const handleBulkFileSelect = async (event: Event) => {
   const target = event.target as HTMLInputElement
   const files = Array.from(target.files || [])
   selectedBulkFiles.value = files
   uploadResult.value = null
+  storageWarning.value = null
+
+  if (files.length > 0) {
+    // 全ファイルの合計サイズを計算
+    const totalSize = files.reduce((sum, file) => sum + file.size, 0)
+    const estimatedTotalSize = estimateBase64Size(totalSize)
+    const capacityCheck = await checkStorageCapacity(estimatedTotalSize)
+
+    if (!capacityCheck.canAdd) {
+      storageWarning.value = capacityCheck.warning?.message || 'ストレージ容量が不足しています'
+    } else if (capacityCheck.warning) {
+      storageWarning.value = capacityCheck.warning.message
+    }
+  }
 }
 
 // 一括ファイルから削除
@@ -271,23 +368,30 @@ const uploadSingleImage = async () => {
       uploadResult.value = { success: 1, failed: 0, errors: [] }
       // フォームをリセット
       singleExpression.value = ''
-      selectedSingleFile.value = null
-      if (singleFileInput.value) {
-        singleFileInput.value.value = ''
-      }
+      resetSingleFileInput()
       // 少し待ってからモーダルを閉じる
       setTimeout(() => {
         emit('uploaded')
       }, 1000)
     } else {
       uploadResult.value = { success: 0, failed: 1, errors: [error.value || 'アップロードに失敗しました'] }
+      // エラー時もファイル入力をリセット
+      resetSingleFileInput()
     }
   } catch (err) {
     console.error('単一画像アップロードに失敗:', err)
     uploadResult.value = { success: 0, failed: 1, errors: [err instanceof Error ? err.message : 'アップロードに失敗しました'] }
+    // エラー時もファイル入力をリセット
+    resetSingleFileInput()
   } finally {
     isUploading.value = false
   }
+}
+
+// 単一アップロードのリトライ
+const retrySingleUpload = async () => {
+  if (!selectedSingleFile.value || !singleExpression.value.trim()) return
+  await uploadSingleImage()
 }
 
 // 一括画像アップロード
@@ -319,6 +423,12 @@ const uploadBulkImages = async () => {
   } finally {
     isUploading.value = false
   }
+}
+
+// 一括アップロードのリトライ
+const retryBulkUpload = async () => {
+  if (selectedBulkFiles.value.length === 0) return
+  await uploadBulkImages()
 }
 
 // ファイルサイズをフォーマット
