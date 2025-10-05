@@ -1512,6 +1512,64 @@ export async function dbGetCharacterImageByNames(characterName: string, outfitNa
   }
 }
 
+/** キャラクターの全画像を一括取得 */
+export async function dbGetCharacterAllImages(characterId: string): Promise<DatabaseOperationResult<CharacterImageRecord[]>> {
+  try {
+    const startTime = Date.now()
+
+    // 単一クエリでキャラクターの全画像を取得
+    const images = await db.characterImages.where('characterId').equals(characterId).reverse().sortBy('createdAt')
+
+    const executionTime = Date.now() - startTime
+    return {
+      success: true,
+      data: images,
+      performance: {
+        queryType: 'getCharacterAllImages',
+        executionTime,
+        resultCount: images.length,
+      },
+    }
+  } catch (error) {
+    logger.error('キャラクターの全画像取得に失敗しました:', { component: 'database' }, error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+/** キャラクターの最初の画像を取得 */
+export async function dbGetCharacterFirstImage(characterId: string): Promise<DatabaseOperationResult<CharacterImageRecord | null>> {
+  try {
+    const startTime = Date.now()
+
+    // 作成日時でソートして最初の1件のみを取得
+    const firstImage = await db.characterImages
+      .where('characterId')
+      .equals(characterId)
+      .sortBy('createdAt')
+      .then((images) => images[0] || null)
+
+    const executionTime = Date.now() - startTime
+    return {
+      success: true,
+      data: firstImage,
+      performance: {
+        queryType: 'getCharacterFirstImage',
+        executionTime,
+        resultCount: firstImage ? 1 : 0,
+      },
+    }
+  } catch (error) {
+    logger.error('キャラクターの最初の画像取得に失敗しました:', { component: 'database' }, error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
 /** 全キャラクター画像を取得（エクスポート用） */
 export async function dbGetAllCharacterImages(): Promise<DatabaseOperationResult<CharacterImageRecord[]>> {
   try {

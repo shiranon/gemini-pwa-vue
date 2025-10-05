@@ -1,4 +1,3 @@
-import { parse } from 'node:path'
 import { computed, ref } from 'vue'
 import { useFolderUpload, type FolderStructure } from '~/composables/useFolderUpload'
 import { useImageUpload } from '~/composables/useImageUpload'
@@ -10,6 +9,8 @@ import {
   dbDeleteCharacterImage,
   dbDeleteCharacterOutfit,
   dbGetAllCharacters,
+  dbGetCharacterAllImages,
+  dbGetCharacterFirstImage,
   dbGetCharacterImageByNames,
   dbGetCharacterOutfits,
   dbGetOutfitImages,
@@ -49,6 +50,20 @@ export function useCharacterImages() {
   // ============================================================================
   // 共通ユーティリティ
   // ============================================================================
+
+  /** ブラウザ環境でpath.parse(file.name).nameの動作を再現 */
+  const getFileNameWithoutExtension = (filename: string): string => {
+    // 最後のドットの位置を探す
+    const lastDotIndex = filename.lastIndexOf('.')
+
+    // ドットがない場合、または最初の文字がドットの場合（隠しファイル）はそのまま返す
+    if (lastDotIndex === -1 || lastDotIndex === 0) {
+      return filename
+    }
+
+    // 最後のドットより前の部分を返す
+    return filename.substring(0, lastDotIndex)
+  }
 
   /** データベース操作の共通エラーハンドリング */
   const handleDatabaseOperation = async <T>(operation: () => Promise<DatabaseOperationResult<T>>, errorMessage: string, successLog?: string): Promise<T | null> => {
@@ -383,22 +398,13 @@ export function useCharacterImages() {
   const getCharacterAllExpressions = async (characterId: string): Promise<CharacterImageRecord[]> => {
     const result = await handleImageOperation(
       async () => {
-        // キャラクターの全衣装を取得
-        const outfitsResult = await dbGetCharacterOutfits(characterId)
-        if (!outfitsResult.success || !outfitsResult.data) {
-          throw new Error(outfitsResult.error || '衣装の取得に失敗しました')
+        // 単一クエリでキャラクターの全画像を取得
+        const imagesResult = await dbGetCharacterAllImages(characterId)
+        if (!imagesResult.success || !imagesResult.data) {
+          throw new Error(imagesResult.error || '画像の取得に失敗しました')
         }
 
-        // 各衣装の画像を取得
-        const allImages: CharacterImageRecord[] = []
-        for (const outfit of outfitsResult.data) {
-          const imagesResult = await dbGetOutfitImages(characterId, outfit.id)
-          if (imagesResult.success && imagesResult.data) {
-            allImages.push(...imagesResult.data)
-          }
-        }
-
-        return allImages
+        return imagesResult.data
       },
       'キャラクターの表情画像取得に失敗しました',
       `キャラクターの全表情画像を取得: ${characterId}`,
@@ -464,8 +470,8 @@ export function useCharacterImages() {
         for (const file of files) {
           try {
             // ファイル名から表情名を取得（拡張子を除く）
-            // path.parseを使用してより正確にファイル名を抽出
-            const expression = parse(file.name).name
+            // path.parse(file.name).nameと同等の動作を保証
+            const expression = getFileNameWithoutExtension(file.name)
 
             // useImageUploadでファイルを処理
             const base64Data = await imageUpload.uploadImage(file)
@@ -512,20 +518,16 @@ export function useCharacterImages() {
     )
   }
 
-  /** キャラクターの最初の画像を取得 */
+  /** キャラクターの最初の画像を取得（最適化版） */
   const getCharacterFirstImage = async (characterId: string): Promise<CharacterImageRecord | null> => {
     const result = await handleImageOperation(
       async () => {
-        // キャラクターの全画像を取得
-        const images = await getCharacterAllExpressions(characterId)
-
-        if (images.length === 0) {
-          return null
+        // 最適化されたデータベース関数を使用して最初の画像のみを取得
+        const imageResult = await dbGetCharacterFirstImage(characterId)
+        if (!imageResult.success) {
+          throw new Error(imageResult.error || 'キャラクターの最初の画像取得に失敗しました')
         }
-
-        // 作成日時でソートして最初の画像を返す
-        const sortedImages = images.sort((a, b) => a.createdAt - b.createdAt)
-        return sortedImages[0]
+        return imageResult.data
       },
       'キャラクターの最初の画像取得に失敗しました',
       `キャラクターの最初の画像を取得: ${characterId}`,
