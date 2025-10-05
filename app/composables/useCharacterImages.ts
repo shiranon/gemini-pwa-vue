@@ -1,3 +1,4 @@
+import { parse } from 'node:path'
 import { computed, ref } from 'vue'
 import { useFolderUpload, type FolderStructure } from '~/composables/useFolderUpload'
 import { useImageUpload } from '~/composables/useImageUpload'
@@ -463,7 +464,8 @@ export function useCharacterImages() {
         for (const file of files) {
           try {
             // ファイル名から表情名を取得（拡張子を除く）
-            const expression = file.name.replace(/\.[^/.]+$/, '')
+            // path.parseを使用してより正確にファイル名を抽出
+            const expression = parse(file.name).name
 
             // useImageUploadでファイルを処理
             const base64Data = await imageUpload.uploadImage(file)
@@ -560,15 +562,20 @@ export function useCharacterImages() {
           throw new Error(charactersResult.error || 'キャラクター一覧の取得に失敗しました')
         }
 
-        const characterGroups: Record<string, CharacterImageRecord[]> = {}
+        // 各キャラクターの画像を並列で取得（エラーハンドリング付き）
+        const results = await Promise.allSettled(
+          charactersResult.data.map(async (character) => ({
+            name: character.name,
+            images: await getCharacterAllExpressions(character.id),
+          }))
+        )
 
-        // 各キャラクターの画像を取得
-        for (const character of charactersResult.data) {
-          const images = await getCharacterAllExpressions(character.id)
-          if (images.length > 0) {
-            characterGroups[character.name] = images
-          }
-        }
+        // 成功した結果のみを抽出し、画像が存在するキャラクターのみをグループ化
+        const characterGroups: Record<string, CharacterImageRecord[]> = Object.fromEntries(
+          results
+            .filter((result): result is PromiseFulfilledResult<{ name: string; images: CharacterImageRecord[] }> => result.status === 'fulfilled' && result.value.images.length > 0)
+            .map((result) => [result.value.name, result.value.images])
+        )
 
         return characterGroups
       },

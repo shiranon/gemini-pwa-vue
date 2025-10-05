@@ -1,7 +1,7 @@
 <template>
   <section
     v-if="!settingsStore.navigationSettings.hideSystemPromptInChat"
-    class="border-border bg-card text-card-foreground sticky top-0 z-10 mb-4 rounded-lg border p-4 shadow-sm"
+    class="border-border bg-card text-card-foreground sticky top-0 z-50 mb-4 rounded-lg border p-4 shadow-sm"
   >
     <div class="mb-2 flex items-center justify-between">
       <h3 class="text-foreground text-base font-semibold">チャット固有のシステムプロンプト</h3>

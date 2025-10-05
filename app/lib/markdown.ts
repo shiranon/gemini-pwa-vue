@@ -413,6 +413,7 @@ const parseCharacterImageNotation = (text: string): MarkdownCharacterImageNode |
   const match = text.match(pattern)
 
   if (!match) {
+    // カスタム画像表記のパターンにマッチしない場合はログ出力しない（通常のテキストの可能性があるため）
     return null
   }
 
@@ -420,6 +421,7 @@ const parseCharacterImageNotation = (text: string): MarkdownCharacterImageNode |
 
   // 必要な部分がすべて存在することを確認
   if (!characterName || !outfitName || !expression) {
+    logger.warn(`Invalid character image format: ${text}`, { component: 'markdown' })
     return null
   }
 
@@ -468,8 +470,13 @@ const transformTextWithCharacterImages = (text: string): MarkdownInlineNode[] =>
             title: null,
           })
         } else {
-          // パースに失敗した場合は元のテキストを保持
-          result.push({ type: 'text', value: parts[i] || '' })
+          // パースに失敗した場合はエラーメッセージを表示
+          const originalText = `![${alt}](${characterName}/${outfitName}/${expression})`
+          logger.warn(`Invalid character image format: ${originalText}`, { component: 'markdown' })
+          result.push({
+            type: 'text',
+            value: `[画像形式エラー: ${originalText}]`,
+          })
         }
 
         // 次の3つの要素をスキップ（既に処理済み）
