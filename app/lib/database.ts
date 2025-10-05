@@ -111,82 +111,8 @@ export class GeminiDatabase extends Dexie {
         characterOutfits: 'id, characterId, name, description, createdAt, updatedAt, [characterId+name]',
         characterImages: 'id, characterId, outfitId, expression, mimeType, base64Data, size, createdAt, updatedAt, [characterId+outfitId], [characterId+outfitId+expression]',
       })
-      .upgrade(async (tx) => {
+      .upgrade(() => {
         logger.info('キャラクター画像管理機能のためにバージョン5へアップグレード中...', { component: 'Database' })
-
-        // 既存のcharacterImageAssetsテーブルから新しいテーブル構造に移行
-        const existingAssets = await tx.table('characterImageAssets').toArray()
-
-        if (existingAssets.length > 0) {
-          logger.info(`既存のキャラクター画像データを移行中: ${existingAssets.length}件`, { component: 'Database' })
-
-          // キャラクター、衣装、画像のマップを作成
-          const characterMap = new Map<string, string>()
-          const outfitMap = new Map<string, string>()
-
-          // キャラクターレコードを作成
-          const characterRecords: CharacterRecord[] = []
-          const outfitRecords: CharacterOutfitRecord[] = []
-          const imageRecords: CharacterImageRecord[] = []
-
-          for (const asset of existingAssets) {
-            // キャラクターIDを取得または作成
-            let characterId = characterMap.get(asset.character)
-            if (!characterId) {
-              characterId = crypto.randomUUID()
-              characterMap.set(asset.character, characterId)
-              characterRecords.push({
-                id: characterId,
-                name: asset.character,
-                description: '',
-                createdAt: asset.createdAt,
-                updatedAt: asset.updatedAt,
-              })
-            }
-
-            // 衣装IDを取得または作成
-            const outfitKey = `${asset.character}-${asset.cloth}`
-            let outfitId = outfitMap.get(outfitKey)
-            if (!outfitId) {
-              outfitId = crypto.randomUUID()
-              outfitMap.set(outfitKey, outfitId)
-              outfitRecords.push({
-                id: outfitId,
-                characterId,
-                name: asset.cloth,
-                description: '',
-                createdAt: asset.createdAt,
-                updatedAt: asset.updatedAt,
-              })
-            }
-
-            // 画像レコードを作成
-            imageRecords.push({
-              id: asset.id,
-              characterId,
-              outfitId,
-              expression: asset.expression,
-              mimeType: asset.mimeType,
-              base64Data: asset.base64Data,
-              size: asset.size,
-              createdAt: asset.createdAt,
-              updatedAt: asset.updatedAt,
-            })
-          }
-
-          // 新しいテーブルにデータを保存
-          if (characterRecords.length > 0) {
-            await tx.table('characters').bulkPut(characterRecords)
-          }
-          if (outfitRecords.length > 0) {
-            await tx.table('characterOutfits').bulkPut(outfitRecords)
-          }
-          if (imageRecords.length > 0) {
-            await tx.table('characterImages').bulkPut(imageRecords)
-          }
-
-          logger.info(`移行完了: キャラクター${characterRecords.length}件、衣装${outfitRecords.length}件、画像${imageRecords.length}件`, { component: 'Database' })
-        }
       })
 
     this.setupHooks()
