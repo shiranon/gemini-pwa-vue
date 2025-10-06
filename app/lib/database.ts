@@ -1539,6 +1539,32 @@ export async function dbGetCharacterAllImages(characterId: string): Promise<Data
   }
 }
 
+/** 全衣装を一括取得 */
+export async function dbGetAllOutfits(): Promise<DatabaseOperationResult<CharacterOutfitRecord[]>> {
+  try {
+    const startTime = Date.now()
+
+    const outfits = await db.characterOutfits.orderBy('createdAt').reverse().toArray()
+
+    const executionTime = Date.now() - startTime
+    return {
+      success: true,
+      data: outfits,
+      performance: {
+        queryType: 'getAllOutfits',
+        executionTime,
+        resultCount: outfits.length,
+      },
+    }
+  } catch (error) {
+    logger.error('全衣装の一括取得に失敗しました:', { component: 'database' }, error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
 /** キャラクターの最初の画像を取得 */
 export async function dbGetCharacterFirstImage(characterId: string): Promise<DatabaseOperationResult<CharacterImageRecord | null>> {
   try {
@@ -1608,32 +1634,41 @@ export async function dbGetCharacterImageStats(): Promise<
   try {
     const startTime = Date.now()
 
-    // 全画像を取得
-    const images = await db.characterImages.toArray()
+    // 全データを並列取得
+    const [images, characters, outfits] = await Promise.all([db.characterImages.toArray(), db.characters.toArray(), db.characterOutfits.toArray()])
 
-    // 全キャラクターを取得
-    const characters = await db.characters.toArray()
-
-    // 全衣装を取得
-    const outfits = await db.characterOutfits.toArray()
-
-    // 統計情報を計算
+    // 基本統計情報を計算
     const totalImages = images.length
     const totalSize = images.reduce((sum, img) => sum + img.size, 0)
 
-    // キャラクター別の画像数
+    // Map/ReduceパターンでO(n+m)の計算量に最適化
+    // キャラクター別画像数のMapを作成
+    const characterImageCountMap = new Map<string, number>()
+    for (const image of images) {
+      const count = characterImageCountMap.get(image.characterId) || 0
+      characterImageCountMap.set(image.characterId, count + 1)
+    }
+
+    // 衣装別画像数のMapを作成
+    const outfitImageCountMap = new Map<string, number>()
+    for (const image of images) {
+      const count = outfitImageCountMap.get(image.outfitId) || 0
+      outfitImageCountMap.set(image.outfitId, count + 1)
+    }
+
+    // キャラクター別の統計情報を生成
     const characterStats = characters.map((char) => ({
       id: char.id,
       name: char.name,
-      imageCount: images.filter((img) => img.characterId === char.id).length,
+      imageCount: characterImageCountMap.get(char.id) || 0,
     }))
 
-    // 衣装別の画像数
+    // 衣装別の統計情報を生成
     const outfitStats = outfits.map((outfit) => ({
       id: outfit.id,
       characterId: outfit.characterId,
       name: outfit.name,
-      imageCount: images.filter((img) => img.outfitId === outfit.id).length,
+      imageCount: outfitImageCountMap.get(outfit.id) || 0,
     }))
 
     const executionTime = Date.now() - startTime

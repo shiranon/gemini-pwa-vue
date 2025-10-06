@@ -1,6 +1,6 @@
 import JSZip from 'jszip'
 import { readonly, ref } from 'vue'
-import { dbGetAllCharacterImages, dbGetAllCharacters, dbGetCharacterImageStats, dbGetCharacterOutfits } from '~/lib/database'
+import { dbGetAllCharacterImages, dbGetAllCharacters, dbGetCharacterImageStats, dbGetAllOutfits } from '~/lib/database'
 import type { CharacterImageRecord, CharacterOutfitRecord, CharacterRecord } from '~/types/database'
 import { logger } from '~/utils/logger'
 
@@ -45,22 +45,7 @@ export function useImageExport() {
       isLoading.value = true
       error.value = null
 
-      const [imagesResult, charactersResult, outfitsResult] = await Promise.all([
-        dbGetAllCharacterImages(),
-        dbGetAllCharacters(),
-        dbGetAllCharacters().then(async (charsResult) => {
-          if (!charsResult.success) return { success: false, data: [] }
-
-          const allOutfits = []
-          for (const character of charsResult.data!) {
-            const outfitsResult = await dbGetCharacterOutfits(character.id)
-            if (outfitsResult.success) {
-              allOutfits.push(...outfitsResult.data!)
-            }
-          }
-          return { success: true, data: allOutfits }
-        }),
-      ])
+      const [imagesResult, charactersResult, outfitsResult] = await Promise.all([dbGetAllCharacterImages(), dbGetAllCharacters(), dbGetAllOutfits()])
 
       if (!imagesResult.success) {
         error.value = imagesResult.error || '画像データの取得に失敗しました'
