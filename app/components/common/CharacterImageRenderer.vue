@@ -20,7 +20,7 @@
       <span class="text-sm">{{ error }}</span>
     </div>
     <img
-      v-else-if="imageData"
+      v-else-if="hasImage && imageData"
       :src="`data:${imageData.mimeType};base64,${imageData.base64Data}`"
       :alt="alt || `${characterName} - ${outfitName} - ${expression}`"
       :title="title || `${characterName} - ${outfitName} - ${expression}`"
@@ -62,21 +62,28 @@ const { getCharacterImageByNames } = useCharacterImages()
 const imageData = ref<CharacterImageRecord | null>(null)
 const isLoading = ref(false)
 const error = ref<string | null>(null)
+const hasImage = ref(false)
 
 const loadImage = async () => {
   isLoading.value = true
   error.value = null
+  hasImage.value = false
 
   try {
     const result = await getCharacterImageByNames(props.characterName, props.outfitName, props.expression)
 
     if (result) {
       imageData.value = result
+      hasImage.value = true
     } else {
-      error.value = '指定された画像が見つかりません'
+      // 画像が見つからない場合はエラーではなく、単に画像なし状態
+      imageData.value = null
+      hasImage.value = false
     }
   } catch (err) {
     error.value = '画像の読み込みに失敗しました'
+    imageData.value = null
+    hasImage.value = false
     logger.error('CharacterImageRenderer: 画像の読み込みエラー', { component: 'CharacterImageRenderer' }, err)
   } finally {
     isLoading.value = false

@@ -51,7 +51,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, onUnmounted } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import { useChatStore } from '~/stores/chat'
 import { useSettingsStore } from '~/stores/settings'
@@ -93,10 +93,19 @@ const savePrompt = async () => {
   }
 }
 
-// ページ遷移時に編集状態をリセット
-onBeforeRouteLeave(() => {
+// クリーンアップ関数
+const cleanup = () => {
   if (chatStore.isEditingSystemPrompt) {
     chatStore.cancelEditingSystemPrompt()
   }
-})
+  // ローカル状態もクリーンアップしてメモリリークを防ぐ
+  localPrompt.value = ''
+  savingPrompt.value = false
+}
+
+// ページ遷移時に編集状態をリセット
+onBeforeRouteLeave(cleanup)
+
+// コンポーネントアンマウント時にもクリーンアップ
+onUnmounted(cleanup)
 </script>
