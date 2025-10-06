@@ -502,9 +502,6 @@ export const useQuickActions = () => {
       // モーダルを閉じる
       isOpen.value = false
 
-      // 一時的な設定をクリア
-      profilesStore.clearTemporarySettings()
-
       logger.debug('[Quick Actions] リソースをクリーンアップしました', { component: 'useQuickActions' })
     } catch (error) {
       logger.warn('[Quick Actions] クリーンアップ中にエラーが発生しました', {

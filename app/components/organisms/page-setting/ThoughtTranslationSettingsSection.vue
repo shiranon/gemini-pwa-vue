@@ -2,6 +2,7 @@
   <SettingSection
     title="思考プロセス翻訳設定"
     description="AI思考プロセスの翻訳機能と詳細設定"
+    :default-open="false"
   >
     <SettingToggle
       :model-value="localSettings.enableThoughtTranslation"

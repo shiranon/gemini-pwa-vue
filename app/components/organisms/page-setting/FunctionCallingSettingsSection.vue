@@ -3,6 +3,7 @@
     title="toolConfig設定"
     description="AI関数呼び出し機能の設定"
     single-column
+    :default-open="false"
   >
     <div class="flex flex-col gap-4">
       <SettingToggle

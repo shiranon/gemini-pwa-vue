@@ -1,7 +1,7 @@
 <template>
   <section
     v-if="!settingsStore.navigationSettings.hideSystemPromptInChat"
-    class="border-border bg-card text-card-foreground mb-4 rounded-lg border p-4 shadow-sm"
+    class="border-border bg-card text-card-foreground sticky top-0 z-50 mb-4 rounded-lg border p-4 shadow-sm"
   >
     <div class="mb-2 flex items-center justify-between">
       <h3 class="text-foreground text-base font-semibold">チャット固有のシステムプロンプト</h3>
@@ -38,7 +38,7 @@
         v-model="localPrompt"
         :rows="6"
         placeholder="このチャット用の役割や方針を記述..."
-        class="w-full"
+        class="max-h-[60vh] w-full resize-none overflow-y-auto"
       />
     </div>
     <div
@@ -51,7 +51,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, onUnmounted } from 'vue'
+import { onBeforeRouteLeave } from 'vue-router'
 import { useChatStore } from '~/stores/chat'
 import { useSettingsStore } from '~/stores/settings'
 import { Button } from '~/components/ui/button'
@@ -91,4 +92,20 @@ const savePrompt = async () => {
     savingPrompt.value = false
   }
 }
+
+// クリーンアップ関数
+const cleanup = () => {
+  if (chatStore.isEditingSystemPrompt) {
+    chatStore.cancelEditingSystemPrompt()
+  }
+  // ローカル状態もクリーンアップしてメモリリークを防ぐ
+  localPrompt.value = ''
+  savingPrompt.value = false
+}
+
+// ページ遷移時に編集状態をリセット
+onBeforeRouteLeave(cleanup)
+
+// コンポーネントアンマウント時にもクリーンアップ
+onUnmounted(cleanup)
 </script>

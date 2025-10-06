@@ -45,7 +45,25 @@ export interface MarkdownImageNode {
   title?: string | null
 }
 
-export type MarkdownInlineNode = MarkdownTextNode | MarkdownBreakNode | MarkdownInlineCodeNode | MarkdownStrongNode | MarkdownEmphasisNode | MarkdownDeleteNode | MarkdownLinkNode | MarkdownImageNode
+export interface MarkdownCharacterImageNode {
+  type: 'characterImage'
+  characterName: string
+  outfitName: string
+  expression: string
+  alt?: string
+  title?: string | null
+}
+
+export type MarkdownInlineNode =
+  | MarkdownTextNode
+  | MarkdownBreakNode
+  | MarkdownInlineCodeNode
+  | MarkdownStrongNode
+  | MarkdownEmphasisNode
+  | MarkdownDeleteNode
+  | MarkdownLinkNode
+  | MarkdownImageNode
+  | MarkdownCharacterImageNode
 
 export interface MarkdownParagraphNode {
   type: 'paragraph'
@@ -229,7 +247,8 @@ const transformInlineTokens = (tokens?: TokensList): MarkdownInlineNode[] => {
         if ('tokens' in token && token.tokens) {
           result.push(...transformInlineTokens(token.tokens))
         } else if (token.text) {
-          result.push({ type: 'text', value: token.text })
+          // カスタム画像表記を検出して変換
+          result.push(...transformTextWithCharacterImages(token.text))
         }
         break
       }
@@ -274,11 +293,23 @@ const transformInlineTokens = (tokens?: TokensList): MarkdownInlineNode[] => {
         break
       }
       case 'image': {
-        const src = sanitizeUrl(token.href)
-        if (src) {
+        const src = token.href || ''
+
+        // カスタム画像表記かどうかをチェック
+        if (src.startsWith(':character/')) {
+          const characterImage = parseCharacterImageNotation(`![${token.text ?? ''}](${src})`)
+          if (characterImage) {
+            result.push(characterImage)
+            break
+          }
+        }
+
+        // 通常の画像処理
+        const sanitizedSrc = sanitizeUrl(src)
+        if (sanitizedSrc) {
           result.push({
             type: 'image',
-            src,
+            src: sanitizedSrc,
             alt: token.text ?? '',
             title: token.title ?? null,
           })
@@ -371,4 +402,91 @@ const mergeAdjacentTextNodes = (nodes: MarkdownInlineNode[]): MarkdownInlineNode
     }
   }
   return merged
+}
+
+/**
+ * カスタム画像表記を検出してパースする
+ * 例: ![C](:character/キャラクター名/衣装/expression)
+ */
+const parseCharacterImageNotation = (text: string): MarkdownCharacterImageNode | null => {
+  const pattern = /!\[([^\]]*)\]\(:character\/([^/]+)\/([^/]+)\/([^)]+)\)/
+  const match = text.match(pattern)
+
+  if (!match) {
+    // カスタム画像表記のパターンにマッチしない場合はログ出力しない（通常のテキストの可能性があるため）
+    return null
+  }
+
+  const [, alt, characterName, outfitName, expression] = match
+
+  // 必要な部分がすべて存在することを確認
+  if (!characterName || !outfitName || !expression) {
+    logger.warn(`Invalid character image format: ${text}`, { component: 'markdown' })
+    return null
+  }
+
+  return {
+    type: 'characterImage',
+    characterName: characterName.trim(),
+    outfitName: outfitName.trim(),
+    expression: expression.trim(),
+    alt: alt || undefined,
+    title: null,
+  }
+}
+
+/**
+ * テキストノードをカスタム画像表記を含むノードに変換する
+ */
+const transformTextWithCharacterImages = (text: string): MarkdownInlineNode[] => {
+  const characterImage = parseCharacterImageNotation(text)
+
+  if (characterImage) {
+    // カスタム画像表記が見つかった場合、その部分を置換
+    const pattern = /!\[([^\]]*)\]\(:character\/([^/]+)\/([^/]+)\/([^)]+)\)/
+    const parts = text.split(pattern)
+    const result: MarkdownInlineNode[] = []
+
+    for (let i = 0; i < parts.length; i++) {
+      if (i % 5 === 0) {
+        // テキスト部分
+        if (parts[i]) {
+          result.push({ type: 'text', value: parts[i]! })
+        }
+      } else if (i % 5 === 1) {
+        // カスタム画像表記の部分
+        const alt = parts[i] || ''
+        const characterName = parts[i + 1] || ''
+        const outfitName = parts[i + 2] || ''
+        const expression = parts[i + 3] || ''
+
+        if (characterName && outfitName && expression) {
+          result.push({
+            type: 'characterImage',
+            characterName: characterName.trim(),
+            outfitName: outfitName.trim(),
+            expression: expression.trim(),
+            alt: alt || undefined,
+            title: null,
+          })
+        } else {
+          // パースに失敗した場合はエラーメッセージを表示
+          const originalText = `![${alt}](${characterName}/${outfitName}/${expression})`
+          logger.warn(`Invalid character image format: ${originalText}`, { component: 'markdown' })
+          result.push({
+            type: 'text',
+            value: `[画像形式エラー: ${originalText}]`,
+          })
+        }
+
+        // 次の3つの要素をスキップ（既に処理済み）
+        i += 3
+      }
+    }
+
+    return result
+  }
+
+  // カスタム画像表記が見つからない場合は通常のテキストノード
+  return [{ type: 'text', value: text }]
 }

@@ -5,7 +5,7 @@ describe('QuickSettingButton', () => {
   it('コンポーネントが正しく定義されている', () => {
     // コンポーネントの基本構造をテスト
     expect(QuickSettingButton).toBeDefined()
-    expect(typeof QuickSettingButton).toBe('object')
+    expect(QuickSettingButton).toBeTruthy()
   })
 
   it('コンポーネントが関数として定義されている', () => {

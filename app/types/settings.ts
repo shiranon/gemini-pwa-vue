@@ -123,6 +123,22 @@ export interface AvatarConfig {
   imageUrl?: string
 }
 
+/** 画像最適化設定 */
+export interface ImageOptimizationSettings {
+  /** 画像最適化を有効にするか */
+  enableImageOptimization: boolean
+  /** 最大解像度（幅） */
+  maxImageWidth: number
+  /** 最大解像度（高さ） */
+  maxImageHeight: number
+  /** 圧縮品質（0-1） */
+  compressionQuality: number
+  /** WebP変換を有効にするか */
+  enableWebPConversion: boolean
+  /** WebP品質（0-1） */
+  webpQuality: number
+}
+
 /** アバター設定 */
 export interface AvatarSettings {
   avatarEnabled: boolean
@@ -199,6 +215,7 @@ export interface AppSettings
     ThemeSettings,
     BackgroundImageSettings,
     NavigationSettings,
+    ImageOptimizationSettings,
     AvatarSettings {
   /** Gemini API基本設定 */
   apiKey: string
@@ -303,6 +320,14 @@ export const DEFAULT_SETTINGS: AppSettings = {
   dummyModelPrompt: '',
   prependDummyModelToResponse: false,
 
+  // 画像最適化設定
+  enableImageOptimization: true,
+  maxImageWidth: 1920,
+  maxImageHeight: 1080,
+  compressionQuality: 0.8,
+  enableWebPConversion: true,
+  webpQuality: 0.9,
+
   // アバター設定
   avatarEnabled: false,
   avatarSize: 32, // デフォルト32px
@@ -348,4 +373,4 @@ export interface SettingMeta {
   group: SettingGroup
 }
 
-export type SettingGroup = 'basic' | 'parameters' | 'advanced' | 'tools' | 'proofreading' | 'image' | 'other'
+export type SettingGroup = 'basic' | 'parameters' | 'advanced' | 'tools' | 'proofreading' | 'image' | 'optimization' | 'other'

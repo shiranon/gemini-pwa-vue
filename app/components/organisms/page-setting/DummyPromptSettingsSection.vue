@@ -2,6 +2,7 @@
   <SettingSection
     title="ダミープロンプト"
     description="API送信直前に履歴末尾へ一時的に挿入されます。履歴には保存されません。"
+    :default-open="false"
   >
     <SettingToggle
       :model-value="localProfileSettings.enableDummyUserPrompt"

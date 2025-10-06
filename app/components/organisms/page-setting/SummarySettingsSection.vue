@@ -2,6 +2,7 @@
   <SettingSection
     title="要約機能設定"
     description="チャット要約機能の詳細設定"
+    :default-open="false"
   >
     <SettingToggle
       :model-value="localSettings.enableSummary"

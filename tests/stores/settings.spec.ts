@@ -1,21 +1,32 @@
+import { beforeEach, describe, expect, it } from 'bun:test'
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it } from 'vitest'
 import { settingsFormSchema, validateWithZod } from '~/lib/validation'
-import { useSettingsStore } from '~/stores/settings'
 import type { AppSettings } from '~/types/settings'
 import { DEFAULT_SETTINGS } from '~/types/settings'
 
-describe('useSettingsStore - messageAppearanceSettings', () => {
-  let store: ReturnType<typeof useSettingsStore>
+// 依存関係をモック（Bunのテストランナー対応）
+// モックは動的インポート時に適用される
 
-  beforeEach(() => {
+// ストアを動的にインポート
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let useSettingsStore: any
+
+describe('useSettingsStore - messageAppearanceSettings', () => {
+  beforeEach(async () => {
     setActivePinia(createPinia())
-    store = useSettingsStore()
+
+    // 動的にストアをインポート
+    const { useSettingsStore: importedStore } = await import('~/stores/settings')
+    useSettingsStore = importedStore
   })
+
+  // ヘルパー関数：現在のストアを取得
+  const getStore = () => useSettingsStore()
 
   describe('messageAppearanceSettings computed property', () => {
     it('デフォルト設定で正しい値を返す', () => {
-      const settings = store.messageAppearanceSettings
+      const currentStore = getStore()
+      const settings = currentStore.messageAppearanceSettings
 
       expect(settings).toEqual({
         fontFamily: DEFAULT_SETTINGS.fontFamily,
@@ -35,55 +46,55 @@ describe('useSettingsStore - messageAppearanceSettings', () => {
 
     it('設定変更時にリアクティブに更新される', () => {
       // 初期値を確認
-      let settings = store.messageAppearanceSettings
+      let settings = getStore().messageAppearanceSettings
       expect(settings.messageFontSize).toBe(DEFAULT_SETTINGS.messageFontSize)
       expect(settings.userBubbleColor).toBe(DEFAULT_SETTINGS.userBubbleColor)
 
       // 設定を変更
-      store.updateSetting('messageFontSize', 18)
-      store.updateSetting('userBubbleColor', '#ff0000')
+      getStore().updateSetting('messageFontSize', 18)
+      getStore().updateSetting('userBubbleColor', '#ff0000')
 
       // 更新された値を確認
-      settings = store.messageAppearanceSettings
+      settings = getStore().messageAppearanceSettings
       expect(settings.messageFontSize).toBe(18)
       expect(settings.userBubbleColor).toBe('#ff0000')
     })
 
     it('フォントファミリー設定が正しく反映される', () => {
       const customFontFamily = 'Arial, sans-serif'
-      store.updateSetting('fontFamily', customFontFamily)
+      getStore().updateSetting('fontFamily', customFontFamily)
 
-      const settings = store.messageAppearanceSettings
+      const settings = getStore().messageAppearanceSettings
       expect(settings.fontFamily).toBe(customFontFamily)
     })
 
     it('フォントサイズ設定が正しく反映される', () => {
-      store.updateSetting('messageFontSize', 20)
-      store.updateSetting('functionCallFontSize', 16)
-      store.updateSetting('thoughtFontSize', 14)
+      getStore().updateSetting('messageFontSize', 20)
+      getStore().updateSetting('functionCallFontSize', 16)
+      getStore().updateSetting('thoughtFontSize', 14)
 
-      const settings = store.messageAppearanceSettings
+      const settings = getStore().messageAppearanceSettings
       expect(settings.messageFontSize).toBe(20)
       expect(settings.functionCallFontSize).toBe(16)
       expect(settings.thoughtFontSize).toBe(14)
     })
 
     it('バブルスタイル設定が正しく反映される', () => {
-      store.updateSetting('messageBubbleRadius', 20)
-      store.updateSetting('messageBubblePaddingX', 24)
-      store.updateSetting('messageBubblePaddingY', 20)
+      getStore().updateSetting('messageBubbleRadius', 20)
+      getStore().updateSetting('messageBubblePaddingX', 24)
+      getStore().updateSetting('messageBubblePaddingY', 20)
 
-      const settings = store.messageAppearanceSettings
+      const settings = getStore().messageAppearanceSettings
       expect(settings.bubbleRadius).toBe(20)
       expect(settings.bubblePaddingX).toBe(24)
       expect(settings.bubblePaddingY).toBe(20)
     })
 
     it('画像設定が正しく反映される', () => {
-      store.updateSetting('messageImageWidthPercent', 80)
-      store.updateSetting('messageImageJustify', 'center')
+      getStore().updateSetting('messageImageWidthPercent', 80)
+      getStore().updateSetting('messageImageJustify', 'center')
 
-      const settings = store.messageAppearanceSettings
+      const settings = getStore().messageAppearanceSettings
       expect(settings.imageWidthPercent).toBe(80)
       expect(settings.imageJustify).toBe('center')
     })
@@ -92,18 +103,18 @@ describe('useSettingsStore - messageAppearanceSettings', () => {
       const userColor = '#e3f2fd'
       const assistantColor = '#f3e5f5'
 
-      store.updateSetting('userBubbleColor', userColor)
-      store.updateSetting('assistantBubbleColor', assistantColor)
+      getStore().updateSetting('userBubbleColor', userColor)
+      getStore().updateSetting('assistantBubbleColor', assistantColor)
 
-      const settings = store.messageAppearanceSettings
+      const settings = getStore().messageAppearanceSettings
       expect(settings.userBubbleColor).toBe(userColor)
       expect(settings.assistantBubbleColor).toBe(assistantColor)
     })
 
     it('メッセージ透明度設定が正しく反映される', () => {
-      store.updateSetting('messageOpacity', 0.8)
+      getStore().updateSetting('messageOpacity', 0.8)
 
-      const settings = store.messageAppearanceSettings
+      const settings = getStore().messageAppearanceSettings
       expect(settings.opacity).toBe(0.8)
     })
 
@@ -123,9 +134,9 @@ describe('useSettingsStore - messageAppearanceSettings', () => {
         messageOpacity: 0.95,
       }
 
-      store.updateSettings(newSettings)
+      getStore().updateSettings(newSettings)
 
-      const settings = store.messageAppearanceSettings
+      const settings = getStore().messageAppearanceSettings
       expect(settings.fontFamily).toBe('Georgia, serif')
       expect(settings.messageFontSize).toBe(18)
       expect(settings.functionCallFontSize).toBe(15)
@@ -141,9 +152,9 @@ describe('useSettingsStore - messageAppearanceSettings', () => {
     })
 
     it('null値の設定が正しく処理される', () => {
-      store.updateSetting('messageImageWidthPercent', null)
+      getStore().updateSetting('messageImageWidthPercent', null)
 
-      const settings = store.messageAppearanceSettings
+      const settings = getStore().messageAppearanceSettings
       expect(settings.imageWidthPercent).toBe(null)
     })
 
@@ -151,21 +162,21 @@ describe('useSettingsStore - messageAppearanceSettings', () => {
       const justifyOptions: Array<'start' | 'center' | 'end'> = ['start', 'center', 'end']
 
       justifyOptions.forEach((justify) => {
-        store.updateSetting('messageImageJustify', justify)
-        const settings = store.messageAppearanceSettings
+        getStore().updateSetting('messageImageJustify', justify)
+        const settings = getStore().messageAppearanceSettings
         expect(settings.imageJustify).toBe(justify)
       })
     })
 
     it('設定リセット時にデフォルト値に戻る', async () => {
       // カスタム設定を適用
-      store.updateSetting('messageFontSize', 20)
-      store.updateSetting('userBubbleColor', '#ff0000')
+      getStore().updateSetting('messageFontSize', 20)
+      getStore().updateSetting('userBubbleColor', '#ff0000')
 
       // リセット
-      await store.resetToDefaults()
+      await getStore().resetToDefaults()
 
-      const settings = store.messageAppearanceSettings
+      const settings = getStore().messageAppearanceSettings
       expect(settings.messageFontSize).toBe(DEFAULT_SETTINGS.messageFontSize)
       expect(settings.userBubbleColor).toBe(DEFAULT_SETTINGS.userBubbleColor)
     })
@@ -180,9 +191,9 @@ describe('useSettingsStore - messageAppearanceSettings', () => {
         assistantBubbleColor: '#f0f8ff',
       }
 
-      store.importSettings(importedSettings)
+      getStore().importSettings(importedSettings)
 
-      const settings = store.messageAppearanceSettings
+      const settings = getStore().messageAppearanceSettings
       expect(settings.messageFontSize).toBe(22)
       expect(settings.functionCallFontSize).toBe(18)
       expect(settings.thoughtFontSize).toBe(16)
@@ -193,11 +204,11 @@ describe('useSettingsStore - messageAppearanceSettings', () => {
 
     it('設定エクスポート時に正しい値が含まれる', () => {
       // カスタム設定を適用
-      store.updateSetting('messageFontSize', 19)
-      store.updateSetting('messageBubbleRadius', 10)
-      store.updateSetting('userBubbleColor', '#ffeaa7')
+      getStore().updateSetting('messageFontSize', 19)
+      getStore().updateSetting('messageBubbleRadius', 10)
+      getStore().updateSetting('userBubbleColor', '#ffeaa7')
 
-      const exportedSettings = store.exportSettings()
+      const exportedSettings = getStore().exportSettings()
 
       expect(exportedSettings.messageFontSize).toBe(19)
       expect(exportedSettings.messageBubbleRadius).toBe(10)
@@ -207,7 +218,7 @@ describe('useSettingsStore - messageAppearanceSettings', () => {
 
   describe('messageAppearanceSettings の型安全性', () => {
     it('computed propertyの戻り値の型が正しい', () => {
-      const settings = store.messageAppearanceSettings
+      const settings = getStore().messageAppearanceSettings
 
       // 型チェック（TypeScriptの型推論をテスト）
       expect(typeof settings.fontFamily).toBe('string')
@@ -225,7 +236,7 @@ describe('useSettingsStore - messageAppearanceSettings', () => {
     })
 
     it('設定値の範囲が適切である', () => {
-      const settings = store.messageAppearanceSettings
+      const settings = getStore().messageAppearanceSettings
 
       expect(settings.messageFontSize).toBeGreaterThan(0)
       expect(settings.functionCallFontSize).toBeGreaterThan(0)
@@ -240,17 +251,17 @@ describe('useSettingsStore - messageAppearanceSettings', () => {
 
   describe('messageAppearanceSettings のリアクティビティ', () => {
     it('複数の設定変更が一度に反映される', () => {
-      const initialSettings = store.messageAppearanceSettings
+      const initialSettings = getStore().messageAppearanceSettings
 
       // 複数の設定を同時に変更
-      store.updateSettings({
+      getStore().updateSettings({
         messageFontSize: 18,
         functionCallFontSize: 15,
         messageBubbleRadius: 12,
         userBubbleColor: '#ffebee',
       })
 
-      const updatedSettings = store.messageAppearanceSettings
+      const updatedSettings = getStore().messageAppearanceSettings
 
       expect(updatedSettings.messageFontSize).toBe(18)
       expect(updatedSettings.functionCallFontSize).toBe(15)
@@ -375,7 +386,7 @@ describe('useSettingsStore - messageAppearanceSettings', () => {
     })
 
     it('画像配置の有効な値が正しく処理される', () => {
-      const validValues = ['start', 'center', 'end']
+      const validValues: Array<'start' | 'center' | 'end'> = ['start', 'center', 'end']
 
       validValues.forEach((value) => {
         const result = validateWithZod(settingsFormSchema, {
@@ -405,7 +416,7 @@ describe('useSettingsStore - messageAppearanceSettings', () => {
     })
 
     it('テーマプリセットの有効な値が正しく処理される', () => {
-      const validValues = ['default', 'midnight', 'forest', 'rose', 'noir']
+      const validValues: Array<'default' | 'midnight' | 'forest' | 'rose' | 'noir'> = ['default', 'midnight', 'forest', 'rose', 'noir']
 
       validValues.forEach((value) => {
         const result = validateWithZod(settingsFormSchema, {
@@ -480,16 +491,16 @@ describe('useSettingsStore - messageAppearanceSettings', () => {
 
     it('ストアの設定更新時にバリデーションが適用される', () => {
       // 有効な値の設定
-      store.updateSetting('messageImageWidthPercent', 75)
-      expect(store.settings.messageImageWidthPercent).toBe(75)
+      getStore().updateSetting('messageImageWidthPercent', 75)
+      expect(getStore().settings.messageImageWidthPercent).toBe(75)
 
       // 無効な値の設定（ストアレベルでは制限されない）
-      store.updateSetting('messageImageWidthPercent', 150)
-      expect(store.settings.messageImageWidthPercent).toBe(150)
+      getStore().updateSetting('messageImageWidthPercent', 150)
+      expect(getStore().settings.messageImageWidthPercent).toBe(150)
 
       // バリデーションスキーマでチェック
       const result = validateWithZod(settingsFormSchema, {
-        messageImageWidthPercent: store.settings.messageImageWidthPercent,
+        messageImageWidthPercent: getStore().settings.messageImageWidthPercent,
       })
       expect(result.success).toBe(false)
     })

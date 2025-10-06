@@ -3,6 +3,7 @@
     title="背景画像設定"
     description="チャット画面の背景画像や可読性調整を設定"
     single-column
+    :default-open="false"
   >
     <SettingItem
       label="背景画像"

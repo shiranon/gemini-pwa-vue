@@ -1,5 +1,6 @@
 import { computed, ref } from 'vue'
 import { useDatabase } from '~/composables/useDatabase'
+import { useStorageQuota } from '~/composables/useStorageQuota'
 import { downloadBackup, importFullData, loadBackupFromFile, type ImportResult } from '~/lib/backup'
 import { downloadJson } from '~/lib/file'
 import { buildChatsExportData } from '~/lib/history'
@@ -17,6 +18,7 @@ interface DialogFunctions {
  */
 export function useDataManagement(dialogs: DialogFunctions) {
   const database = useDatabase()
+  const storageQuota = useStorageQuota()
 
   const loading = ref(false)
 
@@ -165,6 +167,7 @@ export function useDataManagement(dialogs: DialogFunctions) {
 
   const initialize = async () => {
     await refreshStats()
+    await storageQuota.getStorageQuota()
   }
 
   return {
@@ -173,6 +176,7 @@ export function useDataManagement(dialogs: DialogFunctions) {
     importResult,
     importOptions,
     databaseSize,
+    storageQuota,
 
     exportFullBackup,
     exportChatsOnly,

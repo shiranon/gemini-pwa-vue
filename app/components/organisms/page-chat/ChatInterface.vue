@@ -12,7 +12,7 @@
 
     <div
       ref="messageContainer"
-      class="z-10 flex-1 space-y-6 overflow-y-auto p-4 pb-6"
+      class="z-10 flex-1 space-y-6 overflow-y-auto px-4 pb-6"
     >
       <SystemPromptEditor />
       <template
