@@ -17,6 +17,7 @@ describe('useProfileSettings', () => {
   describe('初期状態', () => {
     it('初期状態が正しく設定される', () => {
       expect(composable.localProfileSettings.value).toEqual({
+        apiProvider: 'gemini',
         modelName: '',
         systemPrompt: '',
         maxTokens: null,
@@ -73,6 +74,7 @@ describe('useProfileSettings', () => {
         name: 'テストプロファイル',
         description: 'テスト用',
         settings: {
+          apiProvider: 'gemini',
           modelName: 'gemini-1.5-pro',
           systemPrompt: 'カスタムプロンプト',
           maxTokens: 1000,
@@ -139,6 +141,7 @@ describe('useProfileSettings', () => {
         name: 'テストプロファイル',
         description: 'テスト用',
         settings: {
+          apiProvider: 'gemini',
           modelName: 'gemini-1.5-pro',
           systemPrompt: 'オリジナルプロンプト',
           maxTokens: 1000,
@@ -208,6 +211,7 @@ describe('useProfileSettings', () => {
         name: 'テストプロファイル',
         description: 'テスト用',
         settings: {
+          apiProvider: 'gemini',
           modelName: 'gemini-1.5-pro',
           systemPrompt: 'テストプロンプト',
           maxTokens: 1000,
@@ -278,6 +282,7 @@ describe('useProfileSettings', () => {
         name: 'テストプロファイル',
         description: 'テスト用',
         settings: {
+          apiProvider: 'gemini',
           modelName: 'gemini-1.5-pro',
           systemPrompt: 'テストプロンプト',
           maxTokens: 1000,
@@ -316,6 +321,7 @@ describe('useProfileSettings', () => {
         name: 'テストプロファイル',
         description: 'テスト用',
         settings: {
+          apiProvider: 'gemini',
           modelName: 'gemini-1.5-pro',
           systemPrompt: 'テストプロンプト',
           maxTokens: 1000,
@@ -376,6 +382,7 @@ describe('useProfileSettings', () => {
         name: 'テストプロファイル',
         description: 'テスト用',
         settings: {
+          apiProvider: 'gemini',
           modelName: 'gemini-1.5-pro',
           systemPrompt: 'テストプロンプト',
           maxTokens: 1000,

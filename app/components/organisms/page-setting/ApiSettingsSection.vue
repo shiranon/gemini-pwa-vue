@@ -1,14 +1,34 @@
 <template>
   <SettingSection
     title="API設定"
-    description="Gemini APIの接続設定"
+    :description="apiProvider === 'gemini' ? 'Gemini APIの接続設定' : 'OpenAI APIの接続設定'"
   >
     <SettingItem
+      name="apiProvider"
+      label="APIプロバイダー"
+      description="使用するAI APIを選択"
+    >
+      <Select
+        :model-value="apiProvider"
+        @update:model-value="(value: AcceptableValue) => updateProfileSetting('apiProvider', String(value))"
+      >
+        <SelectTrigger>
+          <SelectValue placeholder="プロバイダーを選択" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="gemini"> Google Gemini </SelectItem>
+          <SelectItem value="openai"> OpenAI </SelectItem>
+        </SelectContent>
+      </Select>
+    </SettingItem>
+
+    <SettingItem
+      v-if="apiProvider === 'gemini'"
       name="apiKey"
-      label="APIキー"
+      label="Gemini APIキー"
       required
       :show-status-indicator="true"
-      :is-valid="isValidApiKey"
+      :is-valid="isValidGeminiApiKey"
       valid-message="APIキーが設定されています"
       invalid-message="APIキーが必要です"
     >
@@ -17,9 +37,30 @@
         type="password"
         placeholder="AIzaSy..."
         :class="{
-          'border-destructive': !isValidApiKey,
+          'border-destructive': !isValidGeminiApiKey,
         }"
         @update:model-value="(value: string | number) => emit('update-setting', 'apiKey', String(value))"
+      />
+    </SettingItem>
+
+    <SettingItem
+      v-if="apiProvider === 'openai'"
+      name="openaiApiKey"
+      label="OpenAI APIキー"
+      required
+      :show-status-indicator="true"
+      :is-valid="isValidOpenAiApiKey"
+      valid-message="APIキーが設定されています"
+      invalid-message="APIキーが必要です"
+    >
+      <Input
+        :model-value="localSettings.openaiApiKey"
+        type="password"
+        placeholder="sk-..."
+        :class="{
+          'border-destructive': !isValidOpenAiApiKey,
+        }"
+        @update:model-value="(value: string | number) => emit('update-setting', 'openaiApiKey', String(value))"
       />
     </SettingItem>
 
@@ -36,7 +77,7 @@
         </SelectTrigger>
         <SelectContent>
           <SelectItem
-            v-for="option in modelOptions"
+            v-for="option in currentModelOptions"
             :key="option.value"
             :value="option.value"
           >
@@ -90,9 +131,33 @@ const updateProfileSetting = (key: keyof SettingsProfileData, value: SettingsPro
   emit('update-profile-setting', key, value)
 }
 
-const isValidApiKey = computed(() => {
+const apiProvider = computed(() => props.localProfileSettings.apiProvider)
+
+const isValidGeminiApiKey = computed(() => {
   return props.localSettings.apiKey.length > 0
 })
 
-const { modelOptions } = useGeminiModelOptions(computed(() => props.localSettings.apiKey))
+const isValidOpenAiApiKey = computed(() => {
+  return props.localSettings.openaiApiKey.length > 0
+})
+
+const { modelOptions: geminiModelOptions } = useGeminiModelOptions(computed(() => props.localSettings.apiKey))
+
+// OpenAIモデルのオプション
+const openaiModelOptions = computed(() => [
+  { value: 'gpt-5', label: 'GPT-5' },
+  { value: 'gpt-5-mini', label: 'GPT-5 Mini' },
+  { value: 'gpt-5-nano', label: 'GPT-5 Nano' },
+  { value: 'gpt-4o', label: 'GPT-4o' },
+  { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
+  { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' },
+  { value: 'gpt-4', label: 'GPT-4' },
+  { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' },
+  { value: 'o1', label: 'o1' },
+  { value: 'o1-mini', label: 'o1 Mini' },
+])
+
+const currentModelOptions = computed(() => {
+  return apiProvider.value === 'openai' ? openaiModelOptions.value : geminiModelOptions.value
+})
 </script>

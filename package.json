@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@google/genai": "1.22.0",
+    "@openai/agents": "0.1.9",
     "@pinia-plugin-persistedstate/nuxt": "1.2.1",
     "@pinia/nuxt": "0.11.2",
     "@tailwindcss/vite": "4.1.13",
@@ -49,7 +50,7 @@
     "workbox-routing": "7.3.0",
     "workbox-strategies": "7.3.0",
     "workbox-window": "7.3.0",
-    "zod": "4.1.11"
+    "zod": "3"
   },
   "devDependencies": {
     "@iconify-json/radix-icons": "1.2.5",

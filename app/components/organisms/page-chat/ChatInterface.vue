@@ -113,6 +113,7 @@ import { useChatStore } from '~/stores/chat'
 import { useSettingsStore } from '~/stores/settings'
 import { useSettingsProfilesStore } from '~/stores/settingsProfiles'
 import { useGeminiStore } from '~/stores/gemini'
+import { useOpenAiStore } from '~/stores/openai'
 import { useSettings } from '~/composables/useSettings'
 import { scrollToBottom } from '~/lib/scroll'
 import MessageWithAvatar from '~/components/molecules/page-chat/MessageWithAvatar.vue'
@@ -132,6 +133,14 @@ const chatStore = useChatStore()
 const settingsStore = useSettingsStore()
 const profilesStore = useSettingsProfilesStore()
 const geminiStore = useGeminiStore()
+const openaiStore = useOpenAiStore()
+
+// 現在のプロバイダーに応じて適切なストアを取得
+const currentApiStore = computed(() => {
+  const apiProvider = profilesStore.activeProfile?.settings.apiProvider || 'gemini'
+  return apiProvider === 'openai' ? openaiStore : geminiStore
+})
+
 // 設定同期用のメソッドを取得（ダイアログ関数は使用しないので空のスタブを渡す）
 const { syncLocalSettings } = useSettings({
   showAlert: () => {},
@@ -289,7 +298,7 @@ const sendMessage = async (options?: { contentOverride?: string; skipAddingUserM
   dismissRetryToast()
 
   try {
-    const success = await geminiStore.sendChatMessage({
+    const success = await currentApiStore.value.sendChatMessage({
       content: rawContent,
       attachments: options?.attachmentsOverride,
       skipAddingUserMessage: options?.skipAddingUserMessage,
@@ -396,7 +405,7 @@ const handleRetryConfirm = async () => {
     if (messageToResend) {
       inputText.value = ''
       dismissRetryToast()
-      await geminiStore.sendChatMessage({
+      await currentApiStore.value.sendChatMessage({
         content: messageToResend.content,
         attachments: messageToResend.attachments,
         onError: handleGeminiError,

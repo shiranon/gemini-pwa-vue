@@ -129,23 +129,77 @@
         @update:model-value="(value: string | number | null) => updateProfileSetting('thinkingBudget', value ? (typeof value === 'number' ? value : Number(value)) : null)"
       />
     </SettingItem>
+
+    <!-- GPT-5専用設定 -->
+    <template v-if="isGpt5Model">
+      <div class="md:col-span-2">
+        <div class="bg-muted border-border rounded-lg border p-4">
+          <h4 class="text-foreground mb-3 text-sm font-medium">GPT-5 モデル設定</h4>
+          <div class="space-y-4">
+            <SettingItem
+              name="reasoningEffort"
+              label="Reasoning Effort"
+              description="推論の深さ (minimal: 最速, low: バランス, medium: 深い, high: 最高品質)"
+            >
+              <Select
+                :model-value="reasoningEffort"
+                @update:model-value="(value: AcceptableValue) => updateReasoningEffort(String(value))"
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="推論レベルを選択" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="minimal"> Minimal (最速) </SelectItem>
+                  <SelectItem value="low"> Low (バランス) </SelectItem>
+                  <SelectItem value="medium"> Medium (深い) </SelectItem>
+                  <SelectItem value="high"> High (最高品質) </SelectItem>
+                </SelectContent>
+              </Select>
+            </SettingItem>
+
+            <SettingItem
+              name="textVerbosity"
+              label="Text Verbosity"
+              description="応答の詳細度 (low: 簡潔, medium: 適度, high: 詳細)"
+            >
+              <Select
+                :model-value="textVerbosity"
+                @update:model-value="(value: AcceptableValue) => updateTextVerbosity(String(value))"
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="詳細度を選択" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="low"> Low (簡潔) </SelectItem>
+                  <SelectItem value="medium"> Medium (適度) </SelectItem>
+                  <SelectItem value="high"> High (詳細) </SelectItem>
+                </SelectContent>
+              </Select>
+            </SettingItem>
+          </div>
+        </div>
+      </div>
+    </template>
   </SettingSection>
 </template>
 
 <script setup lang="ts">
-import type { AppSettings, SettingsProfileData } from '~/types/settings'
+import { computed } from 'vue'
+import type { AcceptableValue } from 'reka-ui'
+import type { AppSettings, OpenAiModelSettings, SettingsProfileData } from '~/types/settings'
 import SettingSection from '~/components/molecules/page-setting/SettingSection.vue'
 import SettingItem from '~/components/molecules/page-setting/SettingItem.vue'
 import SettingToggle from '~/components/molecules/page-setting/SettingToggle.vue'
 import { Input } from '~/components/ui/input'
 import { Slider } from '~/components/ui/slider'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select'
 
 export interface PerformanceSettingsSectionProps {
   localSettings: AppSettings
   localProfileSettings: SettingsProfileData
 }
 
-defineProps<PerformanceSettingsSectionProps>()
+const props = defineProps<PerformanceSettingsSectionProps>()
 
 const emit = defineEmits<{
   'update-setting': [key: keyof AppSettings, value: AppSettings[keyof AppSettings]]
@@ -158,5 +212,44 @@ const updateSetting = (key: keyof AppSettings, value: AppSettings[keyof AppSetti
 
 const updateProfileSetting = (key: keyof SettingsProfileData, value: SettingsProfileData[keyof SettingsProfileData]) => {
   emit('update-profile-setting', key, value)
+}
+
+// GPT-5モデルかどうか判定
+const isGpt5Model = computed(() => {
+  return props.localProfileSettings.apiProvider === 'openai' && props.localProfileSettings.modelName.startsWith('gpt-5')
+})
+
+// GPT-5設定の取得
+const reasoningEffort = computed(() => {
+  return props.localProfileSettings.openaiModelSettings?.reasoning?.effort || 'low'
+})
+
+const textVerbosity = computed(() => {
+  return props.localProfileSettings.openaiModelSettings?.text?.verbosity || 'low'
+})
+
+// GPT-5設定の更新
+const updateReasoningEffort = (value: string) => {
+  const currentSettings = props.localProfileSettings.openaiModelSettings || {}
+  const newSettings: OpenAiModelSettings = {
+    ...currentSettings,
+    reasoning: {
+      ...currentSettings.reasoning,
+      effort: value as 'minimal' | 'low' | 'medium' | 'high',
+    },
+  }
+  updateProfileSetting('openaiModelSettings', newSettings)
+}
+
+const updateTextVerbosity = (value: string) => {
+  const currentSettings = props.localProfileSettings.openaiModelSettings || {}
+  const newSettings: OpenAiModelSettings = {
+    ...currentSettings,
+    text: {
+      ...currentSettings.text,
+      verbosity: value as 'low' | 'medium' | 'high',
+    },
+  }
+  updateProfileSetting('openaiModelSettings', newSettings)
 }
 </script>
