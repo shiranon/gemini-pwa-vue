@@ -264,6 +264,14 @@ export interface AppSettings
   dummyModelPrompt: string
   // 保存時にモデル応答の先頭へダミーモデル文を連結
   prependDummyModelToResponse: boolean
+  // Claude Extended Thinking設定
+  enableExtendedThinking: boolean
+  thinkingBudget: number | null
+  // Claude Cache Control設定
+  enableCacheControl: boolean
+  cacheSystemPrompt: boolean
+  cacheTools: boolean
+  enablePromptCaching: boolean
   // プロファイル管理
   styleProfiles?: SettingsProfile[]
   currentProfileId?: string
@@ -358,6 +366,15 @@ export const DEFAULT_SETTINGS: AppSettings = {
   enableDummyModelPrompt: false,
   dummyModelPrompt: '',
   prependDummyModelToResponse: false,
+
+  // Claude Extended Thinking
+  enableExtendedThinking: false,
+
+  // Claude Cache Control
+  enableCacheControl: false,
+  cacheSystemPrompt: true,
+  cacheTools: true,
+  enablePromptCaching: false,
 
   // 画像最適化設定
   enableImageOptimization: true,

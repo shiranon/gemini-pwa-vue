@@ -78,6 +78,65 @@
         @update:model-value="updateSetting('maxBackoffDelaySeconds', $event?.[0] ?? 60)"
       />
     </SettingItem>
+
+    <!-- Claude Extended Thinking設定 -->
+    <template v-if="localSettings.apiProvider === 'claude'">
+      <SettingToggle
+        :model-value="localSettings.enableExtendedThinking"
+        label="Extended Thinking有効化"
+        description="Claudeの拡張思考モード（より深い推論、コスト増）"
+        @update:model-value="(value: boolean) => updateSetting('enableExtendedThinking', value)"
+      />
+
+      <SettingItem
+        v-if="localSettings.enableExtendedThinking"
+        name="thinkingBudget"
+        label="思考トークン数"
+        description="思考に使用する最大トークン数（1024-10000推奨）"
+        :value="`${localSettings.thinkingBudget ?? 5000}トークン`"
+        show-value
+      >
+        <Slider
+          :model-value="[localSettings.thinkingBudget ?? 5000]"
+          :min="1024"
+          :max="10000"
+          :step="256"
+          @update:model-value="updateSetting('thinkingBudget', $event?.[0] ?? 5000)"
+        />
+      </SettingItem>
+
+      <!-- Claude Cache Control設定 -->
+      <SettingToggle
+        :model-value="localSettings.enableCacheControl"
+        label="Cache Control有効化"
+        description="プロンプトキャッシュでコスト削減（繰り返し使用時に有効）"
+        @update:model-value="(value: boolean) => updateSetting('enableCacheControl', value)"
+      />
+
+      <SettingToggle
+        v-if="localSettings.enableCacheControl"
+        :model-value="localSettings.cacheSystemPrompt"
+        label="システムプロンプトをキャッシュ"
+        description="システムプロンプトをキャッシュしてコスト削減"
+        @update:model-value="(value: boolean) => updateSetting('cacheSystemPrompt', value)"
+      />
+
+      <SettingToggle
+        v-if="localSettings.enableCacheControl"
+        :model-value="localSettings.cacheTools"
+        label="ツール定義をキャッシュ"
+        description="Function Callingツール定義をキャッシュ"
+        @update:model-value="(value: boolean) => updateSetting('cacheTools', value)"
+      />
+
+      <SettingToggle
+        v-if="localSettings.enableCacheControl"
+        :model-value="localSettings.enablePromptCaching"
+        label="Prompt Caching有効化"
+        description="繰り返しプロンプトの最適化（実験的機能）"
+        @update:model-value="(value: boolean) => updateSetting('enablePromptCaching', value)"
+      />
+    </template>
   </SettingSection>
 </template>
 

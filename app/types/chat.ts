@@ -230,15 +230,24 @@ export interface BaseClaudeApiSettings {
   topP?: number
   systemPrompt: string
   streamingOutput: boolean
-  // 思考プロセス機能（Claudeの拡張思考モードに対応予定）
+  // 思考プロセス機能（Claudeの拡張思考モード）
   enableThinking?: boolean
   includeThoughts?: boolean
+  // Extended Thinking設定
+  enableExtendedThinking?: boolean
+  thinkingBudget?: number // トークン数（1024-10000推奨）
   // Function Calling (Tool Use)
   functionCalling?: {
     enabled: boolean
     mode: 'auto' | 'any' | 'none'
     allowedFunctionNames?: string[]
   }
+  // Cache Control設定
+  enableCacheControl?: boolean
+  cacheSystemPrompt?: boolean // システムプロンプトをキャッシュ
+  cacheTools?: boolean // ツール定義をキャッシュ
+  // Prompt Caching（繰り返しプロンプト最適化）
+  enablePromptCaching?: boolean
   // 送信時のみ適用するダミープロンプト（Geminiと互換）
   enableDummyUserPrompt?: boolean
   dummyUserPrompt?: string

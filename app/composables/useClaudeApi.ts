@@ -43,6 +43,103 @@ export const useClaudeApi = () => {
   }
 
   /**
+   * Extended ThinkingとCache Controlを含むAPI設定を構築
+   */
+  const buildApiConfig = (
+    settings: ClaudeApiSettings,
+    toolConfig: { tools?: Tool[] }
+  ): {
+    thinkingConfig?: { type: 'enabled'; budget_tokens: number }
+    systemPromptValue?: string | Array<{ type: 'text'; text: string; cache_control?: { type: 'ephemeral' } }>
+    toolsWithCache?: Tool[]
+  } => {
+    // Extended Thinking設定
+    const thinkingConfig =
+      settings.enableExtendedThinking && settings.thinkingBudget
+        ? {
+            type: 'enabled' as const,
+            budget_tokens: settings.thinkingBudget,
+          }
+        : undefined
+
+    // Cache Control: System Prompt
+    let systemPromptValue: string | Array<{ type: 'text'; text: string; cache_control?: { type: 'ephemeral' } }> | undefined
+    if (settings.systemPrompt) {
+      if (settings.enableCacheControl && settings.cacheSystemPrompt) {
+        systemPromptValue = [
+          {
+            type: 'text' as const,
+            text: settings.systemPrompt,
+            cache_control: { type: 'ephemeral' as const },
+          },
+        ]
+      } else {
+        systemPromptValue = settings.systemPrompt
+      }
+    }
+
+    // Cache Control: Tools
+    let toolsWithCache = toolConfig.tools
+    if (toolsWithCache && settings.enableCacheControl && settings.cacheTools && toolsWithCache.length > 0) {
+      // 最後のツールにcache_controlを追加（コスト最適化）
+      toolsWithCache = toolsWithCache.map((tool, index) => {
+        if (index === toolsWithCache!.length - 1) {
+          return {
+            ...tool,
+            cache_control: { type: 'ephemeral' as const },
+          }
+        }
+        return tool
+      })
+    }
+
+    return { thinkingConfig, systemPromptValue, toolsWithCache }
+  }
+
+  /**
+   * ContentBlock配列からtool_useブロックのIDを抽出
+   */
+  const extractToolUseIds = (contentBlocks: Array<{ type: string; id?: string }>): string[] => {
+    const toolUseIds: string[] = []
+    for (const block of contentBlocks) {
+      if (block.type === 'tool_use' && block.id) {
+        toolUseIds.push(block.id)
+      }
+    }
+    return toolUseIds
+  }
+
+  /**
+   * FunctionCallResult配列からToolResultBlockParam配列を構築
+   * tool_use IDとの対応関係を維持
+   */
+  const buildToolResultBlocks = (toolResults: FunctionCallResult[], toolUseIds: string[], context: string): ToolResultBlockParam[] => {
+    const toolResultBlocks: ToolResultBlockParam[] = []
+
+    for (let i = 0; i < toolResults.length; i++) {
+      const toolResult = toolResults[i]
+      if (!toolResult) continue
+
+      const toolUseId = toolUseIds[i]
+      if (!toolUseId) {
+        logger.warn(`[${context}] tool_use_idが見つかりません`, {
+          component: 'useClaudeApi',
+          resultIndex: i,
+        })
+      }
+
+      const payload = toolResult.result && typeof toolResult.result === 'object' ? toolResult.result : toolResult.error ? { error: toolResult.error } : {}
+      toolResultBlocks.push({
+        type: 'tool_result',
+        tool_use_id: toolUseId || generateMessageId(),
+        content: JSON.stringify(payload),
+      })
+    }
+
+    return toolResultBlocks
+  }
+
+  /**
    * Gemini SchemaをClaude互換のJSON Schemaに変換
    */
   const convertGeminiSchemaToClaudeSchema = (schema: unknown): Tool.InputSchema => {
@@ -332,15 +429,19 @@ export const useClaudeApi = () => {
       }
       const currentContents: MessageParam[] = toContent(currentMessages)
 
+      // Extended ThinkingとCache Controlの設定を構築
+      const { thinkingConfig, systemPromptValue, toolsWithCache } = buildApiConfig(settings, toolConfig)
+
       const params: MessageCreateParams = {
         model: settings.model,
         max_tokens: settings.maxTokens,
         messages: currentContents,
-        ...(settings.systemPrompt && { system: settings.systemPrompt }),
+        ...(systemPromptValue && { system: systemPromptValue }),
         ...(settings.temperature !== undefined && { temperature: settings.temperature }),
         ...(settings.topP !== undefined && { top_p: settings.topP }),
         ...(settings.topK !== undefined && { top_k: settings.topK }),
-        ...(toolConfig.tools && { tools: toolConfig.tools }),
+        ...(thinkingConfig && { thinking: thinkingConfig }),
+        ...(toolsWithCache && { tools: toolsWithCache }),
       }
 
       const response = await claude.messages.create(params)
@@ -367,35 +468,10 @@ export const useClaudeApi = () => {
           }
           currentContents.push(assistantMessage)
 
-          // response.contentからtool_useブロックのIDを抽出
-          const toolUseIds: string[] = []
-          for (const block of response.content) {
-            if (block.type === 'tool_use') {
-              toolUseIds.push(block.id)
-            }
-          }
+          // response.contentからtool_useブロックのIDを抽出してtool_resultを構築
+          const toolUseIds = extractToolUseIds(response.content)
+          const toolResultBlocks = buildToolResultBlocks(toolResults, toolUseIds, '非ストリーミング')
 
-          // Tool Result追加（tool_use IDを対応させる）
-          const toolResultBlocks: ToolResultBlockParam[] = []
-          for (let i = 0; i < toolResults.length; i++) {
-            const toolResult = toolResults[i]
-            if (!toolResult) continue
-
-            const toolUseId = toolUseIds[i]
-            if (!toolUseId) {
-              logger.warn('[非ストリーミング] tool_use_idが見つかりません', {
-                component: 'useClaudeApi',
-                resultIndex: i,
-              })
-            }
-
-            const payload = toolResult.result && typeof toolResult.result === 'object' ? toolResult.result : toolResult.error ? { error: toolResult.error } : {}
-            toolResultBlocks.push({
-              type: 'tool_result',
-              tool_use_id: toolUseId || generateMessageId(),
-              content: JSON.stringify(payload),
-            })
-          }
           currentContents.push({
             role: 'user',
             content: toolResultBlocks,
@@ -464,16 +540,20 @@ export const useClaudeApi = () => {
       }
       const currentContents: MessageParam[] = toContent(currentMessages)
 
+      // Extended ThinkingとCache Controlの設定を構築
+      const { thinkingConfig, systemPromptValue, toolsWithCache } = buildApiConfig(settings, toolConfig)
+
       const params: MessageCreateParams = {
         model: settings.model,
         max_tokens: settings.maxTokens,
         messages: currentContents,
         stream: true,
-        ...(settings.systemPrompt && { system: settings.systemPrompt }),
+        ...(systemPromptValue && { system: systemPromptValue }),
         ...(settings.temperature !== undefined && { temperature: settings.temperature }),
         ...(settings.topP !== undefined && { top_p: settings.topP }),
         ...(settings.topK !== undefined && { top_k: settings.topK }),
-        ...(toolConfig.tools && { tools: toolConfig.tools }),
+        ...(thinkingConfig && { thinking: thinkingConfig }),
+        ...(toolsWithCache && { tools: toolsWithCache }),
       }
 
       const stream = await claude.messages.stream(params)
@@ -583,35 +663,10 @@ export const useClaudeApi = () => {
           content: accumulatedContent,
         })
 
-        // accumulatedContentからtool_useブロックのIDを抽出
-        const toolUseIds: string[] = []
-        for (const block of accumulatedContent) {
-          if (block.type === 'tool_use') {
-            toolUseIds.push(block.id)
-          }
-        }
+        // accumulatedContentからtool_useブロックのIDを抽出してtool_resultを構築
+        const toolUseIds = extractToolUseIds(accumulatedContent)
+        const toolResultBlocks = buildToolResultBlocks(accumulatedToolResults, toolUseIds, 'ストリーミング')
 
-        // Tool Result追加（tool_use IDを対応させる）
-        const toolResultBlocks: ToolResultBlockParam[] = []
-        for (let i = 0; i < accumulatedToolResults.length; i++) {
-          const toolResult = accumulatedToolResults[i]
-          if (!toolResult) continue
-
-          const toolUseId = toolUseIds[i]
-          if (!toolUseId) {
-            logger.warn('[ストリーミング] tool_use_idが見つかりません', {
-              component: 'useClaudeApi',
-              resultIndex: i,
-            })
-          }
-
-          const payload = toolResult.result && typeof toolResult.result === 'object' ? toolResult.result : toolResult.error ? { error: toolResult.error } : {}
-          toolResultBlocks.push({
-            type: 'tool_result',
-            tool_use_id: toolUseId || generateMessageId(),
-            content: JSON.stringify(payload),
-          })
-        }
         currentContents.push({
           role: 'user',
           content: toolResultBlocks,

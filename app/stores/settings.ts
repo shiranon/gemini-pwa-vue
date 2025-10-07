@@ -107,6 +107,14 @@ export const useSettingsStore = defineStore(
       streamingOutput: settings.value.streamingOutput,
       enableThinking: settings.value.enableThinking,
       includeThoughts: settings.value.includeThoughts,
+      // Extended Thinking設定
+      enableExtendedThinking: settings.value.enableExtendedThinking,
+      thinkingBudget: settings.value.thinkingBudget ?? undefined,
+      // Cache Control設定
+      enableCacheControl: settings.value.enableCacheControl,
+      cacheSystemPrompt: settings.value.cacheSystemPrompt,
+      cacheTools: settings.value.cacheTools,
+      enablePromptCaching: settings.value.enablePromptCaching,
       enableThoughtTranslation: settings.value.enableThoughtTranslation,
       thoughtTranslationProvider: settings.value.thoughtTranslationProvider,
       thoughtTranslationModel: settings.value.thoughtTranslationModel,
