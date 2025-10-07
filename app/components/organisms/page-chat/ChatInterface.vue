@@ -114,6 +114,7 @@ import { useSettingsStore } from '~/stores/settings'
 import { useSettingsProfilesStore } from '~/stores/settingsProfiles'
 import { useGeminiStore } from '~/stores/gemini'
 import { useOpenAiStore } from '~/stores/openai'
+import { useClaudeStore } from '~/stores/claude'
 import { useSettings } from '~/composables/useSettings'
 import { scrollToBottom } from '~/lib/scroll'
 import MessageWithAvatar from '~/components/molecules/page-chat/MessageWithAvatar.vue'
@@ -134,11 +135,14 @@ const settingsStore = useSettingsStore()
 const profilesStore = useSettingsProfilesStore()
 const geminiStore = useGeminiStore()
 const openaiStore = useOpenAiStore()
+const claudeStore = useClaudeStore()
 
 // 現在のプロバイダーに応じて適切なストアを取得
 const currentApiStore = computed(() => {
   const apiProvider = profilesStore.activeProfile?.settings.apiProvider || 'gemini'
-  return apiProvider === 'openai' ? openaiStore : geminiStore
+  if (apiProvider === 'openai') return openaiStore
+  if (apiProvider === 'claude') return claudeStore
+  return geminiStore
 })
 
 // 設定同期用のメソッドを取得（ダイアログ関数は使用しないので空のスタブを渡す）

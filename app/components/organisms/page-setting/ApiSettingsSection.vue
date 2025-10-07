@@ -1,7 +1,7 @@
 <template>
   <SettingSection
     title="API設定"
-    :description="apiProvider === 'gemini' ? 'Gemini APIの接続設定' : 'OpenAI APIの接続設定'"
+    :description="apiProvider === 'gemini' ? 'Gemini APIの接続設定' : apiProvider === 'claude' ? 'Claude APIの接続設定' : 'OpenAI APIの接続設定'"
   >
     <SettingItem
       name="apiProvider"
@@ -18,6 +18,7 @@
         <SelectContent>
           <SelectItem value="gemini"> Google Gemini </SelectItem>
           <SelectItem value="openai"> OpenAI </SelectItem>
+          <SelectItem value="claude"> Anthropic Claude </SelectItem>
         </SelectContent>
       </Select>
     </SettingItem>
@@ -61,6 +62,27 @@
           'border-destructive': !isValidOpenAiApiKey,
         }"
         @update:model-value="(value: string | number) => emit('update-setting', 'openaiApiKey', String(value))"
+      />
+    </SettingItem>
+
+    <SettingItem
+      v-if="apiProvider === 'claude'"
+      name="claudeApiKey"
+      label="Claude APIキー"
+      required
+      :show-status-indicator="true"
+      :is-valid="isValidClaudeApiKey"
+      valid-message="APIキーが設定されています"
+      invalid-message="APIキーが必要です"
+    >
+      <Input
+        :model-value="localSettings.claudeApiKey"
+        type="password"
+        placeholder="sk-ant-..."
+        :class="{
+          'border-destructive': !isValidClaudeApiKey,
+        }"
+        @update:model-value="(value: string | number) => emit('update-setting', 'claudeApiKey', String(value))"
       />
     </SettingItem>
 
@@ -141,6 +163,10 @@ const isValidOpenAiApiKey = computed(() => {
   return props.localSettings.openaiApiKey.length > 0
 })
 
+const isValidClaudeApiKey = computed(() => {
+  return props.localSettings.claudeApiKey.length > 0
+})
+
 const { modelOptions: geminiModelOptions } = useGeminiModelOptions(computed(() => props.localSettings.apiKey))
 
 // OpenAIモデルのオプション
@@ -157,7 +183,21 @@ const openaiModelOptions = computed(() => [
   { value: 'o1-mini', label: 'o1 Mini' },
 ])
 
+// Claudeモデルのオプション
+const claudeModelOptions = computed(() => [
+  // Claude 4 Models
+  { value: 'claude-opus-4-1-20250805', label: 'Claude Opus 4.1 (2025-08-05)' },
+  { value: 'claude-opus-4-20250514', label: 'Claude Opus 4 (2025-05-14)' },
+  { value: 'claude-sonnet-4-5-20250929', label: 'Claude Sonnet 4.5 (2025-09-29)' },
+  { value: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4 (2025-05-14)' },
+  // Claude 3.7 Models
+  { value: 'claude-3-7-sonnet-20250219', label: 'Claude 3.7 Sonnet (2025-02-19)' },
+  { value: 'claude-3-5-haiku-20241022', label: 'Claude 3.5 Haiku (2024-10-22)' },
+])
+
 const currentModelOptions = computed(() => {
-  return apiProvider.value === 'openai' ? openaiModelOptions.value : geminiModelOptions.value
+  if (apiProvider.value === 'openai') return openaiModelOptions.value
+  if (apiProvider.value === 'claude') return claudeModelOptions.value
+  return geminiModelOptions.value
 })
 </script>

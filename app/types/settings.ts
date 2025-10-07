@@ -158,7 +158,7 @@ export interface ChatAvatarSettings {
 // ============================================================================
 
 /** APIプロバイダー */
-export type ApiProvider = 'gemini' | 'openai'
+export type ApiProvider = 'gemini' | 'openai' | 'claude'
 
 /** GPT-5 モデルの reasoning 設定 */
 export interface OpenAiReasoningSettings {
@@ -252,6 +252,8 @@ export interface AppSettings
   apiKey: string
   /** OpenAI API基本設定 */
   openaiApiKey: string
+  /** Claude API基本設定 */
+  claudeApiKey: string
   modelName: string
   streamingSpeed: number
   systemPrompt: string
@@ -272,8 +274,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   // APIプロバイダー設定
   apiProvider: 'gemini',
   // 開発時は環境変数から取得する
-  apiKey: process.env.GEMINI_API_KEY || '',
-  openaiApiKey: process.env.OPENAI_API_KEY || '',
+  apiKey: '',
+  openaiApiKey: '',
+  claudeApiKey: '',
   modelName: 'gemini-2.5-flash',
   streamingSpeed: 30,
   systemPrompt: '',

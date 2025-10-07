@@ -94,12 +94,6 @@ export function useProfileSettings() {
       ...profileSettings,
       enabledFunctionTools: [...profileSettings.enabledFunctionTools],
     }
-
-    logger.info('プロファイル設定を読み込みました', {
-      component: 'useProfileSettings',
-      profileId: profilesStore.activeProfile.id,
-      profileName: profilesStore.activeProfile.name,
-    })
   }
 
   /**

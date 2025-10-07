@@ -218,6 +218,38 @@ export interface GeminiMessage {
 }
 
 // ============================================================================
+// Claude API関連型
+// ============================================================================
+
+export interface BaseClaudeApiSettings {
+  apiKey: string
+  model: string
+  maxTokens: number // Claudeでは必須
+  temperature?: number
+  topK?: number
+  topP?: number
+  systemPrompt: string
+  streamingOutput: boolean
+  // 思考プロセス機能（Claudeの拡張思考モードに対応予定）
+  enableThinking?: boolean
+  includeThoughts?: boolean
+  // Function Calling (Tool Use)
+  functionCalling?: {
+    enabled: boolean
+    mode: 'auto' | 'any' | 'none'
+    allowedFunctionNames?: string[]
+  }
+  // 送信時のみ適用するダミープロンプト（Geminiと互換）
+  enableDummyUserPrompt?: boolean
+  dummyUserPrompt?: string
+  enableDummyModelPrompt?: boolean
+  dummyModelPrompt?: string
+  prependDummyModelToResponse?: boolean
+}
+
+export type ClaudeApiSettings = BaseClaudeApiSettings & ThoughtTranslationConfig & Partial<ProofreadingConfig>
+
+// ============================================================================
 // UI状態関連型
 // ============================================================================
 
