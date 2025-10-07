@@ -3,9 +3,21 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
-A Nuxt 3 Progressive Web App for Gemini AI chat interactions, specifically designed for TRPG (tabletop role-playing game) scenarios. This is a complete Vue.js rewrite of the original [Gemini PWA Client Mk-II](https://github.com/kinkan04/Gemini-PWA-Mk-II), featuring modern TypeScript architecture and enhanced PWA capabilities.
+A Nuxt 3 Progressive Web App for AI chat interactions, specifically designed for TRPG (tabletop role-playing game) scenarios. This is a complete Vue.js rewrite of the original [Gemini PWA Client Mk-II](https://github.com/kinkan04/Gemini-PWA-Mk-II), featuring modern TypeScript architecture and enhanced PWA capabilities.
+
+Supports both **Gemini AI** and **OpenAI** APIs with streaming, function calling, and thought process extraction.
 
 **Live Demo**: [gemini-pwa-vue.vercel.app](https://gemini-pwa-vue.vercel.app)
+
+### Key Features
+- **Dual AI Provider Support** - Gemini AI and OpenAI with unified interface
+- **TRPG Function Calling** - 15+ game mechanics tools (dice, inventory, status, etc.)
+- **Character Image System** - Inline character images with outfit/expression management
+- **Settings Profiles** - Multiple configuration profiles with quick switching
+- **Thought Process Translation** - DeepL/Gemini translation for AI thinking
+- **Chat Summarization** - Reduce token usage by summarizing chat history
+- **PWA Support** - Offline functionality with service worker caching
+- **IndexedDB Storage** - Persistent chat history and character data
 
 ## Development Commands
 
@@ -60,6 +72,7 @@ app/                     # Nuxt 3 app directory (main source)
 │   ├── common/         # Shared components (MarkdownRenderer, etc.)
 │   └── ui/             # shadcn-vue UI components (atoms)
 ├── composables/        # Vue composables
+├── constants/          # Application constants
 ├── layouts/            # Vue layouts
 ├── lib/                # Core utilities and database
 ├── pages/              # Vue pages/routes
@@ -87,14 +100,17 @@ server/                 # Server-side code
 **Three-tier data architecture**:
 1. **Pinia Stores** (`app/stores/`)
    - `chat.ts` - Current chat session state
-   - `gemini.ts` - Gemini API configuration
-   - `settings.ts` - Application settings
+   - `gemini.ts` - Gemini API configuration and operations
+   - `openai.ts` - OpenAI API configuration and operations
+   - `settings.ts` - Global application settings
+   - `settingsProfiles.ts` - Settings profiles management
    - Persistence via `pinia-plugin-persistedstate`
 
 2. **IndexedDB Database** (`app/lib/database.ts`)
    - Chat history persistence
    - Message and file attachment storage
-   - Settings backup
+   - Character image data (characters, outfits, images)
+   - Settings and profiles backup
    - Uses Dexie.js for type-safe access
 
 3. **Composables** (`app/composables/`)
@@ -107,8 +123,11 @@ server/                 # Server-side code
 - **`useGeminiApi`** - Gemini AI API integration
   - `generateContent()` - Non-streaming generation
   - `generateContentStream()` - Streaming with async generator
-  - `validateApiKey()` - API key validation
   - `getAvailableModels()` - Fetch available models
+- **`useOpenAiAgentsApi`** - OpenAI Agents API integration
+  - Streaming support
+  - Function calling integration
+  - Thread management
 
 #### Function Calling System
 - **`useFunctionCalling`** - TRPG function execution framework
@@ -122,29 +141,44 @@ server/                 # Server-side code
 - **`useDataManagement`** - Import/export functionality
 - **`useHistoryManagement`** - Chat history operations
 
+#### Character Image System
+- **`useCharacterImages`** - Character image management
+  - Character, outfit, and image CRUD operations
+  - Image search and filtering
+- **`useImageUpload`** - Image upload handling
+- **`useImageOptimization`** - Image compression and optimization
+- **`useImageExport`** - Export character images to ZIP
+- **`useFolderUpload`** - Batch folder upload support
+
 #### Feature Composables
 - **`useTranslator`** - DeepL/Gemini translation
 - **`useProofreader`** - Text proofreading
 - **`useFontSettings`** - Font management
-- **`useSettings`** - Settings management
+- **`useSettings`** - Global settings management
+- **`useProfileSettings`** - Settings profile operations
+- **`useQuickActions`** - Quick settings modal actions
+- **`useStorageQuota`** - Storage quota monitoring
+- **`useSummary`** - Chat summarization
+- **`useNavigation`** - Page navigation helpers
+- **`useMobileMenu`** - Mobile menu state
+- **`useClickOutside`** - Click outside detection
 
 ### Function Calling Tools (`app/utils/functions/`)
-TRPG-specific utilities for game mechanics:
-- `rollDice` - Dice rolling mechanics with multiple dice types
-- `manageInventory` - Inventory management
-- `manageCharacterStatus` - Character stats
-- `manageRelationship` - Relationship tracking
-- `manageGameDate` - Game timeline
-- `manageScene` - Scene management
-- `managePersistentMemory` - Memory persistence
-- `manageFlags` - Game flags
-- `manageStyleProfile` - Style profiles
+TRPG-specific utilities for game mechanics that can be called by AI:
+- `rollDice` - Dice rolling mechanics with multiple dice types (d4, d6, d8, d10, d12, d20, d100)
+- `manageInventory` - Inventory management (add, remove, update items)
+- `manageCharacterStatus` - Character stats (HP, MP, status effects)
+- `manageRelationship` - Relationship tracking between characters
+- `manageGameDate` - Game timeline management
+- `manageScene` - Scene management (location, time, weather)
+- `managePersistentMemory` - Memory persistence across sessions
+- `manageFlags` - Game flags and triggers
+- `manageStyleProfile` - Writing style profiles
 - `getRandomChoice` - Random selection from arrays
 - `getRandomInteger` - Random integer generation
 - `generateRandomString` - Random string generation
 - `datetime` - Date/time utilities
-- `timer` - Timer functionality
-- `summarize` - Chat summarization functionality
+- `timer` - Timer functionality (countdown, stopwatch)
 
 ### Data Flow Patterns
 
@@ -171,6 +205,42 @@ TRPG-specific utilities for game mechanics:
    → Result returned to Gemini
    → Execution logged
    ```
+
+### Character Image System
+A comprehensive system for managing character images in TRPG scenarios:
+
+**Database Structure**:
+- `characters` table - Character metadata (name, description)
+- `characterOutfits` table - Outfit variations per character
+- `characterImages` table - Individual images (expression/scene)
+
+**Markdown Integration**:
+- Syntax: `![C-](:character/CharacterName/OutfitName/ExpressionName "image")`
+- Images render inline in chat messages
+- Supports dynamic image loading
+
+**Management Features**:
+- Folder batch upload (character → outfits → images)
+- Individual image upload with compression
+- Export to ZIP with structured folders
+- Search and filtering capabilities
+- Storage quota monitoring
+
+### Settings Profile System
+Multi-profile configuration management:
+
+**Profile Features**:
+- Multiple settings profiles with independent configurations
+- Profile-specific settings (model, temperature, system prompt, etc.)
+- Global settings shared across profiles
+- Default profile designation
+- Quick settings modal for temporary overrides
+
+**Settings Partitioning**:
+- `extractProfileSettings()` - Extract profile-specific settings
+- `extractGlobalSettings()` - Extract global settings
+- `mergeSettingsFromSlices()` - Merge profile and global settings
+- Supports temporary settings overlay
 
 ## PWA Configuration
 
@@ -267,10 +337,18 @@ Pre-commit hooks run in parallel:
 
 ### Gemini AI (`@google/genai`)
 - Content generation (streaming/non-streaming)
-- Model management
+- Model management with dynamic fetching
 - System instructions
-- Thought process extraction
+- Thought process extraction (`thinkingConfig`)
 - Function calling support
+- Google Search grounding tool
+
+### OpenAI (`@openai/agents`)
+- Agents API integration
+- Streaming support
+- Thread-based conversations
+- Function calling integration
+- Compatible with assistant configurations
 
 ### DeepL Translation (Optional)
 - Thought process translation
