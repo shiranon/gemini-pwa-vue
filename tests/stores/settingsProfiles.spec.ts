@@ -41,6 +41,7 @@ describe('useSettingsProfilesStore', () => {
         name: 'プロファイル1',
         description: 'テスト用プロファイル1',
         settings: {
+          apiProvider: 'gemini',
           modelName: 'gemini-1.5-pro',
           systemPrompt: 'テストプロンプト1',
           maxTokens: 1000,
@@ -70,6 +71,7 @@ describe('useSettingsProfilesStore', () => {
         name: 'デフォルト',
         description: 'デフォルトプロファイル',
         settings: {
+          apiProvider: 'gemini',
           modelName: 'gemini-1.5-flash',
           systemPrompt: 'デフォルトプロンプト',
           maxTokens: 2000,
@@ -126,6 +128,7 @@ describe('useSettingsProfilesStore', () => {
         name: 'あいうえお',
         description: 'あいうえおプロファイル',
         settings: {
+          apiProvider: 'gemini',
           modelName: 'gemini-1.5-pro',
           systemPrompt: 'テストプロンプト1',
           maxTokens: 1000,
@@ -166,6 +169,7 @@ describe('useSettingsProfilesStore', () => {
         name: 'テストプロファイル',
         description: 'テスト用',
         settings: {
+          apiProvider: 'gemini',
           modelName: 'gemini-1.5-pro',
           systemPrompt: 'テストプロンプト',
           maxTokens: 1000,
@@ -221,6 +225,7 @@ describe('useSettingsProfilesStore', () => {
         name: 'エクスポートテスト',
         description: 'エクスポート用プロファイル',
         settings: {
+          apiProvider: 'gemini',
           modelName: 'gemini-1.5-pro',
           systemPrompt: 'エクスポートプロンプト',
           maxTokens: 1000,
@@ -271,6 +276,7 @@ describe('useSettingsProfilesStore', () => {
         name: 'テスト1',
         description: '説明1',
         settings: {
+          apiProvider: 'gemini',
           modelName: 'gemini-1.5-pro',
           systemPrompt: 'テストプロンプト',
           maxTokens: 1000,
@@ -300,6 +306,7 @@ describe('useSettingsProfilesStore', () => {
         name: 'テスト2',
         description: '説明2',
         settings: {
+          apiProvider: 'gemini',
           modelName: 'gemini-1.5-flash',
           systemPrompt: 'テストプロンプト2',
           maxTokens: 2000,
@@ -337,6 +344,7 @@ describe('useSettingsProfilesStore', () => {
         name: 'タイムスタンプテスト',
         description: '説明',
         settings: {
+          apiProvider: 'gemini',
           modelName: 'gemini-1.5-pro',
           systemPrompt: 'テストプロンプト',
           maxTokens: 1000,
@@ -378,6 +386,7 @@ describe('useSettingsProfilesStore', () => {
         name: 'テストプロファイル',
         description: 'テスト用',
         settings: {
+          apiProvider: 'gemini',
           modelName: 'gemini-1.5-pro',
           systemPrompt: 'テストプロンプト',
           maxTokens: 1000,
@@ -445,6 +454,7 @@ describe('useSettingsProfilesStore', () => {
         name: '別のプロファイル',
         description: 'テスト用',
         settings: {
+          apiProvider: 'gemini',
           modelName: 'gemini-1.5-flash',
           systemPrompt: '別のプロンプト',
           maxTokens: 2000,
@@ -487,6 +497,7 @@ describe('useSettingsProfilesStore', () => {
         name: 'テストプロファイル',
         description: 'テスト用',
         settings: {
+          apiProvider: 'gemini',
           modelName: 'gemini-1.5-pro',
           systemPrompt: 'テストプロンプト',
           maxTokens: 1000,
@@ -563,6 +574,7 @@ describe('useSettingsProfilesStore', () => {
         name: 'テストプロファイル',
         description: 'テスト用',
         settings: {
+          apiProvider: 'gemini',
           modelName: 'gemini-1.5-pro',
           systemPrompt: 'テストプロンプト',
           maxTokens: 1000,

@@ -1,6 +1,7 @@
 import type { AppSettings, SettingsProfileData } from '~/types/settings'
 
 export const PROFILE_SETTING_KEYS = [
+  'apiProvider',
   'modelName',
   'systemPrompt',
   'maxTokens',
@@ -20,6 +21,7 @@ export const PROFILE_SETTING_KEYS = [
   'dummyModelPrompt',
   'prependDummyModelToResponse',
   'profileImage',
+  'openaiModelSettings',
 ] as const satisfies readonly (keyof SettingsProfileData)[]
 
 export type ProfileSettingKey = (typeof PROFILE_SETTING_KEYS)[number]
@@ -49,6 +51,12 @@ export const mergeProfilePartial = (base: SettingsProfileData, partial: Partial<
       case 'enabledFunctionTools': {
         if (Array.isArray(value)) {
           next.enabledFunctionTools = value.filter((item): item is string => typeof item === 'string')
+        }
+        break
+      }
+      case 'apiProvider': {
+        if (value === 'gemini' || value === 'openai') {
+          next.apiProvider = value
         }
         break
       }
@@ -90,6 +98,12 @@ export const mergeProfilePartial = (base: SettingsProfileData, partial: Partial<
         }
         break
       }
+      case 'openaiModelSettings': {
+        if (typeof value === 'object' || value === undefined) {
+          next.openaiModelSettings = value as typeof next.openaiModelSettings
+        }
+        break
+      }
     }
   }
 
@@ -98,6 +112,7 @@ export const mergeProfilePartial = (base: SettingsProfileData, partial: Partial<
 
 export const extractProfileSettings = (settings: AppSettings | SettingsProfileData): SettingsProfileData => {
   const {
+    apiProvider,
     modelName,
     systemPrompt,
     maxTokens,
@@ -117,9 +132,11 @@ export const extractProfileSettings = (settings: AppSettings | SettingsProfileDa
     dummyModelPrompt,
     prependDummyModelToResponse,
     profileImage,
+    openaiModelSettings,
   } = settings as AppSettings & SettingsProfileData
 
   return {
+    apiProvider,
     modelName,
     systemPrompt,
     maxTokens,
@@ -139,11 +156,13 @@ export const extractProfileSettings = (settings: AppSettings | SettingsProfileDa
     dummyModelPrompt,
     prependDummyModelToResponse,
     profileImage,
+    openaiModelSettings,
   }
 }
 
 export const extractGlobalSettings = (settings: AppSettings): GlobalSettingsSnapshot => {
   const {
+    apiProvider: _apiProvider,
     modelName: _modelName,
     systemPrompt: _systemPrompt,
     maxTokens: _maxTokens,

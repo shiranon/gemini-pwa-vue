@@ -31,6 +31,7 @@ describe('useQuickActions', () => {
         name: 'テストプロファイル',
         description: 'テスト用',
         settings: {
+          apiProvider: 'gemini',
           modelName: 'gemini-1.5-pro',
           systemPrompt: 'テストプロンプト',
           maxTokens: 1000,
@@ -86,6 +87,7 @@ describe('useQuickActions', () => {
         name: 'テストプロファイル',
         description: 'テスト用',
         settings: {
+          apiProvider: 'gemini',
           modelName: 'gemini-1.5-pro',
           systemPrompt: 'テストプロンプト',
           maxTokens: 1000,
@@ -122,6 +124,7 @@ describe('useQuickActions', () => {
         name: 'テストプロファイル',
         description: 'テスト用',
         settings: {
+          apiProvider: 'gemini',
           modelName: 'gemini-1.5-pro',
           systemPrompt: 'テストプロンプト',
           maxTokens: 1000,

@@ -12,6 +12,7 @@ export function useProfileSettings() {
 
   // ローカルの編集用プロファイル設定
   const localProfileSettings = ref<SettingsProfileData>({
+    apiProvider: 'gemini',
     modelName: '',
     systemPrompt: '',
     maxTokens: null,

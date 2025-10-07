@@ -1,20 +1,20 @@
 /**
- * Gemini API ストア
+ * OpenAI API ストア
  * API呼び出し、ストリーミング、エラー処理の状態管理を一元化
  */
 
-import type { Content } from '@google/genai'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { useGeminiApi, type CombinedResponse } from '~/composables/useGeminiApi'
+import { useOpenAiAgentsApi, type OpenAiApiSettings } from '~/composables/useOpenAiAgentsApi'
 import { proofreadText } from '~/composables/useProofreader'
 import { translateThoughts } from '~/composables/useTranslator'
 import { useChatStore } from '~/stores/chat'
 import { useSettingsStore } from '~/stores/settings'
-import type { ApiError, AssistantMessage, AttachedFile, ChatMessage, GeminiApiSettings, GeminiMessage } from '~/types/chat'
+import { useSettingsProfilesStore } from '~/stores/settingsProfiles'
+import type { ApiError, AssistantMessage, AttachedFile, ChatMessage } from '~/types/chat'
 import type { FunctionCall, FunctionCallResult } from '~/types/function-calling'
 
-export const useGeminiStore = defineStore('gemini', () => {
+export const useOpenAiStore = defineStore('openai', () => {
   // API実行状態
   const isSending = ref(false)
   const isStreaming = ref(false)
@@ -36,14 +36,14 @@ export const useGeminiStore = defineStore('gemini', () => {
     return totalApiCalls.value > 0 ? (successfulCalls.value / totalApiCalls.value) * 100 : 0
   })
 
-  const geminiApi = useGeminiApi()
+  const openaiApi = useOpenAiAgentsApi()
 
   /**
-   * チャットメッセージをGemini API用の形式に変換する
+   * チャットメッセージをOpenAI API用の形式に変換する
    */
-  const prepareMessagesForApi = (messages: ChatMessage[]): GeminiMessage[] => {
+  const prepareMessagesForApi = (messages: ChatMessage[]): Array<{ role: string; parts: Array<{ text: string }> }> => {
     return messages.map((msg) => ({
-      role: msg.role === 'assistant' ? 'model' : msg.role,
+      role: msg.role,
       parts: [{ text: msg.content }],
     }))
   }
@@ -51,11 +51,10 @@ export const useGeminiStore = defineStore('gemini', () => {
   /**
    * API設定から生成設定を構築する
    */
-  const buildGenerationConfig = (settings: GeminiApiSettings): Record<string, unknown> => {
+  const buildGenerationConfig = (settings: OpenAiApiSettings): Record<string, unknown> => {
     const config: Record<string, unknown> = {
       temperature: settings.temperature,
-      maxOutputTokens: settings.maxTokens,
-      topK: settings.topK,
+      maxTokens: settings.maxTokens,
       topP: settings.topP,
     }
 
@@ -63,23 +62,11 @@ export const useGeminiStore = defineStore('gemini', () => {
     if (settings.enableThinking) {
       config.thinkingConfig = {
         includeThoughts: settings.includeThoughts ?? false,
-        thinkingBudget: settings.thinkingBudget ?? -1, // nullの場合は-1（自動）を使用
+        thinkingBudget: settings.thinkingBudget ?? -1,
       }
     }
 
     return config
-  }
-
-  /**
-   * システムインストラクションを準備する
-   */
-  const prepareSystemInstruction = (settings: GeminiApiSettings): Content | null => {
-    return settings.systemPrompt
-      ? {
-          role: 'user',
-          parts: [{ text: settings.systemPrompt }],
-        }
-      : null
   }
 
   const settingsStore = useSettingsStore()
@@ -110,6 +97,9 @@ export const useGeminiStore = defineStore('gemini', () => {
       setTimeout(resolve, ms)
     })
 
+  /**
+   * エラーをApiError形式に変換（ベストプラクティス: より詳細なエラー分類）
+   */
   const toApiError = (error: unknown): ApiError => {
     if (error && typeof error === 'object' && 'apiError' in error && (error as { apiError?: ApiError }).apiError) {
       return (error as { apiError: ApiError }).apiError
@@ -142,13 +132,43 @@ export const useGeminiStore = defineStore('gemini', () => {
       details = error as object
     }
 
+    // ベストプラクティス: より詳細なエラー分類とリトライ判定
     const lowerMessage = message.toLowerCase()
-    const nonRetriableKeywords = ['invalid argument', 'invalid api key', 'permission', 'unauthorized', 'format', 'quota']
-    const nonRetriablePatterns = [/api\s*キーが不正/, /不正な\s*api\s*キー/]
-    let retirable = !nonRetriableKeywords.some((keyword) => lowerMessage.includes(keyword))
+    const nonRetriableKeywords = [
+      'invalid argument',
+      'invalid api key',
+      'permission',
+      'unauthorized',
+      'format',
+      'quota',
+      'billing',
+      'subscription',
+      'model not found',
+      'api key not found',
+      'authentication failed',
+    ]
+    const nonRetriablePatterns = [/api\s*キーが不正/, /不正な\s*api\s*キー/, /認証に失敗/, /利用制限/, /課金エラー/, /モデルが見つかりません/]
 
-    if (retirable) {
-      retirable = !nonRetriablePatterns.some((pattern) => pattern.test(lowerMessage))
+    // リトライ可能なエラー
+    const retriableKeywords = ['rate limit', 'timeout', 'network', 'connection', 'server error']
+    const retriablePatterns = [/レート制限/, /タイムアウト/, /ネットワークエラー/, /サーバーエラー/]
+
+    let retirable = true // デフォルトはリトライ可能
+
+    // 明らかにリトライ不可能なエラー
+    if (nonRetriableKeywords.some((keyword) => lowerMessage.includes(keyword))) {
+      retirable = false
+    }
+    if (nonRetriablePatterns.some((pattern) => pattern.test(lowerMessage))) {
+      retirable = false
+    }
+
+    // 明らかにリトライ可能なエラー
+    if (retriableKeywords.some((keyword) => lowerMessage.includes(keyword))) {
+      retirable = true
+    }
+    if (retriablePatterns.some((pattern) => pattern.test(lowerMessage))) {
+      retirable = true
     }
 
     const apiError: ApiError = {
@@ -165,13 +185,13 @@ export const useGeminiStore = defineStore('gemini', () => {
   }
 
   /**
-   * ストリーミングレスポンスを処理する
+   * ストリーミングレスポンスを処理する（ベストプラクティス: メモリ効率とエラーハンドリングの改善）
    */
   const handleStreamingResponse = async (
-    messagesForApi: GeminiMessage[],
+    messagesForApi: Array<{ role: string; parts: Array<{ text: string }> }>,
     generationConfig: Record<string, unknown>,
-    systemInstruction: Content | null,
-    settings: GeminiApiSettings,
+    systemInstruction: { role: string; parts: Array<{ text: string }> } | null,
+    settings: OpenAiApiSettings,
     callbacks: {
       onMessageStart: (message: ChatMessage) => number
       onMessageUpdate: (index: number, updates: Partial<ChatMessage>) => void
@@ -186,13 +206,14 @@ export const useGeminiStore = defineStore('gemini', () => {
     streamingContent.value = ''
     streamingMessageId.value = null
 
+    // メモリ効率の改善: 必要最小限のデータのみ保持
     let accumulatedThoughts: string | undefined
     let translated: string | undefined
     let accumulatedFunctionCalls: FunctionCall[] = []
     let accumulatedFunctionResults: FunctionCallResult[] = []
 
     try {
-      for await (const chunk of geminiApi.generateContentStream(messagesForApi, generationConfig, systemInstruction, settings)) {
+      for await (const chunk of openaiApi.generateContentStream(messagesForApi, generationConfig, systemInstruction, settings)) {
         if (chunk.type === 'chunk') {
           // 初回チャンクでメッセージを作成
           if (messageIndex === -1) {
@@ -230,7 +251,7 @@ export const useGeminiStore = defineStore('gemini', () => {
               chatStore.addMessage(assistantMessage)
               messageIndex = chatStore.currentMessages.length - 1
               streamingMessageId.value = assistantMessage.timestamp?.toString() || null
-              logger.info('[Geminiストア] アシスタントメッセージを作成（インデックス）:', { component: 'useGeminiStore' }, messageIndex)
+              logger.info('[OpenAIストア] アシスタントメッセージを作成（インデックス）:', { component: 'useOpenAiStore' }, messageIndex)
             }
           }
 
@@ -241,26 +262,26 @@ export const useGeminiStore = defineStore('gemini', () => {
           }
 
           // 思考プロセスが含まれている場合は蓄積
-          if (settings.includeThoughts && chunk.thoughts) {
+          if (settings.includeThoughts && 'thoughts' in chunk && typeof chunk.thoughts === 'string') {
             accumulatedThoughts = chunk.thoughts
           }
 
-          // Function Call の蓄積
+          // Function Call の蓄積（参照を避けてコピー）
           if (chunk.functionCalls) {
-            accumulatedFunctionCalls = chunk.functionCalls
+            accumulatedFunctionCalls = [...chunk.functionCalls]
           }
 
-          // Function Call 結果の蓄積
+          // Function Call 結果の蓄積（参照を避けてコピー）
           if ('functionResults' in chunk.data && chunk.data.functionResults) {
-            accumulatedFunctionResults = chunk.data.functionResults as FunctionCallResult[]
+            accumulatedFunctionResults = [...(chunk.data.functionResults as FunctionCallResult[])]
           }
 
           if (messageIndex !== -1 && assistantMessage) {
             callbacks.onMessageUpdate(messageIndex, {
               content: assistantMessage.content,
               ...(accumulatedThoughts && { thoughts: accumulatedThoughts }),
-              ...(accumulatedFunctionCalls.length > 0 && { functionCalls: accumulatedFunctionCalls }),
-              ...(accumulatedFunctionResults.length > 0 && { functionResults: accumulatedFunctionResults }),
+              ...(accumulatedFunctionCalls.length > 0 && { functionCalls: [...accumulatedFunctionCalls] }),
+              ...(accumulatedFunctionResults.length > 0 && { functionResults: [...accumulatedFunctionResults] }),
             })
           }
         }
@@ -282,7 +303,7 @@ export const useGeminiStore = defineStore('gemini', () => {
             })
             if (translated) assistantMessage.translatedThoughts = translated
           } catch (error) {
-            logger.warn('思考プロセスの翻訳に失敗しました:', { component: 'useGeminiStore' }, error)
+            logger.warn('思考プロセスの翻訳に失敗しました:', { component: 'useOpenAiStore' }, error)
           }
         }
       }
@@ -307,13 +328,15 @@ export const useGeminiStore = defineStore('gemini', () => {
             }
           }
         } catch (error) {
-          logger.warn('校正に失敗しました:', { component: 'useGeminiStore' }, error)
+          logger.warn('校正に失敗しました:', { component: 'useOpenAiStore' }, error)
         }
       }
 
       successfulCalls.value++
       completed = true
     } catch (error) {
+      // ベストプラクティス: より詳細なエラーログ
+      logger.error('[OpenAIストア] ストリーミング処理中にエラーが発生:', { component: 'useOpenAiStore' }, error)
       if (messageIndex !== -1 && assistantMessage) {
         callbacks.onMessageUpdate(messageIndex, {
           content: assistantMessage.content,
@@ -329,15 +352,14 @@ export const useGeminiStore = defineStore('gemini', () => {
       streamingMessageId.value = null
 
       // ストリーミング完了時の最終アップデートを送信
-      // これによりChatInterfaceで!geminiStore.isStreamingの条件でcompleteStreamingが呼ばれる
       if (completed && messageIndex !== -1 && assistantMessage) {
         callbacks.onMessageUpdate(messageIndex, {
           content: assistantMessage.content,
           ...(accumulatedThoughts && { thoughts: accumulatedThoughts }),
           ...(translated && { translatedThoughts: translated }),
-          ...(accumulatedFunctionCalls.length > 0 && { functionCalls: accumulatedFunctionCalls }),
-          ...(accumulatedFunctionResults.length > 0 && { functionResults: accumulatedFunctionResults }),
-          isStreamingComplete: true, // ストリーミング完了フラグ
+          ...(accumulatedFunctionCalls.length > 0 && { functionCalls: [...accumulatedFunctionCalls] }),
+          ...(accumulatedFunctionResults.length > 0 && { functionResults: [...accumulatedFunctionResults] }),
+          isStreamingComplete: true,
         })
       }
     }
@@ -347,31 +369,31 @@ export const useGeminiStore = defineStore('gemini', () => {
    * 非ストリーミングレスポンスを処理する
    */
   const handleNonStreamingResponse = async (
-    messagesForApi: GeminiMessage[],
+    messagesForApi: Array<{ role: string; parts: Array<{ text: string }> }>,
     generationConfig: Record<string, unknown>,
-    systemInstruction: Content | null,
-    settings: GeminiApiSettings,
+    systemInstruction: { role: string; parts: Array<{ text: string }> } | null,
+    settings: OpenAiApiSettings,
     callbacks: {
       onMessageAdd: (message: ChatMessage) => void
     }
   ) => {
-    const response: CombinedResponse = await geminiApi.generateContent(messagesForApi, generationConfig, systemInstruction, settings)
+    const response = await openaiApi.generateContent(messagesForApi, generationConfig, systemInstruction, settings)
 
-    if (response.candidates && response.candidates[0]) {
+    if (response.text) {
       // 思考プロセスを抽出
-      const thoughtExtraction = geminiApi.extractThoughtsFromResponse(response)
+      const thoughts = response.thoughts
 
-      logger.info('[Geminiストア] 関数呼び出しを含む応答:', {
+      logger.info('[OpenAIストア] 関数呼び出しを含む応答:', {
         functionCalls: response.functionCalls,
         functionResults: response.functionResults,
       })
 
       let translated: string | undefined
-      if (settings.includeThoughts && settings.enableThoughtTranslation && thoughtExtraction.thoughts) {
+      if (settings.includeThoughts && settings.enableThoughtTranslation && thoughts) {
         try {
           translated = await translateThoughts({
             provider: settings.thoughtTranslationProvider === 'deepl' ? 'deepl' : 'gemini',
-            text: thoughtExtraction.thoughts,
+            text: thoughts,
             settings: {
               apiKey: settings.apiKey,
               thoughtTranslationModel: settings.thoughtTranslationModel || 'gemini-2.0-flash-lite',
@@ -379,12 +401,12 @@ export const useGeminiStore = defineStore('gemini', () => {
             },
           })
         } catch (error) {
-          logger.warn('思考プロセスの翻訳に失敗しました:', { component: 'useGeminiStore' }, error)
+          logger.warn('思考プロセスの翻訳に失敗しました:', { component: 'useOpenAiStore' }, error)
         }
       }
 
       // 校正（任意）: 非ストリーミングでも応答生成後に校正
-      let finalContent = thoughtExtraction.content
+      let finalContent = response.text
       let isProofread = false
       if (settings.enableProofreading) {
         try {
@@ -398,7 +420,7 @@ export const useGeminiStore = defineStore('gemini', () => {
             isProofread = true
           }
         } catch (error) {
-          logger.warn('校正に失敗しました:', { component: 'useGeminiStore' }, error)
+          logger.warn('校正に失敗しました:', { component: 'useOpenAiStore' }, error)
         }
       }
 
@@ -412,8 +434,8 @@ export const useGeminiStore = defineStore('gemini', () => {
         content: finalContent,
         timestamp: Date.now(),
         ...(settings.includeThoughts &&
-          thoughtExtraction.thoughts && {
-            thoughts: thoughtExtraction.thoughts,
+          thoughts && {
+            thoughts,
           }),
         ...(isProofread && { isProofread: true }),
         ...(translated && { translatedThoughts: translated }),
@@ -425,7 +447,17 @@ export const useGeminiStore = defineStore('gemini', () => {
         }),
       }
 
-      logger.info('[Geminiストア] アシスタントメッセージを作成:', { component: 'useGeminiStore' }, assistantMessage)
+      // デバッグ: 非ストリーミング - アシスタントメッセージを確認
+      logger.info('[OpenAIストア] アシスタントメッセージを作成:', {
+        component: 'useOpenAiStore',
+        contentLength: assistantMessage.content.length,
+        hasFunctionCalls: !!assistantMessage.functionCalls,
+        functionCallsCount: assistantMessage.functionCalls?.length || 0,
+        hasFunctionResults: !!assistantMessage.functionResults,
+        functionResultsCount: assistantMessage.functionResults?.length || 0,
+        functionCalls: assistantMessage.functionCalls?.map((fc: FunctionCall) => ({ name: fc.name, hasArgs: Object.keys(fc.args).length > 0 })),
+        functionResults: assistantMessage.functionResults?.map((fr: FunctionCallResult) => ({ name: fr.name, hasResult: !!fr.result, hasError: !!fr.error })),
+      })
 
       callbacks.onMessageAdd(assistantMessage)
       successfulCalls.value++
@@ -435,11 +467,11 @@ export const useGeminiStore = defineStore('gemini', () => {
   }
 
   /**
-   * Geminiメッセージを送信する統合処理
+   * OpenAIメッセージを送信する統合処理
    */
-  const executeGeminiRequest = async (
+  const executeOpenAiRequest = async (
     messages: ChatMessage[],
-    settings: GeminiApiSettings,
+    settings: OpenAiApiSettings,
     callbacks: {
       onAssistantMessageStart: (message: ChatMessage) => number
       onAssistantMessageAdd: (message: ChatMessage) => void
@@ -463,10 +495,15 @@ export const useGeminiStore = defineStore('gemini', () => {
       clearError()
       callbacks.onError?.(null)
 
-      const messagesForApi: GeminiMessage[] = prepareMessagesForApi(messages)
+      const messagesForApi = prepareMessagesForApi(messages)
 
       const generationConfig = buildGenerationConfig(settings)
-      const systemInstruction = prepareSystemInstruction(settings)
+      const systemInstruction = settings.systemPrompt
+        ? {
+            role: 'user',
+            parts: [{ text: settings.systemPrompt }],
+          }
+        : null
       const retrySettings = settingsStore.retrySettings
       const maxRetries = Math.max(0, retrySettings.maxRetries)
       let attempt = 0
@@ -498,7 +535,7 @@ export const useGeminiStore = defineStore('gemini', () => {
           if (attempt > 1) {
             logger.info('[自動リトライ] 再試行に成功しました', { attempt })
           } else {
-            logger.info('[自動リトライ] 初回の試行で成功しました', { component: 'useGeminiStore' })
+            logger.info('[自動リトライ] 初回の試行で成功しました', { component: 'useOpenAiStore' })
           }
           break
         } catch (error) {
@@ -510,10 +547,14 @@ export const useGeminiStore = defineStore('gemini', () => {
           const shouldRetry = retrySettings.enableAutoRetry && apiError.retirable !== false && retriesUsed < maxRetries
 
           const retryNumber = retriesUsed + 1
+          // ベストプラクティス: より柔軟なリトライ遅延計算
           const delayMs = shouldRetry
             ? retrySettings.useFixedRetryDelay
               ? Math.max(1, retrySettings.fixedRetryDelaySeconds) * 1000
-              : Math.min(Math.pow(2, retryNumber - 1) * 1000, Math.max(1, retrySettings.maxBackoffDelaySeconds) * 1000)
+              : Math.min(
+                  Math.pow(2, retryNumber - 1) * 1000 + Math.random() * 1000, // ジッター追加
+                  Math.max(1, retrySettings.maxBackoffDelaySeconds) * 1000
+                )
             : undefined
 
           callbacks.onError?.({
@@ -528,7 +569,9 @@ export const useGeminiStore = defineStore('gemini', () => {
             callbacks.onRetryScheduled?.({ attempt: retryNumber, delayMs })
             logger.info('[自動リトライ] 再試行を予約しました', {
               nextAttempt: retryNumber + 1,
-              delayMs,
+              delayMs: Math.round(delayMs),
+              errorCode: apiError.code,
+              retirable: apiError.retirable,
             })
           }
 
@@ -536,6 +579,8 @@ export const useGeminiStore = defineStore('gemini', () => {
             logger.info('[自動リトライ] 再試行を断念します', {
               finalAttempt: attempt,
               errorCode: apiError.code,
+              retirable: apiError.retirable,
+              reason: !retrySettings.enableAutoRetry ? 'auto-retry disabled' : apiError.retirable === false ? 'non-retriable error' : retriesUsed >= maxRetries ? 'max retries reached' : 'unknown',
             })
             const propagated = Object.assign(new Error(apiError.message), {
               apiError,
@@ -638,6 +683,24 @@ export const useGeminiStore = defineStore('gemini', () => {
     // プロファイル設定とグローバル設定を統合
     const activeProfile = profilesStore.activeProfile
     const profileSettings = getActiveProfileSettings()
+
+    // デバッグ: グローバル設定の確認
+    logger.info('[OpenAIストア] グローバル設定確認:', {
+      component: 'useOpenAiStore',
+      openaiApiKey: settingsStore.settings.openaiApiKey ? '設定済み' : '未設定',
+      openaiApiKeyLength: settingsStore.settings.openaiApiKey?.length || 0,
+      apiKey: settingsStore.settings.apiKey ? '設定済み' : '未設定',
+      hasActiveProfile: !!activeProfile,
+    })
+
+    // デバッグ: プロファイル設定の確認
+    logger.info('[OpenAIストア] プロファイル設定確認:', {
+      component: 'useOpenAiStore',
+      profileSettings: profileSettings ? 'あり' : 'なし',
+      apiProvider: profileSettings?.apiProvider,
+      modelName: profileSettings?.modelName,
+    })
+
     const combinedSettings = activeProfile
       ? {
           ...settingsStore.settings,
@@ -645,15 +708,29 @@ export const useGeminiStore = defineStore('gemini', () => {
         }
       : settingsStore.settings
 
-    const settings = {
-      ...settingsStore.apiSettings,
-      // プロファイル設定で上書き
+    // デバッグ: 統合設定の確認
+    logger.info('[OpenAIストア] 統合設定確認:', {
+      component: 'useOpenAiStore',
+      openaiApiKey: combinedSettings.openaiApiKey ? '設定済み' : '未設定',
+      openaiApiKeyLength: combinedSettings.openaiApiKey?.length || 0,
+      modelName: combinedSettings.modelName,
+      apiProvider: combinedSettings.apiProvider,
+    })
+
+    // OpenAI基本設定を構築（GeminiのapiSettingsと同様）
+    const baseOpenAiSettings: OpenAiApiSettings = {
+      apiKey: combinedSettings.openaiApiKey || '',
       model: combinedSettings.modelName,
       temperature: combinedSettings.temperature ?? 1.0,
       maxTokens: combinedSettings.maxTokens,
-      topK: combinedSettings.topK ?? 1,
+      topK: 1, // OpenAIは使わないがGeminiApiSettings互換のため必要
       topP: combinedSettings.topP ?? 0.95,
-      geminiEnableGrounding: combinedSettings.geminiEnableGrounding,
+      systemPrompt: combinedSettings.systemPrompt,
+      streamingOutput: combinedSettings.streamingOutput,
+      enableThinking: combinedSettings.enableThinking,
+      includeThoughts: combinedSettings.includeThoughts,
+      thinkingBudget: combinedSettings.thinkingBudget,
+      modelSettings: profileSettings?.openaiModelSettings,
       functionCalling: combinedSettings.geminiEnableFunctionCalling
         ? {
             enabled: true,
@@ -666,13 +743,44 @@ export const useGeminiStore = defineStore('gemini', () => {
       enableDummyModelPrompt: combinedSettings.enableDummyModelPrompt,
       dummyModelPrompt: combinedSettings.dummyModelPrompt,
       prependDummyModelToResponse: combinedSettings.prependDummyModelToResponse,
+      enableProofreading: combinedSettings.enableProofreading,
+      proofreadingModelName: combinedSettings.proofreadingModelName,
+      proofreadingSystemInstruction: combinedSettings.proofreadingSystemInstruction,
+      enableThoughtTranslation: combinedSettings.enableThoughtTranslation,
+      thoughtTranslationProvider: combinedSettings.thoughtTranslationProvider,
+      thoughtTranslationModel: combinedSettings.thoughtTranslationModel,
+      deeplApiKey: combinedSettings.deeplApiKey,
+    }
+
+    // デバッグ: Function Calling設定をログ出力
+    logger.info('[OpenAIストア] Function Calling設定:', {
+      component: 'useOpenAiStore',
+      geminiEnableFunctionCalling: combinedSettings.geminiEnableFunctionCalling,
+      functionCallingMode: combinedSettings.functionCallingMode,
+      enabledFunctionTools: combinedSettings.enabledFunctionTools,
+      enabledFunctionToolsLength: combinedSettings.enabledFunctionTools?.length,
+      functionCalling: baseOpenAiSettings.functionCalling,
+    })
+
+    // systemPromptはchatStoreから上書き
+    const settings: OpenAiApiSettings = {
+      ...baseOpenAiSettings,
       systemPrompt: chatStore.systemPrompt,
     }
+
+    // デバッグ: 最終的な設定をログ出力
+    logger.info('[OpenAIストア] 最終設定:', {
+      component: 'useOpenAiStore',
+      model: settings.model,
+      apiKey: settings.apiKey ? `設定済み(${settings.apiKey.substring(0, 10)}...)` : '未設定',
+      apiKeyLength: settings.apiKey?.length || 0,
+      modelSettings: settings.modelSettings,
+    })
 
     if (!settings.apiKey) {
       const apiError: ApiError = {
         code: 'NO_API_KEY',
-        message: 'APIキーを設定してください',
+        message: 'OpenAI APIキーを設定してください',
         retirable: false,
       }
       setError(apiError.message)
@@ -686,7 +794,7 @@ export const useGeminiStore = defineStore('gemini', () => {
       return false
     }
 
-    await executeGeminiRequest(
+    await executeOpenAiRequest(
       chatStore.currentMessages,
       settings,
       createChatCallbacks({
@@ -696,7 +804,7 @@ export const useGeminiStore = defineStore('gemini', () => {
       })
     )
 
-    logger.info('[自動リトライ] sendChatMessageが正常終了しました', { component: 'useGeminiStore' })
+    logger.info('[自動リトライ] sendChatMessageが正常終了しました', { component: 'useOpenAiStore' })
 
     return true
   }
@@ -705,7 +813,7 @@ export const useGeminiStore = defineStore('gemini', () => {
     const chatStore = useChatStore()
     const messageToRetry = chatStore.retryFromError()
     if (!messageToRetry) {
-      logger.info('[自動リトライ] リトライ対象のユーザーメッセージが見つかりませんでした', { component: 'useGeminiStore' })
+      logger.info('[自動リトライ] リトライ対象のユーザーメッセージが見つかりませんでした', { component: 'useOpenAiStore' })
       return false
     }
 

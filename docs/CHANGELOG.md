@@ -1,5 +1,14 @@
 ## 更新履歴
 
+### Version 0.1.10 (2025-10-07)
+- 機能追加
+  - OpenAI API対応
+    - OpenAI Agents SDK (`@openai/agents`) による実装
+    - GPT-5, GPT-4o, GPT-3.5, o1シリーズに対応
+    - ストリーミング・非ストリーミング両対応
+    - Function Calling機能の統合
+    - GPT-5モデル専用設定（reasoning effort, text verbosity）
+
 ### Version 0.1.9 (2025-10-06)
 - 機能追加
   - 画像管理機能を大幅拡張

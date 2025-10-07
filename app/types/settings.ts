@@ -154,11 +154,37 @@ export interface ChatAvatarSettings {
 }
 
 // ============================================================================
+// OpenAI設定型
+// ============================================================================
+
+/** APIプロバイダー */
+export type ApiProvider = 'gemini' | 'openai'
+
+/** GPT-5 モデルの reasoning 設定 */
+export interface OpenAiReasoningSettings {
+  effort?: 'minimal' | 'low' | 'medium' | 'high'
+}
+
+/** GPT-5 モデルの text verbosity 設定 */
+export interface OpenAiTextSettings {
+  verbosity?: 'low' | 'medium' | 'high'
+}
+
+/** GPT-5 モデル設定 */
+export interface OpenAiModelSettings {
+  reasoning?: OpenAiReasoningSettings
+  text?: OpenAiTextSettings
+}
+
+// ============================================================================
 // プロファイル設定型
 // ============================================================================
 
 /** 設定プロファイルに含める項目のみを定義 */
 export interface SettingsProfileData {
+  // APIプロバイダー設定
+  apiProvider: ApiProvider
+
   // API・モデル設定
   modelName: string
   systemPrompt: string
@@ -184,6 +210,9 @@ export interface SettingsProfileData {
   enableDummyModelPrompt: boolean
   dummyModelPrompt: string
   prependDummyModelToResponse: boolean
+
+  // OpenAI設定（プロファイル固有）
+  openaiModelSettings?: OpenAiModelSettings
 
   // プロファイル画像
   profileImage?: string
@@ -217,8 +246,12 @@ export interface AppSettings
     NavigationSettings,
     ImageOptimizationSettings,
     AvatarSettings {
+  /** APIプロバイダー設定 */
+  apiProvider: ApiProvider
   /** Gemini API基本設定 */
   apiKey: string
+  /** OpenAI API基本設定 */
+  openaiApiKey: string
   modelName: string
   streamingSpeed: number
   systemPrompt: string
@@ -236,8 +269,11 @@ export interface AppSettings
 
 /** 設定のデフォルト値 */
 export const DEFAULT_SETTINGS: AppSettings = {
+  // APIプロバイダー設定
+  apiProvider: 'gemini',
   // 開発時は環境変数から取得する
   apiKey: process.env.GEMINI_API_KEY || '',
+  openaiApiKey: process.env.OPENAI_API_KEY || '',
   modelName: 'gemini-2.5-flash',
   streamingSpeed: 30,
   systemPrompt: '',
