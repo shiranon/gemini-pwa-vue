@@ -1,4 +1,4 @@
-import { Agent, run, setDefaultOpenAIClient, tool, user, assistant, type ModelSettings, type NonStreamRunOptions, type StreamRunOptions, type AgentInputItem } from '@openai/agents'
+import { Agent, assistant, run, setDefaultOpenAIClient, tool, user, type AgentInputItem, type ModelSettings, type NonStreamRunOptions, type StreamRunOptions } from '@openai/agents'
 import { OpenAI } from 'openai'
 import { useFunctionCalling } from '~/composables/useFunctionCalling'
 import { generateMessageId } from '~/lib/ids'
@@ -12,7 +12,15 @@ import { logger } from '~/utils/logger'
  */
 interface StreamEvent {
   type: string
-  data?: unknown
+  data?: {
+    type?: string
+    delta?: string
+    [key: string]: unknown
+  }
+  delta?: string
+  item_id?: string
+  output_index?: number
+  content_index?: number
 }
 
 /**
@@ -121,6 +129,63 @@ const extractTextFromResult = (result: unknown): string => {
 }
 
 /**
+ * Gemini API の Type enum を OpenAI の文字列型に変換
+ */
+const convertGeminiTypeToOpenAiType = (type: unknown): string => {
+  // Type.OBJECT などの enum 値は実際には "OBJECT" という文字列になっている
+  if (typeof type === 'string') {
+    const typeStr = type.toUpperCase()
+    switch (typeStr) {
+      case 'OBJECT':
+        return 'object'
+      case 'STRING':
+        return 'string'
+      case 'NUMBER':
+      case 'INTEGER':
+        return 'number'
+      case 'BOOLEAN':
+        return 'boolean'
+      case 'ARRAY':
+        return 'array'
+      default:
+        return type.toLowerCase()
+    }
+  }
+  return 'string' // デフォルト
+}
+
+/**
+ * Gemini API のパラメータスキーマを OpenAI 形式に変換
+ */
+const convertGeminiSchemaToOpenAi = (schema: unknown): unknown => {
+  if (!schema || typeof schema !== 'object') {
+    return schema
+  }
+
+  const result: Record<string, unknown> = {}
+
+  for (const [key, value] of Object.entries(schema as Record<string, unknown>)) {
+    if (key === 'type') {
+      result[key] = convertGeminiTypeToOpenAiType(value)
+    } else if (key === 'properties' && value && typeof value === 'object') {
+      // properties内の各プロパティも再帰的に変換
+      const properties: Record<string, unknown> = {}
+      for (const [propKey, propValue] of Object.entries(value as Record<string, unknown>)) {
+        properties[propKey] = convertGeminiSchemaToOpenAi(propValue)
+      }
+      result[key] = properties
+    } else if (key === 'items' && value && typeof value === 'object') {
+      // array の items も再帰的に変換
+      result[key] = convertGeminiSchemaToOpenAi(value)
+    } else {
+      result[key] = value
+    }
+  }
+
+  return result
+}
+
+/**
  * OpenAI Agents APIを使用したチャット機能
  * Gemini APIと互換性のあるインターフェース
  */
@@ -129,18 +194,24 @@ export const useOpenAiAgentsApi = () => {
   const chatStore = useChatStore()
 
   /**
+   * Function Callsを記録するための配列（グローバル状態）
+   */
+  let recordedFunctionCalls: FunctionCall[] = []
+  let recordedFunctionResults: FunctionCallResult[] = []
+
+  /**
+   * 記録をクリア
+   */
+  const clearFunctionCallRecords = () => {
+    recordedFunctionCalls = []
+    recordedFunctionResults = []
+  }
+
+  /**
    * OpenAI Agentを作成（ベストプラクティスに基づく簡潔な実装）
    */
   const createAgent = (settings: OpenAiApiSettings, systemInstruction?: string) => {
     const instructions = systemInstruction || settings.systemPrompt || 'You are a helpful assistant'
-
-    // デバッグ: APIキーの確認
-    logger.info('[useOpenAiAgentsApi] createAgent 設定確認:', {
-      component: 'useOpenAiAgentsApi',
-      apiKey: settings.apiKey ? `設定済み(${settings.apiKey.substring(0, 10)}...)` : '未設定',
-      apiKeyLength: settings.apiKey?.length || 0,
-      model: settings.model,
-    })
 
     // OpenAI Agents SDKのデフォルトクライアントを設定（ブラウザ環境対応）
     if (settings.apiKey) {
@@ -170,31 +241,81 @@ export const useOpenAiAgentsApi = () => {
           }
         }
 
+        // Gemini API のスキーマを OpenAI 形式に変換
+        const convertedParameters = func.parameters ? convertGeminiSchemaToOpenAi(func.parameters) : undefined
+
         // SDKのtool関数を使って適切なツールを作成
         const toolDefinition = tool({
           name: func.name || 'unknown',
           description: func.description || '',
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          parameters: func.parameters ? (func.parameters as any) : undefined,
+          parameters: convertedParameters as any,
           strict: false,
           execute: async (input: unknown) => {
             // Function Callingの実行は既存のロジックを使用
             const functionCall: FunctionCall = {
               name: func.name || 'unknown',
-              args: typeof input === 'string' ? JSON.parse(input) : input,
+              args: typeof input === 'string' ? JSON.parse(input) : (input as Record<string, unknown>),
             }
 
-            const result = await executeFunction(functionCall, {
-              messageId: generateMessageId(),
-              timestamp: Date.now(),
-              persistentMemory: chatStore.currentSession?.persistentMemory || {},
-            })
+            logger.info('[OpenAI] tool.execute 開始:', { component: 'useOpenAiAgentsApi' }, functionCall)
 
-            return JSON.stringify(result.result || result.error || '')
+            // Function Callを記録
+            recordedFunctionCalls.push(functionCall)
+
+            try {
+              const result = await executeFunction(functionCall, {
+                messageId: generateMessageId(),
+                timestamp: Date.now(),
+                persistentMemory: chatStore.currentSession?.persistentMemory || {},
+              })
+
+              logger.info('[OpenAI] tool.execute 完了:', { component: 'useOpenAiAgentsApi' }, result)
+
+              // 結果を記録
+              recordedFunctionResults.push(result)
+
+              // persistentMemoryを更新
+              if (result.context?.persistentMemory && chatStore.currentSession) {
+                chatStore.currentSession.persistentMemory = result.context.persistentMemory as typeof chatStore.currentSession.persistentMemory
+              }
+
+              return JSON.stringify(result.result || result.error || '')
+            } catch (error) {
+              logger.error('[OpenAI] tool.execute エラー:', { component: 'useOpenAiAgentsApi' }, error)
+
+              const errorResult: FunctionCallResult = {
+                name: functionCall.name,
+                args: functionCall.args,
+                result: null,
+                error: error instanceof Error ? error.message : String(error),
+              }
+
+              // エラー結果も記録
+              recordedFunctionResults.push(errorResult)
+
+              return JSON.stringify({ error: errorResult.error })
+            }
           },
         })
 
         tools.push(toolDefinition)
+      }
+    }
+
+    // tool_choiceの設定（Function Calling modeに応じて）
+    let toolChoice: 'auto' | 'required' | 'none' | undefined
+    if (settings.functionCalling?.enabled && tools.length > 0) {
+      const mode = settings.functionCalling.mode
+      if (mode === 'any') {
+        toolChoice = 'required' // 必ずツールを呼び出す
+        logger.info('[useOpenAiAgentsApi] tool_choice: required (any mode)')
+      } else if (mode === 'none') {
+        toolChoice = 'none' // ツールを呼び出さない
+        logger.info('[useOpenAiAgentsApi] tool_choice: none')
+      } else {
+        toolChoice = 'auto' // モデルが自動的に判断（デフォルト）
+        logger.info('[useOpenAiAgentsApi] tool_choice: auto (auto mode)')
       }
     }
 
@@ -203,12 +324,14 @@ export const useOpenAiAgentsApi = () => {
       instructions: string
       model: string
       tools?: ReturnType<typeof tool>[]
+      toolChoice?: 'auto' | 'required' | 'none'
       modelSettings?: ModelSettings
     } = {
       name: 'Assistant',
       instructions,
       model: settings.model,
       ...(tools.length > 0 && { tools }),
+      ...(toolChoice && { toolChoice }),
     }
 
     // GPT-5モデルの場合、SDKの型定義を使用してモデル設定を追加
@@ -229,60 +352,6 @@ export const useOpenAiAgentsApi = () => {
     }
 
     return new Agent(agentConfig)
-  }
-
-  /**
-   * Function Calling を検出・実行する
-   */
-  const handleFunctionCalls = async (events: StreamEvent[], messageId?: string): Promise<{ functionCalls: FunctionCall[]; functionResults: FunctionCallResult[] }> => {
-    logger.info('[OpenAI] Function Calling処理開始:', { messageId })
-    const functionCalls: FunctionCall[] = []
-    const functionResults: FunctionCallResult[] = []
-
-    for (const event of events) {
-      // tool_call イベントを検出
-      if (event.type === 'tool_call') {
-        const toolCall = event.data as { name: string; arguments: Record<string, unknown> }
-        const functionCall: FunctionCall = {
-          name: toolCall.name,
-          args: toolCall.arguments || {},
-        }
-        logger.info(`[OpenAI] Function Call検出:`, { component: 'useOpenAiAgentsApi' }, functionCall)
-        functionCalls.push(functionCall)
-
-        try {
-          logger.info(`[OpenAI] 関数実行開始:`, { component: 'useOpenAiAgentsApi' }, functionCall.name)
-          const result = await executeFunction(functionCall, {
-            messageId,
-            timestamp: Date.now(),
-            persistentMemory: chatStore.currentSession?.persistentMemory || {},
-          })
-          logger.info(`[OpenAI] 関数実行完了:`, { component: 'useOpenAiAgentsApi' }, functionCall.name, result)
-          functionResults.push(result)
-
-          // persistentMemoryを更新
-          if (result.context?.persistentMemory && chatStore.currentSession) {
-            chatStore.currentSession.persistentMemory = result.context.persistentMemory as typeof chatStore.currentSession.persistentMemory
-          }
-        } catch (error) {
-          logger.error(`[OpenAI] 関数の実行に失敗:`, { component: 'useOpenAiAgentsApi' }, functionCall.name, error)
-          const errorResult = {
-            name: functionCall.name,
-            args: functionCall.args,
-            result: null,
-            error: error instanceof Error ? error.message : String(error),
-          }
-          functionResults.push(errorResult)
-        }
-      }
-    }
-
-    logger.info('[OpenAI] Function Calling処理完了:', {
-      functionCallsCount: functionCalls.length,
-      functionResultsCount: functionResults.length,
-    })
-
-    return { functionCalls, functionResults }
   }
 
   /**
@@ -313,6 +382,9 @@ export const useOpenAiAgentsApi = () => {
     settings: OpenAiApiSettings
   ): Promise<OpenAiCombinedResponse> => {
     try {
+      // Function Calls記録をクリア
+      clearFunctionCallRecords()
+
       // システムインストラクションを取得
       const systemPrompt = systemInstruction?.parts?.[0]?.text || settings.systemPrompt
 
@@ -345,41 +417,26 @@ export const useOpenAiAgentsApi = () => {
 
       const result = await run(agent, agentInput, runOptions)
 
-      // デバッグ: レスポンスの中身を確認
-      logger.info('[OpenAI] generateContent レスポンス:', { component: 'useOpenAiAgentsApi' }, result)
-
       // レスポンスからテキストを抽出
       const text = extractTextFromResult(result)
-
-      // デバッグ: 抽出されたテキストを確認
-      logger.info('[OpenAI] 抽出されたテキスト:', { component: 'useOpenAiAgentsApi' }, { text, textLength: text.length })
 
       if (!text.trim()) {
         throw new Error('API応答が空です')
       }
 
-      // Function Callsの処理（イベントから抽出）
-      let functionCalls: FunctionCall[] = []
-      let functionResults: FunctionCallResult[] = []
-
-      if (settings.functionCalling?.enabled && result && typeof result === 'object' && 'events' in result) {
-        const events = ((result as { events?: StreamEvent[] }).events as StreamEvent[]) || []
-        const fcResult = await handleFunctionCalls(events, generateMessageId())
-        functionCalls = fcResult.functionCalls
-        functionResults = fcResult.functionResults
-
-        // Function Callがある場合、結果を含めて再実行
-        if (functionCalls.length > 0) {
-          logger.info('[OpenAI] 関数結果を含めて再実行')
-          // TODO: Function Call結果を含めた再実行の実装
-          // OpenAI Agents SDKでは自動的に処理されるため、ここでは追加処理不要の可能性あり
-        }
-      }
+      // 記録されたFunction Callsを取得
+      logger.info('[OpenAI] generateContent - 記録されたFunction Calls:', {
+        component: 'useOpenAiAgentsApi',
+        functionCallsCount: recordedFunctionCalls.length,
+        functionResultsCount: recordedFunctionResults.length,
+        functionCalls: recordedFunctionCalls.map((fc) => ({ name: fc.name, hasArgs: Object.keys(fc.args).length > 0 })),
+        functionResults: recordedFunctionResults.map((fr) => ({ name: fr.name, hasResult: !!fr.result, hasError: !!fr.error })),
+      })
 
       const combined: OpenAiCombinedResponse = {
         text,
-        functionCalls: functionCalls.length > 0 ? functionCalls : undefined,
-        functionResults: functionResults.length > 0 ? functionResults : undefined,
+        functionCalls: recordedFunctionCalls.length > 0 ? [...recordedFunctionCalls] : undefined,
+        functionResults: recordedFunctionResults.length > 0 ? [...recordedFunctionResults] : undefined,
       }
 
       return combined
@@ -419,6 +476,9 @@ export const useOpenAiAgentsApi = () => {
     settings: OpenAiApiSettings
   ) {
     try {
+      // Function Calls記録をクリア
+      clearFunctionCallRecords()
+
       // システムインストラクションを取得
       const systemPrompt = systemInstruction?.parts?.[0]?.text || settings.systemPrompt
 
@@ -451,69 +511,50 @@ export const useOpenAiAgentsApi = () => {
 
       const stream = await run(agent, agentInput, streamOptions)
 
-      // メモリ効率の改善: 必要最小限のデータのみ保持
-      const accumulatedFunctionCalls: FunctionCall[] = []
-      const accumulatedFunctionResults: FunctionCallResult[] = []
+      // Function Callsの前回の状態を追跡
+      let lastFunctionCallsCount = 0
+      let lastFunctionResultsCount = 0
 
       // ストリームからイベントを取得
       for await (const event of stream) {
         const streamEvent = event as StreamEvent
 
-        // テキストチャンクを処理
-        if (streamEvent.type === 'raw_model_stream_event') {
-          const data = streamEvent.data as { choices?: Array<{ delta?: { content?: string } }> }
-          const content = data.choices?.[0]?.delta?.content || ''
+        // raw_model_stream_eventの場合、dataの中に実際のイベントがある
+        const actualEventType = streamEvent.type === 'raw_model_stream_event' ? streamEvent.data?.type : streamEvent.type
+
+        // テキストチャンクを処理 (OpenAI Agents APIの実際のイベント形式)
+        if (actualEventType === 'output_text_delta') {
+          const content = streamEvent.data?.delta || streamEvent.delta || ''
 
           if (content) {
             yield {
               type: 'chunk' as const,
               contentText: content,
-              functionCalls: accumulatedFunctionCalls.length > 0 ? [...accumulatedFunctionCalls] : undefined,
-              data: accumulatedFunctionResults.length > 0 ? { functionResults: [...accumulatedFunctionResults] } : {},
+              functionCalls: recordedFunctionCalls.length > 0 ? [...recordedFunctionCalls] : undefined,
+              data: recordedFunctionResults.length > 0 ? { functionResults: [...recordedFunctionResults] } : {},
             }
           }
         }
 
-        // Function Call を検出
-        if (streamEvent.type === 'tool_call' && settings.functionCalling?.enabled) {
-          const toolCall = streamEvent.data as { name: string; arguments: Record<string, unknown> }
-          const functionCall: FunctionCall = {
-            name: toolCall.name,
-            args: toolCall.arguments || {},
-          }
+        // Function Callsが更新された場合、chunkをyield
+        if (recordedFunctionCalls.length > lastFunctionCallsCount || recordedFunctionResults.length > lastFunctionResultsCount) {
+          logger.info('[OpenAI ストリーミング] Function Calls更新を検出:', {
+            component: 'useOpenAiAgentsApi',
+            previousCalls: lastFunctionCallsCount,
+            currentCalls: recordedFunctionCalls.length,
+            previousResults: lastFunctionResultsCount,
+            currentResults: recordedFunctionResults.length,
+          })
 
-          logger.info('[OpenAI ストリーミング] Function Call検出:', { component: 'useOpenAiAgentsApi' }, functionCall)
-          accumulatedFunctionCalls.push(functionCall)
+          lastFunctionCallsCount = recordedFunctionCalls.length
+          lastFunctionResultsCount = recordedFunctionResults.length
 
-          try {
-            const result = await executeFunction(functionCall, {
-              messageId: generateMessageId(),
-              timestamp: Date.now(),
-              persistentMemory: chatStore.currentSession?.persistentMemory || {},
-            })
-            logger.info('[OpenAI ストリーミング] 関数実行完了:', { component: 'useOpenAiAgentsApi' }, functionCall.name, result)
-            accumulatedFunctionResults.push(result)
-
-            // persistentMemoryを更新
-            if (result.context?.persistentMemory && chatStore.currentSession) {
-              chatStore.currentSession.persistentMemory = result.context.persistentMemory as typeof chatStore.currentSession.persistentMemory
-            }
-
-            yield {
-              type: 'chunk' as const,
-              contentText: '',
-              functionCalls: [...accumulatedFunctionCalls],
-              data: { functionResults: [...accumulatedFunctionResults] },
-            }
-          } catch (error) {
-            logger.error('[OpenAI ストリーミング] 関数の実行に失敗:', { component: 'useOpenAiAgentsApi' }, functionCall.name, error)
-            const errorResult = {
-              name: functionCall.name,
-              args: functionCall.args,
-              result: null,
-              error: error instanceof Error ? error.message : String(error),
-            }
-            accumulatedFunctionResults.push(errorResult)
+          // Function Call情報を含むchunkをyield
+          yield {
+            type: 'chunk' as const,
+            contentText: '',
+            functionCalls: [...recordedFunctionCalls],
+            data: { functionResults: [...recordedFunctionResults] },
           }
         }
       }
@@ -521,13 +562,22 @@ export const useOpenAiAgentsApi = () => {
       // ストリーミング完了を待つ
       await stream.completed
 
+      // 記録されたFunction Callsをログ出力
+      logger.info('[OpenAI] generateContentStream - 記録されたFunction Calls:', {
+        component: 'useOpenAiAgentsApi',
+        functionCallsCount: recordedFunctionCalls.length,
+        functionResultsCount: recordedFunctionResults.length,
+        functionCalls: recordedFunctionCalls.map((fc) => ({ name: fc.name, hasArgs: Object.keys(fc.args).length > 0 })),
+        functionResults: recordedFunctionResults.map((fr) => ({ name: fr.name, hasResult: !!fr.result, hasError: !!fr.error })),
+      })
+
       // 最終チャンクを送信（Function Callがある場合のみ）
-      if (accumulatedFunctionCalls.length > 0) {
+      if (recordedFunctionCalls.length > 0) {
         yield {
           type: 'chunk' as const,
           contentText: '',
-          functionCalls: [...accumulatedFunctionCalls],
-          data: { functionResults: [...accumulatedFunctionResults] },
+          functionCalls: [...recordedFunctionCalls],
+          data: { functionResults: [...recordedFunctionResults] },
         }
       }
     } catch (error: unknown) {
@@ -556,47 +606,13 @@ export const useOpenAiAgentsApi = () => {
   }
 
   /**
-   * APIキーの妥当性をチェックする（ベストプラクティス: 軽量な検証）
-   */
-  const validateApiKey = async (apiKey: string, model = 'gpt-4o-mini'): Promise<boolean> => {
-    try {
-      if (!apiKey || !apiKey.trim()) {
-        return false
-      }
-
-      const settings: OpenAiApiSettings = {
-        apiKey,
-        model,
-        temperature: 0.1, // 低い温度で高速化
-        maxTokens: 5, // 最小限のトークン数
-        topK: 1,
-        topP: 0.1,
-        systemPrompt: '',
-        streamingOutput: false,
-      }
-
-      const agent = createAgent(settings, 'You are a helpful assistant')
-
-      const validationOptions: NonStreamRunOptions = {
-        stream: false,
-      }
-
-      await run(agent, 'Hi', validationOptions)
-
-      return true
-    } catch (error) {
-      logger.error('APIキーの検証に失敗:', { component: 'useOpenAiAgentsApi' }, error)
-      return false
-    }
-  }
-
-  /**
    * 利用可能なモデル一覧を取得する（ベストプラクティス: 最新モデル優先）
    */
   const getAvailableModels = async (_apiKey: string): Promise<string[]> => {
     return [
       // GPT-5 models (最新・推奨)
       'gpt-5',
+      'gpt‑5‑chat‑latest',
       'gpt-5-mini',
       'gpt-5-nano',
       // GPT-4o models (高性能)
@@ -627,7 +643,6 @@ export const useOpenAiAgentsApi = () => {
     createAgent,
     generateContent,
     generateContentStream,
-    validateApiKey,
     getAvailableModels,
     extractThoughtsFromResponse,
   }

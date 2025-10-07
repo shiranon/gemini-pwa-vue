@@ -294,14 +294,6 @@ export const useGeminiApi = () => {
         currentMessages.push({ role: 'model', parts: [{ text: settings.dummyModelPrompt }] })
       }
       const currentContents: Content[] = toContent(currentMessages)
-      // 開発用に詳細なデバッグログを出力
-      if (process.env.NODE_ENV === 'development') {
-        const simplified = currentContents.map((c) => ({
-          role: c.role,
-          texts: (c.parts || []).map((p: Part) => ('text' in p ? p.text : p.functionCall ? `fc:${p.functionCall.name}` : 'fr')),
-        }))
-        logger.devOnly('[GeminiAPI] generateContent 入力', simplified, { component: 'useGeminiApi' })
-      }
 
       const result = await genAI.models.generateContent({
         model: settings.model,
@@ -463,14 +455,6 @@ export const useGeminiApi = () => {
         currentMessages.push({ role: 'model', parts: [{ text: settings.dummyModelPrompt }] })
       }
       const currentContents: Content[] = toContent(currentMessages)
-      // 開発用に詳細なデバッグログを出力
-      if (process.env.NODE_ENV === 'development') {
-        const simplified = currentContents.map((c) => ({
-          role: c.role,
-          texts: (c.parts || []).map((p: Part) => ('text' in p ? p.text : p.functionCall ? `fc:${p.functionCall.name}` : 'fr')),
-        }))
-        logger.devOnly('[GeminiAPI] generateContentStream 入力', simplified, { component: 'useGeminiApi' })
-      }
 
       const result = await genAI.models.generateContentStream({
         model: settings.model,
@@ -709,28 +693,6 @@ export const useGeminiApi = () => {
   }
 
   /**
-   * APIキーの妥当性をチェックする
-   */
-  const validateApiKey = async (apiKey: string, model = 'gemini-2.5-flash'): Promise<boolean> => {
-    try {
-      const genAI = createGeminiClient(apiKey)
-      await genAI.models.generateContent({
-        model,
-        contents: [{ role: 'user', parts: [{ text: 'Hello' }] }],
-        config: {
-          maxOutputTokens: 1,
-          safetySettings: buildSafetySettings(),
-        },
-      })
-
-      return true
-    } catch (error) {
-      logger.error('APIキーの検証に失敗:', { component: 'useGeminiApi' }, error)
-      return false
-    }
-  }
-
-  /**
    * 利用可能なモデル一覧を取得する
    */
   const getAvailableModels = async (apiKey: string): Promise<string[]> => {
@@ -761,7 +723,6 @@ export const useGeminiApi = () => {
     createGeminiClient,
     generateContent,
     generateContentStream,
-    validateApiKey,
     getAvailableModels,
     extractThoughtsFromResponse,
   }

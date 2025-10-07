@@ -669,16 +669,6 @@ export const useGeminiStore = defineStore('gemini', () => {
       systemPrompt: chatStore.systemPrompt,
     }
 
-    // デバッグ: 構築された設定をログ出力
-    logger.info('[Geminiストア] 構築された設定:', {
-      component: 'useGeminiStore',
-      geminiEnableFunctionCalling: combinedSettings.geminiEnableFunctionCalling,
-      functionCallingMode: combinedSettings.functionCallingMode,
-      enabledFunctionTools: combinedSettings.enabledFunctionTools,
-      enabledFunctionToolsLength: combinedSettings.enabledFunctionTools?.length,
-      functionCalling: settings.functionCalling,
-    })
-
     if (!settings.apiKey) {
       const apiError: ApiError = {
         code: 'NO_API_KEY',

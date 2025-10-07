@@ -76,17 +76,6 @@ export function useImageUpload(options: ImageUploadOptions = {}) {
     const isValidMimeType = allowedTypes.includes(processedFile.type)
     const isValidExtension = fileExtension && ['jpeg', 'jpg', 'png', 'gif', 'webp', 'avif'].includes(fileExtension)
 
-    // デバッグ用ログ
-    console.log('File upload debug:', {
-      fileName: processedFile.name,
-      fileType: processedFile.type,
-      fileExtension,
-      isValidMimeType,
-      isValidExtension,
-      allowedTypes,
-      optimized: enableOptimization,
-    })
-
     if (!isValidMimeType && !isValidExtension) {
       error.value = `サポートされていないファイル形式です (MIME: ${processedFile.type}, 拡張子: ${fileExtension})`
       return null

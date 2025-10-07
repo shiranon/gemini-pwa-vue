@@ -447,7 +447,17 @@ export const useOpenAiStore = defineStore('openai', () => {
         }),
       }
 
-      logger.info('[OpenAIストア] アシスタントメッセージを作成:', { component: 'useOpenAiStore' }, assistantMessage)
+      // デバッグ: 非ストリーミング - アシスタントメッセージを確認
+      logger.info('[OpenAIストア] アシスタントメッセージを作成:', {
+        component: 'useOpenAiStore',
+        contentLength: assistantMessage.content.length,
+        hasFunctionCalls: !!assistantMessage.functionCalls,
+        functionCallsCount: assistantMessage.functionCalls?.length || 0,
+        hasFunctionResults: !!assistantMessage.functionResults,
+        functionResultsCount: assistantMessage.functionResults?.length || 0,
+        functionCalls: assistantMessage.functionCalls?.map((fc: FunctionCall) => ({ name: fc.name, hasArgs: Object.keys(fc.args).length > 0 })),
+        functionResults: assistantMessage.functionResults?.map((fr: FunctionCallResult) => ({ name: fr.name, hasResult: !!fr.result, hasError: !!fr.error })),
+      })
 
       callbacks.onMessageAdd(assistantMessage)
       successfulCalls.value++
@@ -721,6 +731,13 @@ export const useOpenAiStore = defineStore('openai', () => {
       includeThoughts: combinedSettings.includeThoughts,
       thinkingBudget: combinedSettings.thinkingBudget,
       modelSettings: profileSettings?.openaiModelSettings,
+      functionCalling: combinedSettings.geminiEnableFunctionCalling
+        ? {
+            enabled: true,
+            mode: combinedSettings.functionCallingMode,
+            ...(combinedSettings.functionCallingMode === 'any' && combinedSettings.enabledFunctionTools.length > 0 ? { allowedFunctionNames: [...combinedSettings.enabledFunctionTools] } : {}),
+          }
+        : undefined,
       enableDummyUserPrompt: combinedSettings.enableDummyUserPrompt,
       dummyUserPrompt: combinedSettings.dummyUserPrompt,
       enableDummyModelPrompt: combinedSettings.enableDummyModelPrompt,
@@ -734,6 +751,16 @@ export const useOpenAiStore = defineStore('openai', () => {
       thoughtTranslationModel: combinedSettings.thoughtTranslationModel,
       deeplApiKey: combinedSettings.deeplApiKey,
     }
+
+    // デバッグ: Function Calling設定をログ出力
+    logger.info('[OpenAIストア] Function Calling設定:', {
+      component: 'useOpenAiStore',
+      geminiEnableFunctionCalling: combinedSettings.geminiEnableFunctionCalling,
+      functionCallingMode: combinedSettings.functionCallingMode,
+      enabledFunctionTools: combinedSettings.enabledFunctionTools,
+      enabledFunctionToolsLength: combinedSettings.enabledFunctionTools?.length,
+      functionCalling: baseOpenAiSettings.functionCalling,
+    })
 
     // systemPromptはchatStoreから上書き
     const settings: OpenAiApiSettings = {
