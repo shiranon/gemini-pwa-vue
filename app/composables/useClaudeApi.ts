@@ -323,11 +323,6 @@ export const useClaudeApi = () => {
           })
           logger.info(`[非ストリーミング] 関数実行完了 ${toolResults.length + 1}:`, { component: 'useClaudeApi' }, toolCall.name, result)
           toolResults.push(result)
-
-          // persistentMemoryを更新
-          if (result.context?.persistentMemory && chatStore.currentSession) {
-            chatStore.currentSession.persistentMemory = result.context.persistentMemory as typeof chatStore.currentSession.persistentMemory
-          }
         } catch (error) {
           logger.error(`[非ストリーミング] 関数の実行に失敗 ${toolResults.length + 1}:`, { component: 'useClaudeApi' }, toolCall.name, error)
           const errorResult = {
@@ -578,10 +573,6 @@ export const useClaudeApi = () => {
       // Extended ThinkingとCache Controlの設定を構築
       const { thinkingConfig, systemPromptValue, toolsWithCache } = buildApiConfig(settings, toolConfig)
 
-      console.log('thinkingConfig', thinkingConfig)
-      console.log('systemPromptValue', systemPromptValue)
-      console.log('toolsWithCache', toolsWithCache)
-
       const params: MessageCreateParams = {
         model: settings.model,
         max_tokens: settings.maxTokens,
@@ -590,7 +581,8 @@ export const useClaudeApi = () => {
         ...(systemPromptValue && { system: systemPromptValue }),
         ...(settings.temperature !== undefined && { temperature: settings.temperature }),
         ...(settings.temperature === undefined && settings.topP !== undefined && { top_p: settings.topP }),
-        ...(settings.topK !== undefined && { top_k: settings.topK }),
+        // Extended Thinking有効時はtop_kを設定できない
+        ...(!thinkingConfig && settings.topK !== undefined && { top_k: settings.topK }),
         ...(thinkingConfig && { thinking: thinkingConfig }),
         ...(toolsWithCache && { tools: toolsWithCache }),
       }
@@ -657,11 +649,6 @@ export const useClaudeApi = () => {
               })
               logger.info('[ストリーミング] 関数実行完了:', { component: 'useClaudeApi' }, toolCall.name, result)
               accumulatedToolResults.push(result)
-
-              // persistentMemoryを更新
-              if (result.context?.persistentMemory && chatStore.currentSession) {
-                chatStore.currentSession.persistentMemory = result.context.persistentMemory as typeof chatStore.currentSession.persistentMemory
-              }
             } catch (error) {
               logger.error('[ストリーミング] 関数の実行に失敗:', { component: 'useClaudeApi' }, toolCall.name, error)
               const errorResult = {
@@ -697,8 +684,12 @@ export const useClaudeApi = () => {
           logger.error('[ストリーミング関数呼び出し] Tool CallとTool Resultの数が一致しません', {
             calls: accumulatedToolCalls.length,
             results: accumulatedToolResults.length,
+            callNames: accumulatedToolCalls.map((c) => c.name),
+            resultNames: accumulatedToolResults.map((r) => r.name),
           })
-          throw new Error(`Tool CallとTool Resultの数が一致しません: ${accumulatedToolCalls.length} calls, ${accumulatedToolResults.length} results`)
+          throw new Error(
+            `Tool CallとTool Resultの数が一致しません: ${accumulatedToolCalls.length} calls (${accumulatedToolCalls.map((c) => c.name).join(', ')}), ${accumulatedToolResults.length} results (${accumulatedToolResults.map((r) => r.name).join(', ')})`
+          )
         }
 
         // アシスタントのTool Callレスポンスを追加（accumulatedContentを使用）

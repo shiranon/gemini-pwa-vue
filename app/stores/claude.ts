@@ -10,6 +10,7 @@ import { proofreadText } from '~/composables/useProofreader'
 import { translateThoughts } from '~/composables/useTranslator'
 import { useChatStore } from '~/stores/chat'
 import { useSettingsStore } from '~/stores/settings'
+import { useSettingsProfilesStore } from '~/stores/settingsProfiles'
 import type { ApiError, AssistantMessage, AttachedFile, ChatMessage, ClaudeApiSettings } from '~/types/chat'
 import type { FunctionCall, FunctionCallResult } from '~/types/function-calling'
 
@@ -163,8 +164,11 @@ export const useClaudeStore = defineStore('claude', () => {
             const reuseIndex = callbacks.onMessageStart(assistantMessage)
 
             if (reuseIndex >= 0) {
-              const existingMessage = chatStore.visibleMessages[reuseIndex] as AssistantMessage | undefined
-              const baseTimestamp = existingMessage?.createdAt ?? Date.now()
+              const existingMessage = chatStore.visibleMessages[reuseIndex]
+              if (!existingMessage || existingMessage.role !== 'assistant') {
+                throw new Error(`Invalid message at reuse index ${reuseIndex}`)
+              }
+              const baseTimestamp = existingMessage.createdAt ?? Date.now()
               assistantMessage.timestamp = baseTimestamp
               messageIndex = reuseIndex
               streamingMessageId.value = baseTimestamp.toString()
