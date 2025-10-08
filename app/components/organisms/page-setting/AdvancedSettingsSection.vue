@@ -2,7 +2,6 @@
   <SettingSection
     title="高度な設定"
     description="詳細な動作調整"
-    :default-open="false"
   >
     <SettingItem
       name="streamingSpeed"
@@ -80,16 +79,16 @@
     </SettingItem>
 
     <!-- Claude Extended Thinking設定 -->
-    <template v-if="localSettings.apiProvider === 'claude'">
+    <template v-if="localProfileSettings?.apiProvider === 'claude'">
       <SettingToggle
-        :model-value="localSettings.enableExtendedThinking"
+        :model-value="localProfileSettings?.enableExtendedThinking ?? false"
         label="Extended Thinking有効化"
         description="Claudeの拡張思考モード（より深い推論、コスト増）"
-        @update:model-value="(value: boolean) => updateSetting('enableExtendedThinking', value)"
+        @update:model-value="(value: boolean) => updateProfileSetting('enableExtendedThinking', value)"
       />
 
       <SettingItem
-        v-if="localSettings.enableExtendedThinking"
+        v-if="localProfileSettings?.enableExtendedThinking"
         name="thinkingBudget"
         label="思考トークン数"
         description="思考に使用する最大トークン数（1024-10000推奨）"

@@ -22,6 +22,7 @@ export function useProfileSettings() {
     presencePenalty: null,
     frequencyPenalty: null,
     thinkingBudget: null,
+    enableExtendedThinking: false,
     geminiEnableFunctionCalling: false,
     functionCallingMode: 'auto',
     enabledFunctionTools: [],

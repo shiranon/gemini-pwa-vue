@@ -197,6 +197,7 @@ export interface SettingsProfileData {
   presencePenalty: number | null
   frequencyPenalty: number | null
   thinkingBudget: number | null
+  enableExtendedThinking: boolean
 
   // 高度な機能
   geminiEnableFunctionCalling: boolean

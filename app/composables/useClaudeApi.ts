@@ -211,7 +211,7 @@ export const useClaudeApi = () => {
 
           // itemsを再帰的に変換（配列型の場合）
           if (propObj.items) {
-            convertedProp.items = propObj.items
+            convertedProp.items = convertGeminiSchemaToClaudeSchema(propObj.items)
           }
 
           props[key] = convertedProp

@@ -11,6 +11,7 @@ export const PROFILE_SETTING_KEYS = [
   'presencePenalty',
   'frequencyPenalty',
   'thinkingBudget',
+  'enableExtendedThinking',
   'geminiEnableFunctionCalling',
   'functionCallingMode',
   'enabledFunctionTools',
@@ -92,7 +93,8 @@ export const mergeProfilePartial = (base: SettingsProfileData, partial: Partial<
       case 'geminiEnableGrounding':
       case 'enableDummyUserPrompt':
       case 'enableDummyModelPrompt':
-      case 'prependDummyModelToResponse': {
+      case 'prependDummyModelToResponse':
+      case 'enableExtendedThinking': {
         if (typeof value === 'boolean') {
           next[key] = value
         }
@@ -122,6 +124,7 @@ export const extractProfileSettings = (settings: AppSettings | SettingsProfileDa
     presencePenalty,
     frequencyPenalty,
     thinkingBudget,
+    enableExtendedThinking,
     geminiEnableFunctionCalling,
     functionCallingMode,
     enabledFunctionTools,
@@ -146,6 +149,7 @@ export const extractProfileSettings = (settings: AppSettings | SettingsProfileDa
     presencePenalty,
     frequencyPenalty,
     thinkingBudget,
+    enableExtendedThinking,
     geminiEnableFunctionCalling,
     functionCallingMode,
     enabledFunctionTools: [...enabledFunctionTools],
@@ -172,6 +176,7 @@ export const extractGlobalSettings = (settings: AppSettings): GlobalSettingsSnap
     presencePenalty: _presencePenalty,
     frequencyPenalty: _frequencyPenalty,
     thinkingBudget: _thinkingBudget,
+    enableExtendedThinking: _enableExtendedThinking,
     geminiEnableFunctionCalling: _geminiEnableFunctionCalling,
     functionCallingMode: _functionCallingMode,
     enabledFunctionTools: _enabledFunctionTools,
