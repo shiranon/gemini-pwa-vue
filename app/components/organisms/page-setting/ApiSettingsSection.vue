@@ -1,7 +1,7 @@
 <template>
   <SettingSection
     title="API設定"
-    :description="apiProvider === 'gemini' ? 'Gemini APIの接続設定' : apiProvider === 'claude' ? 'Claude APIの接続設定' : 'OpenAI APIの接続設定'"
+    :description="apiDescription"
   >
     <SettingItem
       name="apiProvider"
@@ -154,6 +154,19 @@ const updateProfileSetting = (key: keyof SettingsProfileData, value: SettingsPro
 }
 
 const apiProvider = computed(() => props.localProfileSettings.apiProvider)
+
+const apiDescription = computed(() => {
+  switch (apiProvider.value) {
+    case 'gemini':
+      return 'Gemini APIの接続設定'
+    case 'claude':
+      return 'Claude APIの接続設定'
+    case 'openai':
+      return 'OpenAI APIの接続設定'
+    default:
+      return 'API接続設定'
+  }
+})
 
 const isValidGeminiApiKey = computed(() => {
   return props.localSettings.apiKey.length > 0

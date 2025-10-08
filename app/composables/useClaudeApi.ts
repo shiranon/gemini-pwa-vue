@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import type { ContentBlockParam, MessageCreateParams, MessageParam, Tool, ToolResultBlockParam } from '@anthropic-ai/sdk/resources/messages.mjs'
+import { Type } from '@google/genai'
 import { useFunctionCalling } from '~/composables/useFunctionCalling'
 import { generateMessageId } from '~/lib/ids'
 import { useChatStore } from '~/stores/chat'
@@ -165,6 +166,13 @@ export const useClaudeApi = () => {
   }
 
   /**
+   * GeminiのType列挙型かどうかを判定する型ガード
+   */
+  const isGeminiType = (value: unknown): value is Type => {
+    return typeof value === 'string' && Object.values(Type).includes(value as Type)
+  }
+
+  /**
    * Gemini SchemaをClaude互換のJSON Schemaに変換
    */
   const convertGeminiSchemaToClaudeSchema = (schema: unknown): Tool.InputSchema => {
@@ -189,12 +197,14 @@ export const useClaudeApi = () => {
 
           // typeの変換（Gemini Type列挙型 → 文字列）
           if (propObj.type !== undefined && propObj.type !== null) {
-            if (typeof propObj.type === 'string') {
+            if (isGeminiType(propObj.type)) {
+              // Type列挙型の場合、そのまま小文字に変換
               convertedProp.type = propObj.type.toLowerCase()
-            } else if (typeof propObj.type === 'object' && 'value' in propObj.type) {
-              // Type列挙型の場合
-              convertedProp.type = String((propObj.type as { value?: unknown }).value || propObj.type).toLowerCase()
+            } else if (typeof propObj.type === 'string') {
+              // すでに文字列の場合
+              convertedProp.type = propObj.type.toLowerCase()
             } else {
+              // その他の場合は文字列化
               convertedProp.type = String(propObj.type).toLowerCase()
             }
           }
