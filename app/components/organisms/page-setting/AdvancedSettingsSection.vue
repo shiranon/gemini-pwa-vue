@@ -93,15 +93,15 @@
         name="thinkingBudget"
         label="思考トークン数"
         description="思考に使用する最大トークン数（1024-10000推奨）"
-        :value="`${localSettings.thinkingBudget ?? 5000}トークン`"
+        :value="`${localProfileSettings?.thinkingBudget ?? 5000}トークン`"
         show-value
       >
         <Slider
-          :model-value="[localSettings.thinkingBudget ?? 5000]"
+          :model-value="[localProfileSettings?.thinkingBudget ?? 5000]"
           :min="1024"
           :max="10000"
           :step="256"
-          @update:model-value="updateSetting('thinkingBudget', $event?.[0] ?? 5000)"
+          @update:model-value="updateProfileSetting('thinkingBudget', $event?.[0] ?? 5000)"
         />
       </SettingItem>
 
@@ -141,23 +141,30 @@
 </template>
 
 <script setup lang="ts">
-import type { AppSettings } from '~/types/settings'
+import type { AppSettings, SettingsProfileData } from '~/types/settings'
 import SettingSection from '~/components/molecules/page-setting/SettingSection.vue'
 import SettingItem from '~/components/molecules/page-setting/SettingItem.vue'
 import SettingToggle from '~/components/molecules/page-setting/SettingToggle.vue'
 import { Input } from '~/components/ui/input'
 import { Slider } from '~/components/ui/slider'
+
 export interface AdvancedSettingsSectionProps {
   localSettings: AppSettings
+  localProfileSettings?: SettingsProfileData
 }
 
 defineProps<AdvancedSettingsSectionProps>()
 
 const emit = defineEmits<{
   'update-setting': [key: keyof AppSettings, value: AppSettings[keyof AppSettings]]
+  'update-profile-setting': [key: keyof SettingsProfileData, value: SettingsProfileData[keyof SettingsProfileData]]
 }>()
 
 const updateSetting = (key: keyof AppSettings, value: AppSettings[keyof AppSettings]) => {
   emit('update-setting', key, value)
+}
+
+const updateProfileSetting = (key: keyof SettingsProfileData, value: SettingsProfileData[keyof SettingsProfileData]) => {
+  emit('update-profile-setting', key, value)
 }
 </script>

@@ -53,7 +53,9 @@
 
         <AdvancedSettingsSection
           :local-settings="localSettings as AppSettings"
+          :local-profile-settings="localProfileSettings as SettingsProfileData"
           @update-setting="handleUpdateSetting"
+          @update-profile-setting="handleUpdateProfileSetting"
         />
 
         <DummyPromptSettingsSection

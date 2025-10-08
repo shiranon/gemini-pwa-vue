@@ -18,6 +18,7 @@ interface ThoughtExtractionResult {
 export interface ClaudeStreamingChunk {
   type: 'chunk'
   contentText: string
+  thoughts?: string
   toolCalls?: FunctionCall[]
   data: Record<string, unknown> & {
     toolResults?: FunctionCallResult[]
@@ -27,6 +28,7 @@ export interface ClaudeStreamingChunk {
 export interface ClaudeCombinedResponse {
   content: string
   stopReason?: string | null
+  thoughts?: string
   toolCalls?: FunctionCall[]
   toolResults?: FunctionCallResult[]
 }
@@ -53,12 +55,22 @@ export const useClaudeApi = () => {
     systemPromptValue?: string | Array<{ type: 'text'; text: string; cache_control?: { type: 'ephemeral' } }>
     toolsWithCache?: Tool[]
   } => {
-    // Extended Thinking設定
+    // Extended Thinking設定（enableThinkingまたはenableExtendedThinkingで有効化）
+    const isThinkingEnabled = settings.enableThinking || settings.enableExtendedThinking
+
+    // thinkingBudgetの処理: null/undefined/0の場合はデフォルト値5000を使用
+    const effectiveBudget =
+      settings.thinkingBudget && settings.thinkingBudget > 0
+        ? settings.thinkingBudget
+        : isThinkingEnabled
+          ? 5000 // デフォルト値: 5000トークン
+          : null
+
     const thinkingConfig =
-      settings.enableExtendedThinking && settings.thinkingBudget
+      isThinkingEnabled && effectiveBudget
         ? {
             type: 'enabled' as const,
-            budget_tokens: settings.thinkingBudget,
+            budget_tokens: effectiveBudget,
           }
         : undefined
 
@@ -107,6 +119,19 @@ export const useClaudeApi = () => {
       }
     }
     return toolUseIds
+  }
+
+  /**
+   * ContentBlock配列からthinkingブロックのテキストを抽出
+   */
+  const extractThinkingText = (contentBlocks: Array<{ type: string; thinking?: string }>): string | undefined => {
+    const thinkingTexts: string[] = []
+    for (const block of contentBlocks) {
+      if (block.type === 'thinking' && block.thinking) {
+        thinkingTexts.push(block.thinking)
+      }
+    }
+    return thinkingTexts.length > 0 ? thinkingTexts.join('\n\n') : undefined
   }
 
   /**
@@ -439,7 +464,8 @@ export const useClaudeApi = () => {
         ...(systemPromptValue && { system: systemPromptValue }),
         ...(settings.temperature !== undefined && { temperature: settings.temperature }),
         ...(settings.temperature === undefined && settings.topP !== undefined && { top_p: settings.topP }),
-        ...(settings.topK !== undefined && { top_k: settings.topK }),
+        // Extended Thinking有効時はtop_kを設定できない
+        ...(!thinkingConfig && settings.topK !== undefined && { top_k: settings.topK }),
         ...(thinkingConfig && { thinking: thinkingConfig }),
         ...(toolsWithCache && { tools: toolsWithCache }),
       }
@@ -485,7 +511,8 @@ export const useClaudeApi = () => {
             ...(settings.systemPrompt && { system: settings.systemPrompt }),
             ...(settings.temperature !== undefined && { temperature: settings.temperature }),
             ...(settings.temperature === undefined && settings.topP !== undefined && { top_p: settings.topP }),
-            ...(settings.topK !== undefined && { top_k: settings.topK }),
+            // Extended Thinking有効時はtop_kを設定できない
+            ...(!thinkingConfig && settings.topK !== undefined && { top_k: settings.topK }),
           }
 
           const finalResponse = await claude.messages.create(finalParams)
@@ -496,9 +523,13 @@ export const useClaudeApi = () => {
             .map((block) => (block.type === 'text' ? block.text : ''))
             .join('')
 
+          // Thinking ブロックを抽出
+          const thoughts = extractThinkingText(finalResponse.content)
+
           return {
             content: finalContent,
             stopReason: finalResponse.stop_reason ?? undefined,
+            thoughts,
             toolCalls,
             toolResults,
           }
@@ -511,9 +542,13 @@ export const useClaudeApi = () => {
         .map((block) => (block.type === 'text' ? block.text : ''))
         .join('')
 
+      // Thinking ブロックを抽出
+      const thoughts = extractThinkingText(response.content)
+
       return {
         content: contentText,
         stopReason: response.stop_reason ?? undefined,
+        thoughts,
       }
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Claude API call failed'
@@ -543,6 +578,10 @@ export const useClaudeApi = () => {
       // Extended ThinkingとCache Controlの設定を構築
       const { thinkingConfig, systemPromptValue, toolsWithCache } = buildApiConfig(settings, toolConfig)
 
+      console.log('thinkingConfig', thinkingConfig)
+      console.log('systemPromptValue', systemPromptValue)
+      console.log('toolsWithCache', toolsWithCache)
+
       const params: MessageCreateParams = {
         model: settings.model,
         max_tokens: settings.maxTokens,
@@ -568,14 +607,19 @@ export const useClaudeApi = () => {
 
         if (chunk.type === 'content_block_start') {
           const block = chunk.content_block
-          if (block.type === 'tool_use') {
-            // Tool Callを蓄積
-            accumulatedContent.push(block)
-          }
+          // 全てのブロックタイプを蓄積（tool_use, thinking, text等）
+          accumulatedContent.push(block)
         } else if (chunk.type === 'content_block_delta') {
           const delta = chunk.delta
           if (delta.type === 'text_delta') {
             contentText = delta.text
+          } else if (delta.type === 'thinking_delta') {
+            // thinking_deltaでストリーミング中のthinkingテキストを蓄積
+            // 最後のthinkingブロックを更新
+            const lastBlock = accumulatedContent[accumulatedContent.length - 1]
+            if (lastBlock && lastBlock.type === 'thinking') {
+              lastBlock.thinking = (lastBlock.thinking || '') + (delta.thinking || '')
+            }
           } else if (delta.type === 'input_json_delta') {
             // Tool Call入力の差分を蓄積（最終的にcontent_block_stopで処理）
           }
@@ -707,13 +751,16 @@ export const useClaudeApi = () => {
         }
       }
 
-      // ストリーミング完了時にTool Call結果を最終的に返す
-      if (accumulatedToolCalls.length > 0) {
+      // ストリーミング完了時にTool Call結果とthinkingを最終的に返す
+      const thoughts = extractThinkingText(accumulatedContent)
+
+      if (accumulatedToolCalls.length > 0 || thoughts) {
         yield {
           type: 'chunk' as const,
           contentText: '',
-          toolCalls: accumulatedToolCalls,
-          data: { toolResults: accumulatedToolResults },
+          thoughts,
+          toolCalls: accumulatedToolCalls.length > 0 ? accumulatedToolCalls : undefined,
+          data: accumulatedToolCalls.length > 0 ? { toolResults: accumulatedToolResults } : {},
         }
       }
     } catch (error: unknown) {
@@ -740,13 +787,12 @@ export const useClaudeApi = () => {
   }
 
   /**
-   * 思考プロセスを抽出する（将来のExtended Thinking対応用）
+   * 思考プロセスを抽出する（Extended Thinking対応）
    */
   const extractThoughtsFromResponse = (response: ClaudeCombinedResponse): ThoughtExtractionResult => {
-    // 現時点では思考プロセス機能は未対応
     return {
       content: response.content,
-      thoughts: undefined,
+      thoughts: response.thoughts,
     }
   }
 
