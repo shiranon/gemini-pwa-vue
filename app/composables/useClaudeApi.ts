@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
-import type { ContentBlock, MessageCreateParams, MessageParam, Tool, ToolResultBlockParam } from '@anthropic-ai/sdk/resources/messages.mjs'
+import type { ContentBlockParam, MessageCreateParams, MessageParam, Tool, ToolResultBlockParam } from '@anthropic-ai/sdk/resources/messages.mjs'
 import { useFunctionCalling } from '~/composables/useFunctionCalling'
 import { generateMessageId } from '~/lib/ids'
 import { useChatStore } from '~/stores/chat'
@@ -341,9 +341,9 @@ export const useClaudeApi = () => {
 
       // assistantメッセージにfunctionCallsがある場合、content blocksに変換
       if (m.role === 'assistant' && m.functionCalls) {
-        const blocks: ContentBlock[] = []
+        const blocks: ContentBlockParam[] = []
         if (m.content) {
-          blocks.push({ type: 'text', text: m.content, citations: [] })
+          blocks.push({ type: 'text', text: m.content })
         }
 
         const toolUseIds: string[] = []
@@ -368,9 +368,9 @@ export const useClaudeApi = () => {
         })
       } else if (m.role === 'user' && m.functionResults) {
         // userメッセージにfunctionResultsがある場合、tool_resultに変換
-        const blocks: (ContentBlock | ToolResultBlockParam)[] = []
+        const blocks: ContentBlockParam[] = []
         if (m.content) {
-          blocks.push({ type: 'text', text: m.content, citations: [] })
+          blocks.push({ type: 'text', text: m.content })
         }
 
         // 直前のassistantメッセージのtool_use IDを取得
@@ -438,7 +438,7 @@ export const useClaudeApi = () => {
         messages: currentContents,
         ...(systemPromptValue && { system: systemPromptValue }),
         ...(settings.temperature !== undefined && { temperature: settings.temperature }),
-        ...(settings.topP !== undefined && { top_p: settings.topP }),
+        ...(settings.temperature === undefined && settings.topP !== undefined && { top_p: settings.topP }),
         ...(settings.topK !== undefined && { top_k: settings.topK }),
         ...(thinkingConfig && { thinking: thinkingConfig }),
         ...(toolsWithCache && { tools: toolsWithCache }),
@@ -484,7 +484,7 @@ export const useClaudeApi = () => {
             messages: currentContents,
             ...(settings.systemPrompt && { system: settings.systemPrompt }),
             ...(settings.temperature !== undefined && { temperature: settings.temperature }),
-            ...(settings.topP !== undefined && { top_p: settings.topP }),
+            ...(settings.temperature === undefined && settings.topP !== undefined && { top_p: settings.topP }),
             ...(settings.topK !== undefined && { top_k: settings.topK }),
           }
 
@@ -550,13 +550,13 @@ export const useClaudeApi = () => {
         stream: true,
         ...(systemPromptValue && { system: systemPromptValue }),
         ...(settings.temperature !== undefined && { temperature: settings.temperature }),
-        ...(settings.topP !== undefined && { top_p: settings.topP }),
+        ...(settings.temperature === undefined && settings.topP !== undefined && { top_p: settings.topP }),
         ...(settings.topK !== undefined && { top_k: settings.topK }),
         ...(thinkingConfig && { thinking: thinkingConfig }),
         ...(toolsWithCache && { tools: toolsWithCache }),
       }
 
-      const stream = await claude.messages.stream(params)
+      const stream = claude.messages.stream(params)
 
       let accumulatedToolCalls: FunctionCall[] = []
       const accumulatedToolResults: FunctionCallResult[] = []
@@ -680,11 +680,11 @@ export const useClaudeApi = () => {
           stream: true,
           ...(settings.systemPrompt && { system: settings.systemPrompt }),
           ...(settings.temperature !== undefined && { temperature: settings.temperature }),
-          ...(settings.topP !== undefined && { top_p: settings.topP }),
+          ...(settings.temperature === undefined && settings.topP !== undefined && { top_p: settings.topP }),
           ...(settings.topK !== undefined && { top_k: settings.topK }),
         }
 
-        const finalStream = await claude.messages.stream(finalParams)
+        const finalStream = claude.messages.stream(finalParams)
 
         for await (const chunk of finalStream) {
           let contentText = ''
