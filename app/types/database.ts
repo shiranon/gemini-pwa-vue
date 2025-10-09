@@ -191,6 +191,40 @@ export interface CharacterImageRecord {
   updatedAt: number
 }
 
+/** 背景カテゴリーテーブルのレコード */
+export interface BackgroundCategoryRecord {
+  /** カテゴリーID（プライマリキー） */
+  id: string
+  /** カテゴリー名 */
+  name: string
+  /** カテゴリー説明 */
+  description?: string
+  /** 作成日時 */
+  createdAt: number
+  /** 更新日時 */
+  updatedAt: number
+}
+
+/** 背景画像テーブルのレコード */
+export interface BackgroundImageRecord {
+  /** 画像ID（プライマリキー） */
+  id: string
+  /** 所属するカテゴリーID（外部キー） */
+  categoryId: string
+  /** 画像名 */
+  name: string
+  /** MIMEタイプ */
+  mimeType: string
+  /** Base64エンコードされた画像データ */
+  base64Data: string
+  /** ファイルサイズ（バイト） */
+  size: number
+  /** 作成日時 */
+  createdAt: number
+  /** 更新日時 */
+  updatedAt: number
+}
+
 // ============================================================================
 // インデックス定義型
 // ============================================================================
@@ -275,6 +309,30 @@ export interface DatabaseIndexes {
     '[characterId+outfitId]': [string, string]
     /** 複合インデックス: キャラクター + 衣装 + 表情 */
     '[characterId+outfitId+expression]': [string, string, string]
+    /** 作成日時でのソート用 */
+    createdAt: number
+    /** 更新日時でのソート用 */
+    updatedAt: number
+  }
+
+  backgroundCategories: {
+    /** カテゴリー名での絞り込み用 */
+    name: string
+    /** 作成日時でのソート用 */
+    createdAt: number
+    /** 更新日時でのソート用 */
+    updatedAt: number
+  }
+
+  backgroundImages: {
+    /** カテゴリーIDでの絞り込み用 */
+    categoryId: string
+    /** 画像名での絞り込み用 */
+    name: string
+    /** 複合インデックス: カテゴリー + 画像名 */
+    '[categoryId+name]': [string, string]
+    /** MIMEタイプでの絞り込み用 */
+    mimeType: string
     /** 作成日時でのソート用 */
     createdAt: number
     /** 更新日時でのソート用 */
