@@ -69,20 +69,6 @@
               class="mt-2 space-y-2"
             >
               <div class="text-muted-foreground text-sm">サイズ: {{ formatFileSize(selectedSingleFile.size) }}</div>
-
-              <!-- ストレージ警告 -->
-              <div
-                v-if="storageWarning"
-                class="rounded-md border border-yellow-200 bg-yellow-50 p-2 text-sm text-yellow-700 dark:border-yellow-800 dark:bg-yellow-950 dark:text-yellow-300"
-              >
-                <div class="flex items-center gap-2">
-                  <Icon
-                    icon="material-symbols:warning"
-                    class="h-4 w-4"
-                  />
-                  {{ storageWarning }}
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -144,19 +130,6 @@
           v-if="selectedBulkFiles.length > 0"
           class="space-y-2"
         >
-          <!-- ストレージ警告 -->
-          <div
-            v-if="storageWarning"
-            class="rounded-md border border-yellow-200 bg-yellow-50 p-2 text-sm text-yellow-700 dark:border-yellow-800 dark:bg-yellow-950 dark:text-yellow-300"
-          >
-            <div class="flex items-center gap-2">
-              <Icon
-                icon="material-symbols:warning"
-                class="h-4 w-4"
-              />
-              {{ storageWarning }}
-            </div>
-          </div>
           <h4 class="text-sm font-medium">選択されたファイル</h4>
           <div class="max-h-40 space-y-1 overflow-y-auto">
             <div
@@ -263,7 +236,6 @@ import { Button } from '~/components/ui/button'
 import { Input } from '~/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '~/components/ui/dialog'
 import { useCharacterImages } from '~/composables/useCharacterImages'
-import { useStorageQuota } from '~/composables/useStorageQuota'
 import { logger } from '~/utils/logger'
 import type { CharacterRecord, CharacterOutfitRecord } from '~/types/database'
 
@@ -281,7 +253,6 @@ const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
 const { uploadImage, bulkUploadExpressions, error } = useCharacterImages()
-const { checkStorageCapacity, estimateBase64Size } = useStorageQuota()
 
 // Dialogの開閉状態
 const isOpen = ref(true)
@@ -293,7 +264,6 @@ const selectedSingleFile = ref<File | null>(null)
 const selectedBulkFiles = ref<File[]>([])
 const isUploading = ref(false)
 const uploadResult = ref<{ success: number; failed: number; errors: string[] } | null>(null)
-const storageWarning = ref<string | null>(null)
 
 // ファイル入力の参照
 const singleFileInput = ref<HTMLInputElement>()
@@ -305,19 +275,6 @@ const handleSingleFileSelect = async (event: Event) => {
   const file = target.files?.[0] || null
   selectedSingleFile.value = file
   uploadResult.value = null
-  storageWarning.value = null
-
-  if (file) {
-    // ストレージ容量チェック
-    const estimatedSize = estimateBase64Size(file.size)
-    const capacityCheck = await checkStorageCapacity(estimatedSize)
-
-    if (!capacityCheck.canAdd) {
-      storageWarning.value = capacityCheck.warning?.message || 'ストレージ容量が不足しています'
-    } else if (capacityCheck.warning) {
-      storageWarning.value = capacityCheck.warning.message
-    }
-  }
 }
 
 // 単一ファイル入力をリセット
@@ -334,20 +291,6 @@ const handleBulkFileSelect = async (event: Event) => {
   const files = Array.from(target.files || [])
   selectedBulkFiles.value = files
   uploadResult.value = null
-  storageWarning.value = null
-
-  if (files.length > 0) {
-    // 全ファイルの合計サイズを計算
-    const totalSize = files.reduce((sum, file) => sum + file.size, 0)
-    const estimatedTotalSize = estimateBase64Size(totalSize)
-    const capacityCheck = await checkStorageCapacity(estimatedTotalSize)
-
-    if (!capacityCheck.canAdd) {
-      storageWarning.value = capacityCheck.warning?.message || 'ストレージ容量が不足しています'
-    } else if (capacityCheck.warning) {
-      storageWarning.value = capacityCheck.warning.message
-    }
-  }
 }
 
 // 一括ファイルから削除

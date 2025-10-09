@@ -787,14 +787,11 @@ export async function getDatabaseStats(): Promise<DatabaseOperationResult<Databa
     const oldestChat = await db.chats.orderBy('createdAt').first()
     const newestChat = await db.chats.orderBy('createdAt').last()
 
-    // 総データサイズを概算（正確には各レコードのサイズを計算する必要がある）
-    const totalSize = await estimateDatabaseSize()
-
     const stats: DatabaseStats = {
       totalChats,
       totalMessages,
       totalFiles,
-      totalSize,
+      totalSize: 0,
       activeChats,
       archivedChats,
       oldestChatDate: oldestChat?.createdAt,
@@ -817,30 +814,6 @@ export async function getDatabaseStats(): Promise<DatabaseOperationResult<Databa
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
     }
-  }
-}
-
-/** データベースサイズを概算 */
-async function estimateDatabaseSize(): Promise<number> {
-  try {
-    // 簡易的なサイズ計算（実際のバイト数とは異なる場合がある）
-    const [chats, messages, files] = await Promise.all([db.chats.toArray(), db.messages.toArray(), db.attachedFiles.toArray()])
-
-    let totalSize = 0
-
-    // チャットレコードのサイズ
-    totalSize += chats.reduce((sum, chat) => sum + JSON.stringify(chat).length, 0)
-
-    // メッセージレコードのサイズ
-    totalSize += messages.reduce((sum, message) => sum + JSON.stringify(message).length, 0)
-
-    // ファイルレコードのサイズ（主にBase64データ）
-    totalSize += files.reduce((sum, file) => sum + file.size, 0)
-
-    return totalSize
-  } catch (error) {
-    logger.error('データベースのサイズの推定に失敗しました:', { component: 'database' }, error)
-    return 0
   }
 }
 

@@ -2,7 +2,6 @@
   <SettingSection
     title="高度な設定"
     description="詳細な動作調整"
-    :default-open="false"
   >
     <SettingItem
       name="streamingSpeed"
@@ -78,27 +77,93 @@
         @update:model-value="updateSetting('maxBackoffDelaySeconds', $event?.[0] ?? 60)"
       />
     </SettingItem>
+
+    <!-- Claude Extended Thinking設定 -->
+    <template v-if="localProfileSettings?.apiProvider === 'claude'">
+      <SettingToggle
+        :model-value="localProfileSettings?.enableExtendedThinking ?? false"
+        label="Extended Thinking有効化"
+        description="Claudeの拡張思考モード（より深い推論、コスト増）"
+        @update:model-value="(value: boolean) => updateProfileSetting('enableExtendedThinking', value)"
+      />
+
+      <SettingItem
+        v-if="localProfileSettings?.enableExtendedThinking"
+        name="thinkingBudget"
+        label="思考トークン数"
+        description="思考に使用する最大トークン数（1024-10000推奨）"
+        :value="`${localProfileSettings?.thinkingBudget ?? 5000}トークン`"
+        show-value
+      >
+        <Slider
+          :model-value="[localProfileSettings?.thinkingBudget ?? 5000]"
+          :min="1024"
+          :max="10000"
+          :step="256"
+          @update:model-value="updateProfileSetting('thinkingBudget', $event?.[0] ?? 5000)"
+        />
+      </SettingItem>
+
+      <!-- Claude Cache Control設定 -->
+      <SettingToggle
+        :model-value="localSettings.enableCacheControl"
+        label="Cache Control有効化"
+        description="プロンプトキャッシュでコスト削減（繰り返し使用時に有効）"
+        @update:model-value="(value: boolean) => updateSetting('enableCacheControl', value)"
+      />
+
+      <SettingToggle
+        v-if="localSettings.enableCacheControl"
+        :model-value="localSettings.cacheSystemPrompt"
+        label="システムプロンプトをキャッシュ"
+        description="システムプロンプトをキャッシュしてコスト削減"
+        @update:model-value="(value: boolean) => updateSetting('cacheSystemPrompt', value)"
+      />
+
+      <SettingToggle
+        v-if="localSettings.enableCacheControl"
+        :model-value="localSettings.cacheTools"
+        label="ツール定義をキャッシュ"
+        description="Function Callingツール定義をキャッシュ"
+        @update:model-value="(value: boolean) => updateSetting('cacheTools', value)"
+      />
+
+      <SettingToggle
+        v-if="localSettings.enableCacheControl"
+        :model-value="localSettings.enablePromptCaching"
+        label="Prompt Caching有効化"
+        description="繰り返しプロンプトの最適化（実験的機能）"
+        @update:model-value="(value: boolean) => updateSetting('enablePromptCaching', value)"
+      />
+    </template>
   </SettingSection>
 </template>
 
 <script setup lang="ts">
-import type { AppSettings } from '~/types/settings'
+import type { AppSettings, SettingsProfileData } from '~/types/settings'
 import SettingSection from '~/components/molecules/page-setting/SettingSection.vue'
 import SettingItem from '~/components/molecules/page-setting/SettingItem.vue'
 import SettingToggle from '~/components/molecules/page-setting/SettingToggle.vue'
 import { Input } from '~/components/ui/input'
 import { Slider } from '~/components/ui/slider'
+
 export interface AdvancedSettingsSectionProps {
   localSettings: AppSettings
+  localProfileSettings?: SettingsProfileData
 }
 
 defineProps<AdvancedSettingsSectionProps>()
 
 const emit = defineEmits<{
   'update-setting': [key: keyof AppSettings, value: AppSettings[keyof AppSettings]]
+  'update-profile-setting': [key: keyof SettingsProfileData, value: SettingsProfileData[keyof SettingsProfileData]]
 }>()
 
 const updateSetting = (key: keyof AppSettings, value: AppSettings[keyof AppSettings]) => {
   emit('update-setting', key, value)
+}
+
+const updateProfileSetting = (key: keyof SettingsProfileData, value: SettingsProfileData[keyof SettingsProfileData]) => {
+  emit('update-profile-setting', key, value)
 }
 </script>

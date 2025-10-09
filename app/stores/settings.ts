@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { useFunctionCalling } from '~/composables/useFunctionCalling'
 import { loadSettings as loadSettingsFromDB, saveSettings as saveSettingsToDB } from '~/lib/database'
 import { useSettingsProfilesStore } from '~/stores/settingsProfiles'
-import type { GeminiApiSettings } from '~/types/chat'
+import type { ClaudeApiSettings, GeminiApiSettings } from '~/types/chat'
 import type { AppSettings } from '~/types/settings'
 import { DEFAULT_SETTINGS } from '~/types/settings'
 import { clamp } from '~/utils/calc'
@@ -74,6 +74,47 @@ export const useSettingsStore = defineStore(
       includeThoughts: settings.value.includeThoughts,
       thinkingBudget: settings.value.thinkingBudget,
       geminiEnableGrounding: settings.value.geminiEnableGrounding,
+      enableThoughtTranslation: settings.value.enableThoughtTranslation,
+      thoughtTranslationProvider: settings.value.thoughtTranslationProvider,
+      thoughtTranslationModel: settings.value.thoughtTranslationModel,
+      deeplApiKey: settings.value.deeplApiKey,
+      enableProofreading: settings.value.enableProofreading,
+      proofreadingModelName: settings.value.proofreadingModelName,
+      proofreadingSystemInstruction: settings.value.proofreadingSystemInstruction,
+      functionCalling: settings.value.geminiEnableFunctionCalling
+        ? {
+            enabled: true,
+            mode: settings.value.functionCallingMode,
+            ...(settings.value.functionCallingMode === 'any' && settings.value.enabledFunctionTools.length > 0 ? { allowedFunctionNames: [...settings.value.enabledFunctionTools] } : {}),
+          }
+        : undefined,
+      // ダミープロンプト設定（送信時のみ適用）
+      enableDummyUserPrompt: settings.value.enableDummyUserPrompt,
+      dummyUserPrompt: settings.value.dummyUserPrompt,
+      enableDummyModelPrompt: settings.value.enableDummyModelPrompt,
+      dummyModelPrompt: settings.value.dummyModelPrompt,
+      prependDummyModelToResponse: settings.value.prependDummyModelToResponse,
+    }))
+
+    const claudeApiSettings = computed<ClaudeApiSettings>(() => ({
+      apiKey: settings.value.claudeApiKey,
+      model: settings.value.modelName,
+      maxTokens: settings.value.maxTokens ?? 4096, // Claudeでは必須
+      temperature: settings.value.temperature ?? 1.0,
+      topK: settings.value.topK ?? 1,
+      topP: settings.value.topP ?? 0.95,
+      systemPrompt: settings.value.systemPrompt,
+      streamingOutput: settings.value.streamingOutput,
+      enableThinking: settings.value.enableThinking,
+      includeThoughts: settings.value.includeThoughts,
+      // Extended Thinking設定
+      enableExtendedThinking: settings.value.enableExtendedThinking,
+      thinkingBudget: settings.value.thinkingBudget ?? undefined,
+      // Cache Control設定
+      enableCacheControl: settings.value.enableCacheControl,
+      cacheSystemPrompt: settings.value.cacheSystemPrompt,
+      cacheTools: settings.value.cacheTools,
+      enablePromptCaching: settings.value.enablePromptCaching,
       enableThoughtTranslation: settings.value.enableThoughtTranslation,
       thoughtTranslationProvider: settings.value.thoughtTranslationProvider,
       thoughtTranslationModel: settings.value.thoughtTranslationModel,
@@ -454,6 +495,7 @@ export const useSettingsStore = defineStore(
 
       apiConfig,
       apiSettings,
+      claudeApiSettings,
       geminiParameters,
       advancedSettings,
       thoughtTranslationSettings,

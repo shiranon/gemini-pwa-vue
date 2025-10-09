@@ -158,7 +158,7 @@ export interface ChatAvatarSettings {
 // ============================================================================
 
 /** APIプロバイダー */
-export type ApiProvider = 'gemini' | 'openai'
+export type ApiProvider = 'gemini' | 'openai' | 'claude'
 
 /** GPT-5 モデルの reasoning 設定 */
 export interface OpenAiReasoningSettings {
@@ -197,6 +197,7 @@ export interface SettingsProfileData {
   presencePenalty: number | null
   frequencyPenalty: number | null
   thinkingBudget: number | null
+  enableExtendedThinking: boolean
 
   // 高度な機能
   geminiEnableFunctionCalling: boolean
@@ -252,6 +253,8 @@ export interface AppSettings
   apiKey: string
   /** OpenAI API基本設定 */
   openaiApiKey: string
+  /** Claude API基本設定 */
+  claudeApiKey: string
   modelName: string
   streamingSpeed: number
   systemPrompt: string
@@ -262,6 +265,14 @@ export interface AppSettings
   dummyModelPrompt: string
   // 保存時にモデル応答の先頭へダミーモデル文を連結
   prependDummyModelToResponse: boolean
+  // Claude Extended Thinking設定
+  enableExtendedThinking: boolean
+  thinkingBudget: number | null
+  // Claude Cache Control設定
+  enableCacheControl: boolean
+  cacheSystemPrompt: boolean
+  cacheTools: boolean
+  enablePromptCaching: boolean
   // プロファイル管理
   styleProfiles?: SettingsProfile[]
   currentProfileId?: string
@@ -272,8 +283,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   // APIプロバイダー設定
   apiProvider: 'gemini',
   // 開発時は環境変数から取得する
-  apiKey: process.env.GEMINI_API_KEY || '',
-  openaiApiKey: process.env.OPENAI_API_KEY || '',
+  apiKey: '',
+  openaiApiKey: '',
+  claudeApiKey: '',
   modelName: 'gemini-2.5-flash',
   streamingSpeed: 30,
   systemPrompt: '',
@@ -355,6 +367,15 @@ export const DEFAULT_SETTINGS: AppSettings = {
   enableDummyModelPrompt: false,
   dummyModelPrompt: '',
   prependDummyModelToResponse: false,
+
+  // Claude Extended Thinking
+  enableExtendedThinking: false,
+
+  // Claude Cache Control
+  enableCacheControl: false,
+  cacheSystemPrompt: true,
+  cacheTools: true,
+  enablePromptCaching: false,
 
   // 画像最適化設定
   enableImageOptimization: true,

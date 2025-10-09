@@ -9,7 +9,7 @@
       <SettingToggle
         :model-value="localProfileSettings.geminiEnableGrounding"
         label="Google Search"
-        description="Google Searchによる情報取得を有効化"
+        description="Google Searchによる情報取得を有効化(Gemini APIのみ)"
         @update:model-value="(value: boolean) => updateProfileSetting('geminiEnableGrounding', value)"
       />
       <SettingToggle

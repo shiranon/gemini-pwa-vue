@@ -6,8 +6,8 @@
           class="flex h-10 w-10 items-center justify-center rounded-lg"
           :class="iconBgClass"
         >
-          <Icon
-            :icon="icon"
+          <component
+            :is="icon"
             class="h-6 w-6"
           />
         </div>
@@ -39,8 +39,8 @@
         :class="buttonClass"
         @click="$emit('export')"
       >
-        <Icon
-          :icon="buttonIcon"
+        <component
+          :is="buttonIcon"
           class="mr-2 h-4 w-4"
         />
         {{ buttonText }}
@@ -50,7 +50,7 @@
 </template>
 
 <script setup lang="ts">
-import { Icon } from '@iconify/vue'
+import type { Component } from 'vue'
 import { Button } from '~/components/ui/button'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '~/components/ui/card'
 import StatsList from './StatsList.vue'
@@ -63,14 +63,14 @@ interface DatabaseStats {
 interface Props {
   title: string
   subtitle: string
-  icon: string
+  icon: Component
   iconBgClass: string
   showStats?: boolean
   stats?: DatabaseStats | null
   databaseSize?: string
   description?: string
   buttonText: string
-  buttonIcon: string
+  buttonIcon: Component
   buttonClass: string
   disabled: boolean
 }
