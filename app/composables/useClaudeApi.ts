@@ -148,16 +148,19 @@ export const useClaudeApi = () => {
 
       const toolUseId = toolUseIds[i]
       if (!toolUseId) {
-        logger.warn(`[${context}] tool_use_idが見つかりません`, {
+        logger.error(`[${context}] tool_use_idが見つかりません`, {
           component: 'useClaudeApi',
           resultIndex: i,
+          toolResultsLength: toolResults.length,
+          toolUseIdsLength: toolUseIds.length,
         })
+        throw new Error(`[${context}] tool_use_idが見つかりません。インデックス: ${i}, toolResults: ${toolResults.length}, toolUseIds: ${toolUseIds.length}`)
       }
 
       const payload = toolResult.result && typeof toolResult.result === 'object' ? toolResult.result : toolResult.error ? { error: toolResult.error } : {}
       toolResultBlocks.push({
         type: 'tool_result',
-        tool_use_id: toolUseId || generateMessageId(),
+        tool_use_id: toolUseId,
         content: JSON.stringify(payload),
       })
     }
@@ -174,8 +177,18 @@ export const useClaudeApi = () => {
 
   /**
    * Gemini SchemaをClaude互換のJSON Schemaに変換
+   * メモ化により同じschemaの変換を繰り返さない
    */
+  const schemaConversionCache = new Map<string, Tool.InputSchema>()
+
   const convertGeminiSchemaToClaudeSchema = (schema: unknown): Tool.InputSchema => {
+    // キャッシュキーを生成（schemaの文字列表現を使用）
+    const cacheKey = JSON.stringify(schema)
+
+    // キャッシュにあれば返す
+    if (schemaConversionCache.has(cacheKey)) {
+      return schemaConversionCache.get(cacheKey)!
+    }
     // 空の場合のデフォルト
     if (!schema || typeof schema !== 'object') {
       return {
@@ -233,11 +246,16 @@ export const useClaudeApi = () => {
     // requiredをコピー
     const requiredArray = schemaObj.required && Array.isArray(schemaObj.required) ? (schemaObj.required as string[]) : null
 
-    return {
+    const result: Tool.InputSchema = {
       type: 'object' as const,
       properties: convertedProperties,
       required: requiredArray,
     }
+
+    // キャッシュに保存
+    schemaConversionCache.set(cacheKey, result)
+
+    return result
   }
 
   /**
@@ -410,16 +428,21 @@ export const useClaudeApi = () => {
         m.functionResults.forEach((funcResult, idx) => {
           const toolUseId = toolUseIds[idx]
           if (!toolUseId) {
-            logger.warn('[Claude API] tool_use_idが見つかりません。新規IDを生成します。', {
+            logger.error('[Claude API] tool_use_idが見つかりません', {
               component: 'useClaudeApi',
               messageIndex: i,
               resultIndex: idx,
+              functionResultsLength: m.functionResults?.length || 0,
+              toolUseIdsLength: toolUseIds.length,
             })
+            throw new Error(
+              `[Claude API] tool_use_idが見つかりません。メッセージインデックス: ${i}, 結果インデックス: ${idx}, functionResults: ${m.functionResults?.length || 0}, toolUseIds: ${toolUseIds.length}`
+            )
           }
 
           blocks.push({
             type: 'tool_result',
-            tool_use_id: toolUseId || generateMessageId(),
+            tool_use_id: toolUseId,
             content: JSON.stringify(funcResult.result || { error: funcResult.error }),
           })
         })

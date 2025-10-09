@@ -156,8 +156,18 @@ const convertGeminiTypeToOpenAiType = (type: unknown): string => {
 
 /**
  * Gemini API のパラメータスキーマを OpenAI 形式に変換
+ * メモ化により同じschemaの変換を繰り返さない
  */
+const schemaConversionCache = new Map<string, unknown>()
+
 const convertGeminiSchemaToOpenAi = (schema: unknown): unknown => {
+  // キャッシュキーを生成（schemaの文字列表現を使用）
+  const cacheKey = JSON.stringify(schema)
+
+  // キャッシュにあれば返す
+  if (schemaConversionCache.has(cacheKey)) {
+    return schemaConversionCache.get(cacheKey)!
+  }
   if (!schema || typeof schema !== 'object') {
     return schema
   }
@@ -181,6 +191,9 @@ const convertGeminiSchemaToOpenAi = (schema: unknown): unknown => {
       result[key] = value
     }
   }
+
+  // キャッシュに保存
+  schemaConversionCache.set(cacheKey, result)
 
   return result
 }
