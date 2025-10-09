@@ -1,13 +1,11 @@
 import { readonly, ref } from 'vue'
 import { useSettingsStore } from '~/stores/settings'
 import { useImageOptimization, type ImageOptimizationOptions } from './useImageOptimization'
-import { useStorageQuota } from './useStorageQuota'
 
 export interface ImageUploadOptions {
   maxSize?: number // バイト単位
   allowedTypes?: string[]
   quality?: number // 0-1 (JPEG圧縮品質)
-  checkStorageQuota?: boolean // ストレージクォータをチェックするか
   enableOptimization?: boolean // 画像最適化を有効にするか
   optimizationOptions?: ImageOptimizationOptions // 最適化オプション
 }
@@ -16,11 +14,10 @@ const DEFAULT_MAX_SIZE = 5 * 1024 * 1024 // 5MB
 const DEFAULT_ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif']
 
 export function useImageUpload(options: ImageUploadOptions = {}) {
-  const { maxSize = DEFAULT_MAX_SIZE, allowedTypes = DEFAULT_ALLOWED_TYPES, checkStorageQuota = true, enableOptimization = true, optimizationOptions = {} } = options
+  const { maxSize = DEFAULT_MAX_SIZE, allowedTypes = DEFAULT_ALLOWED_TYPES, enableOptimization = true, optimizationOptions = {} } = options
 
   const isUploading = ref(false)
   const error = ref<string | null>(null)
-  const { checkStorageCapacity, estimateBase64Size, calculateBase64Size } = useStorageQuota()
   const { optimizeImage, isProcessing: isOptimizing } = useImageOptimization()
 
   const uploadImage = async (file: File): Promise<string | null> => {
@@ -55,22 +52,6 @@ export function useImageUpload(options: ImageUploadOptions = {}) {
       return null
     }
 
-    // ストレージクォータチェック（最適化後のサイズで）
-    if (checkStorageQuota) {
-      const estimatedBase64Size = estimateBase64Size(processedFile.size)
-      const capacityCheck = await checkStorageCapacity(estimatedBase64Size)
-
-      if (!capacityCheck.canAdd) {
-        error.value = capacityCheck.warning?.message || 'ストレージ容量が不足しています'
-        return null
-      }
-
-      // 警告がある場合はログに記録
-      if (capacityCheck.warning) {
-        console.warn('ストレージ容量警告:', capacityCheck.warning.message)
-      }
-    }
-
     // ファイル形式チェック（最適化後のファイルで）
     const fileExtension = processedFile.name.toLowerCase().split('.').pop()
     const isValidMimeType = allowedTypes.includes(processedFile.type)
@@ -95,13 +76,6 @@ export function useImageUpload(options: ImageUploadOptions = {}) {
             const base64SizeLimit = maxSize * 1.5
             if (result.length > base64SizeLimit) {
               reject(new Error('エンコード後のファイルサイズが上限を超えています'))
-              return
-            }
-
-            // 実際のBase64データサイズを計算して検証
-            const actualBase64Size = calculateBase64Size(result)
-            if (actualBase64Size > maxSize * 1.5) {
-              reject(new Error('Base64エンコード後の実際のサイズが上限を超えています'))
               return
             }
 

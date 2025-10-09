@@ -12,7 +12,6 @@
         :stats="stats"
         :database-size="databaseSize"
         :loading="loading"
-        :storage-quota="storageQuota"
         @export-full="exportFullBackup"
         @export-chats="exportChatsOnly"
       />
@@ -130,7 +129,6 @@ const {
   importOptions,
 
   databaseSize,
-  storageQuota,
 
   exportFullBackup,
   exportChatsOnly,

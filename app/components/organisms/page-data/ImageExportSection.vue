@@ -11,10 +11,7 @@
       >
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
-            <Icon
-              name="material-symbols:image"
-              class="text-muted-foreground h-4 w-4"
-            />
+            <Image class="text-muted-foreground h-4 w-4" />
             <span class="text-foreground text-sm font-medium">画像統計</span>
           </div>
           <div class="text-right">
@@ -100,9 +97,13 @@
         class="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-md border border-transparent px-4 py-2 text-sm font-medium transition-all disabled:cursor-not-allowed disabled:opacity-50"
         @click="handleExport"
       >
-        <Icon
-          :name="isLoading ? 'material-symbols:loading' : 'material-symbols:download'"
+        <Loader2
+          v-if="isLoading"
           :class="{ 'animate-spin': isLoading }"
+          class="h-4 w-4"
+        />
+        <Download
+          v-else
           class="h-4 w-4"
         />
         {{ isLoading ? 'エクスポート中...' : '画像をエクスポート' }}
@@ -113,10 +114,7 @@
         class="border-border bg-muted text-foreground hover:bg-muted/80 inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-md border px-4 py-2 text-sm font-medium transition-all disabled:cursor-not-allowed disabled:opacity-50"
         @click="handleRefresh"
       >
-        <Icon
-          name="material-symbols:refresh"
-          class="h-4 w-4"
-        />
+        <RefreshCw class="h-4 w-4" />
         統計を更新
       </button>
     </div>
@@ -144,10 +142,7 @@
       class="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
     >
       <div class="flex items-center gap-2">
-        <Icon
-          name="material-symbols:error"
-          class="h-4 w-4"
-        />
+        <AlertCircle class="h-4 w-4" />
         {{ error }}
       </div>
     </div>
@@ -156,6 +151,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { Image, Download, RefreshCw, AlertCircle, Loader2 } from 'lucide-vue-next'
 import { useImageExport } from '~/composables/useImageExport'
 
 const { isLoading, error, progress, getImageStats, getAllImageData, filterImages, exportImagesAsZip, formatFileSize } = useImageExport()
