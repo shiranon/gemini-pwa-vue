@@ -110,16 +110,16 @@ export const useClaudeApi = () => {
   }
 
   /**
-   * ContentBlock配列からtool_useブロックのIDを抽出
+   * ContentBlock配列からtool_useブロックのIDと関数名を抽出
    */
-  const extractToolUseIds = (contentBlocks: Array<{ type: string; id?: string }>): string[] => {
-    const toolUseIds: string[] = []
+  const extractToolUseCalls = (contentBlocks: Array<{ type: string; id?: string; name?: string }>): Array<{ id: string; name: string }> => {
+    const toolUseCalls: Array<{ id: string; name: string }> = []
     for (const block of contentBlocks) {
-      if (block.type === 'tool_use' && block.id) {
-        toolUseIds.push(block.id)
+      if (block.type === 'tool_use' && block.id && block.name) {
+        toolUseCalls.push({ id: block.id, name: block.name })
       }
     }
-    return toolUseIds
+    return toolUseCalls
   }
 
   /**
@@ -137,30 +137,40 @@ export const useClaudeApi = () => {
 
   /**
    * FunctionCallResult配列からToolResultBlockParam配列を構築
-   * tool_use IDとの対応関係を維持
+   * tool_use IDとの対応関係を安全に維持（関数名ベースのマッピング）
    */
-  const buildToolResultBlocks = (toolResults: FunctionCallResult[], toolUseIds: string[], context: string): ToolResultBlockParam[] => {
+  const buildToolResultBlocks = (toolResults: FunctionCallResult[], toolUseCalls: Array<{ id: string; name: string }>, context: string): ToolResultBlockParam[] => {
     const toolResultBlocks: ToolResultBlockParam[] = []
 
-    for (let i = 0; i < toolResults.length; i++) {
-      const toolResult = toolResults[i]
-      if (!toolResult) continue
+    // 関数名をキーとしたMapを作成
+    const toolResultsMap = new Map<string, FunctionCallResult>()
+    for (const result of toolResults) {
+      if (result.name) {
+        toolResultsMap.set(result.name, result)
+      }
+    }
 
-      const toolUseId = toolUseIds[i]
-      if (!toolUseId) {
-        logger.error(`[${context}] tool_use_idが見つかりません`, {
+    for (const toolUseCall of toolUseCalls) {
+      const toolResult = toolResultsMap.get(toolUseCall.name)
+      if (!toolResult) {
+        logger.warn(`[${context}] 関数実行結果が見つかりません`, {
           component: 'useClaudeApi',
-          resultIndex: i,
-          toolResultsLength: toolResults.length,
-          toolUseIdsLength: toolUseIds.length,
+          functionName: toolUseCall.name,
+          toolUseId: toolUseCall.id,
         })
-        throw new Error(`[${context}] tool_use_idが見つかりません。インデックス: ${i}, toolResults: ${toolResults.length}, toolUseIds: ${toolUseIds.length}`)
+        // 結果が見つからない場合は空の結果を送信
+        toolResultBlocks.push({
+          type: 'tool_result',
+          tool_use_id: toolUseCall.id,
+          content: JSON.stringify({ error: 'Function execution result not found' }),
+        })
+        continue
       }
 
       const payload = toolResult.result && typeof toolResult.result === 'object' ? toolResult.result : toolResult.error ? { error: toolResult.error } : {}
       toolResultBlocks.push({
         type: 'tool_result',
-        tool_use_id: toolUseId,
+        tool_use_id: toolUseCall.id,
         content: JSON.stringify(payload),
       })
     }
@@ -178,8 +188,15 @@ export const useClaudeApi = () => {
   /**
    * Gemini SchemaをClaude互換のJSON Schemaに変換
    * メモ化により同じschemaの変換を繰り返さない
+   * キャッシュサイズ制限によりメモリリークを防止
    */
+  const MAX_CACHE_SIZE = 100
   const schemaConversionCache = new Map<string, Tool.InputSchema>()
+
+  // 型ガード関数: 有効なプロパティオブジェクトかどうかを検証
+  const isValidPropertiesObject = (val: unknown): val is Record<string, unknown> => {
+    return val !== null && typeof val === 'object' && !Array.isArray(val)
+  }
 
   const convertGeminiSchemaToClaudeSchema = (schema: unknown): Tool.InputSchema => {
     // キャッシュキーを生成（schemaの文字列表現を使用）
@@ -248,8 +265,16 @@ export const useClaudeApi = () => {
 
     const result: Tool.InputSchema = {
       type: 'object' as const,
-      properties: convertedProperties,
+      properties: isValidPropertiesObject(convertedProperties) ? convertedProperties : null,
       required: requiredArray,
+    }
+
+    // キャッシュサイズ制限: 古いエントリを削除
+    if (schemaConversionCache.size >= MAX_CACHE_SIZE) {
+      const firstKey = schemaConversionCache.keys().next().value
+      if (firstKey !== undefined) {
+        schemaConversionCache.delete(firstKey)
+      }
     }
 
     // キャッシュに保存
@@ -522,9 +547,9 @@ export const useClaudeApi = () => {
           }
           currentContents.push(assistantMessage)
 
-          // response.contentからtool_useブロックのIDを抽出してtool_resultを構築
-          const toolUseIds = extractToolUseIds(response.content)
-          const toolResultBlocks = buildToolResultBlocks(toolResults, toolUseIds, '非ストリーミング')
+          // response.contentからtool_useブロックのIDと関数名を抽出してtool_resultを構築
+          const toolUseCalls = extractToolUseCalls(response.content)
+          const toolResultBlocks = buildToolResultBlocks(toolResults, toolUseCalls, '非ストリーミング')
 
           currentContents.push({
             role: 'user',
@@ -731,9 +756,9 @@ export const useClaudeApi = () => {
           content: accumulatedContent,
         })
 
-        // accumulatedContentからtool_useブロックのIDを抽出してtool_resultを構築
-        const toolUseIds = extractToolUseIds(accumulatedContent)
-        const toolResultBlocks = buildToolResultBlocks(accumulatedToolResults, toolUseIds, 'ストリーミング')
+        // accumulatedContentからtool_useブロックのIDと関数名を抽出してtool_resultを構築
+        const toolUseCalls = extractToolUseCalls(accumulatedContent)
+        const toolResultBlocks = buildToolResultBlocks(accumulatedToolResults, toolUseCalls, 'ストリーミング')
 
         currentContents.push({
           role: 'user',

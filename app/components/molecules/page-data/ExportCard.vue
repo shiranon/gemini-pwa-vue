@@ -7,7 +7,7 @@
           :class="iconBgClass"
         >
           <component
-            :is="IconComponent"
+            :is="icon"
             class="h-6 w-6"
           />
         </div>
@@ -40,7 +40,7 @@
         @click="$emit('export')"
       >
         <component
-          :is="ButtonIconComponent"
+          :is="buttonIcon"
           class="mr-2 h-4 w-4"
         />
         {{ buttonText }}
@@ -50,8 +50,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { Download, MessageSquare, FileText, Database, HardDrive } from 'lucide-vue-next'
+import type { Component } from 'vue'
 import { Button } from '~/components/ui/button'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '~/components/ui/card'
 import StatsList from './StatsList.vue'
@@ -64,39 +63,20 @@ interface DatabaseStats {
 interface Props {
   title: string
   subtitle: string
-  icon: string
+  icon: Component
   iconBgClass: string
   showStats?: boolean
   stats?: DatabaseStats | null
   databaseSize?: string
   description?: string
   buttonText: string
-  buttonIcon: string
+  buttonIcon: Component
   buttonClass: string
   disabled: boolean
 }
 
-const props = defineProps<Props>()
+defineProps<Props>()
 defineEmits<{
   export: []
 }>()
-
-// アイコンマッピング
-const iconMap = {
-  'material-symbols:download': Download,
-  'material-symbols:chat': MessageSquare,
-  'material-symbols:file-save': FileText,
-  'material-symbols:storage': Database,
-  'material-symbols:hard-drive': HardDrive,
-  'material-symbols:message': MessageSquare,
-}
-
-// 動的にアイコンコンポーネントを取得
-const IconComponent = computed(() => {
-  return iconMap[props.icon as keyof typeof iconMap] || Download
-})
-
-const ButtonIconComponent = computed(() => {
-  return iconMap[props.buttonIcon as keyof typeof iconMap] || Download
-})
 </script>

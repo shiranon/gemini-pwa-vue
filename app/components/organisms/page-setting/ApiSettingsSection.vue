@@ -169,15 +169,18 @@ const apiDescription = computed(() => {
 })
 
 const isValidGeminiApiKey = computed(() => {
-  return props.localSettings.apiKey.length > 0
+  const key = props.localSettings.apiKey
+  return key.length > 0 && key.startsWith('AIzaSy')
 })
 
 const isValidOpenAiApiKey = computed(() => {
-  return props.localSettings.openaiApiKey.length > 0
+  const key = props.localSettings.openaiApiKey
+  return key.length > 0 && key.startsWith('sk-')
 })
 
 const isValidClaudeApiKey = computed(() => {
-  return props.localSettings.claudeApiKey.length > 0
+  const key = props.localSettings.claudeApiKey
+  return key.length > 0 && key.startsWith('sk-ant-')
 })
 
 const { modelOptions: geminiModelOptions } = useGeminiModelOptions(computed(() => props.localSettings.apiKey))
