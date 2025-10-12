@@ -1,5 +1,8 @@
 <template>
-  <Dialog v-model:open="isOpen">
+  <Dialog
+    v-model:open="isOpen"
+    :modal="false"
+  >
     <DialogContent>
       <DialogHeader>
         <DialogTitle>{{ title || '確認' }}</DialogTitle>
@@ -37,7 +40,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '~/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '~/components/ui/dialog'
 import { Button } from '~/components/ui/button'
 
 interface ConfirmDialogProps {

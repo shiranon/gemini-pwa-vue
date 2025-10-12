@@ -1915,15 +1915,7 @@ export async function dbGetCategoryImages(categoryId: string): Promise<DatabaseO
   try {
     const startTime = Date.now()
 
-    // カテゴリーの存在確認
-    const category = await db.backgroundCategories.get(categoryId)
-    if (!category) {
-      return {
-        success: false,
-        error: '指定されたカテゴリーが見つかりません',
-      }
-    }
-
+    // カテゴリーIDで画像を直接取得（存在確認は不要）
     const images = await db.backgroundImages.where('categoryId').equals(categoryId).reverse().sortBy('createdAt')
 
     const executionTime = Date.now() - startTime

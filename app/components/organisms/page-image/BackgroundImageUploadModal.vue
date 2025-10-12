@@ -108,7 +108,7 @@
         <Button
           type="button"
           class="w-full sm:w-auto"
-          :disabled="selectedFiles.length === 0 || isUploading || !isFormValid"
+          :disabled="isUploadButtonDisabled"
           @click="handleUpload"
         >
           <Icon
@@ -170,7 +170,16 @@ const error = ref<string | null>(null)
 
 // フォームのバリデーション
 const isFormValid = computed(() => {
-  return selectedFiles.value.every((fileData) => fileData.name.trim() !== '')
+  // ファイルが選択されている場合は常に有効とする
+  // 個別のファイル名は必須ではない
+  const isValid = selectedFiles.value.length > 0
+  return isValid
+})
+
+// アップロードボタンの状態
+const isUploadButtonDisabled = computed(() => {
+  const disabled = selectedFiles.value.length === 0 || isUploading.value || !isFormValid.value
+  return disabled
 })
 
 // ファイル選択時の処理
@@ -194,10 +203,25 @@ const handleFileSelect = (event: Event) => {
 
     // ファイル名から拡張子を除いた名前を抽出
     const nameWithoutExt = file.name.replace(/\.[^/.]+$/, '')
+    // 空の場合は元のファイル名を使用
+    const displayName = nameWithoutExt.trim() !== '' ? nameWithoutExt : file.name
+
+    if (import.meta.dev) {
+      logger.debug(
+        'ファイル選択処理',
+        { component: 'BackgroundImageUploadModal' },
+        {
+          originalName: file.name,
+          nameWithoutExt,
+          displayName,
+          isEmpty: displayName.trim() === '',
+        }
+      )
+    }
 
     selectedFiles.value.push({
       file,
-      name: nameWithoutExt,
+      name: displayName,
       preview,
     })
   })

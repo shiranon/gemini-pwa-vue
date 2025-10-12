@@ -1,6 +1,6 @@
 ## 更新履歴
 
-### Version 0.1.11 (2025-10-09)
+### Version 0.2.0 (2025-10-09)
 - 機能追加
   - Claude API対応
     - Anthropic Claude API統合

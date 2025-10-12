@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { logger } from '~/utils/logger'
 
 // File System Access API の型定義
@@ -38,6 +38,11 @@ export function useFolderUpload() {
     isSupported.value = 'showDirectoryPicker' in window
     return isSupported.value
   }
+
+  // 初期化時にサポート確認を実行
+  onMounted(() => {
+    checkSupport()
+  })
 
   // フォルダを選択して構造を解析（キャラクター作成用）
   const selectFolder = async (): Promise<FolderStructure | null> => {
@@ -170,7 +175,7 @@ export function useFolderUpload() {
   }
 
   // 背景画像用のフォルダを選択（フォルダ内の全画像を取得）
-  const selectImageFolder = async (): Promise<File[] | null> => {
+  const selectImageFolder = async (): Promise<{ folderName: string; images: File[] } | null> => {
     if (!checkSupport()) {
       throw new Error('このブラウザはフォルダ選択をサポートしていません')
     }
@@ -203,7 +208,10 @@ export function useFolderUpload() {
         throw new Error('選択されたフォルダに画像ファイルが見つかりません')
       }
 
-      return images
+      return {
+        folderName: directoryHandle.name,
+        images,
+      }
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
         // ユーザーがキャンセルした場合

@@ -70,7 +70,7 @@
             <div class="text-muted-foreground text-xs">{{ selectedImages.length }}枚の画像</div>
           </div>
           <div
-            v-if="!folderUpload.isSupported.value"
+            v-if="!folderUpload.isSupported"
             class="text-muted-foreground text-xs"
           >
             このブラウザはフォルダ選択をサポートしていません
@@ -115,7 +115,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '~/components/ui/dialog'
 import { Button } from '~/components/ui/button'
@@ -139,6 +139,11 @@ const emit = defineEmits<Emits>()
 
 const { createCategory, bulkUploadImages } = useBackgroundImages()
 const folderUpload = useFolderUpload()
+
+// フォルダ選択サポートの確認
+onMounted(() => {
+  folderUpload.checkSupport()
+})
 
 // ダイアログの開閉状態
 const isOpen = ref(props.open)
@@ -170,10 +175,12 @@ const selectedImages = ref<File[]>([])
 // フォルダ選択
 const handleSelectFolder = async () => {
   try {
-    const images = await folderUpload.selectImageFolder()
-    if (images) {
-      selectedImages.value = images
-      logger.info(`フォルダから${images.length}枚の画像を選択`, { component: 'BackgroundCategoryCreateModal' })
+    const result = await folderUpload.selectImageFolder()
+    if (result) {
+      // フォルダ名を自動的にカテゴリー名に設定
+      form.value.name = result.folderName
+      selectedImages.value = result.images
+      logger.info(`フォルダ「${result.folderName}」から${result.images.length}枚の画像を選択`, { component: 'BackgroundCategoryCreateModal' })
     }
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : 'フォルダの選択に失敗しました'

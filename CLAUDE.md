@@ -387,9 +387,10 @@ After code changes, always run:
 ```bash
 bun lint --fix    # Auto-fix linting issues (includes Prettier formatting)
 bun typecheck     # Verify TypeScript types
-bun test          # Run unit tests
 bun run build     # Confirm production build
 ```
+
+**IMPORTANT: DO NOT run `bun test` during normal development. Tests should only be run manually by the user when needed.**
 
 ## Component Migration Pattern
 When replacing components with shadcn-vue:

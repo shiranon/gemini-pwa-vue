@@ -396,6 +396,11 @@ const emit = defineEmits<Emits>()
 const { getOutfits, createOutfit, deleteOutfit: deleteOutfitFromDB, getOutfitAllExpressions, deleteImage: deleteImageFromDB, bulkAddOutfitsFromFolder, error } = useCharacterImages()
 const folderUpload = useFolderUpload()
 
+// フォルダ選択サポートの確認
+onMounted(() => {
+  folderUpload.checkSupport()
+})
+
 // Dialogの開閉状態
 const isOpen = ref(true)
 

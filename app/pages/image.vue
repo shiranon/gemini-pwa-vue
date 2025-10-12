@@ -293,7 +293,9 @@ const deleteCharacter = async (character: CharacterRecord) => {
   try {
     const success = await deleteCharacterFromDB(character.id)
     if (success) {
-      await loadCharacters()
+      // 削除成功後、即座に配列から除外してカードを削除
+      // これにより、削除されたキャラクターの画像読み込みが発生しない
+      characters.value = characters.value.filter((c) => c.id !== character.id)
     }
   } catch (err) {
     logger.error('キャラクターの削除に失敗', { component: 'image.vue' }, err)
@@ -356,7 +358,9 @@ const deleteCategory = async (category: BackgroundCategoryRecord) => {
   try {
     const success = await deleteCategoryFromDB(category.id)
     if (success) {
-      await loadCategories()
+      // 削除成功後、即座に配列から除外してカードを削除
+      // これにより、削除されたカテゴリーの画像読み込みが発生しない
+      categories.value = categories.value.filter((c) => c.id !== category.id)
     }
   } catch (err) {
     logger.error('カテゴリーの削除に失敗', { component: 'image.vue' }, err)
