@@ -170,6 +170,7 @@
       :category="selectedCategory"
       @close="handleImageListClosed"
       @back="handleImageListClosed"
+      @updated="handleImageListUpdated"
     />
 
     <!-- 確認ダイアログ -->
@@ -382,6 +383,11 @@ const handleCategoryUpdated = async () => {
 // 背景画像一覧モーダルが閉じられた時の処理
 const handleImageListClosed = () => {
   selectedCategory.value = null
+}
+
+// 背景画像が追加・削除された時の処理
+const handleImageListUpdated = async () => {
+  await loadCategories()
 }
 
 // 初期化

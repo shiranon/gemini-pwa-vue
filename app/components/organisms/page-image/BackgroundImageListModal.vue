@@ -189,6 +189,7 @@ interface Props {
 interface Emits {
   close: []
   back: []
+  updated: []
 }
 
 const props = defineProps<Props>()
@@ -283,6 +284,8 @@ const deleteSelectedImages = async () => {
 
     await loadImages()
     clearSelection()
+    // サムネイル更新のため親に通知
+    emit('updated')
   } catch (err) {
     error.value = '画像の削除に失敗しました'
     logger.error('画像の削除に失敗', { component: 'BackgroundImageListModal' }, err)
@@ -305,6 +308,8 @@ const handleUploadModalClose = () => {
 const handleImageUploaded = async () => {
   await loadImages()
   showUploadModal.value = false
+  // サムネイル更新のため親に通知
+  emit('updated')
 }
 
 // ダイアログを閉じる
