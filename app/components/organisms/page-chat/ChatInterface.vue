@@ -127,6 +127,7 @@ import ProfileSelect from '~/components/molecules/page-setting/ProfileSelect.vue
 import { Button } from '~/components/ui/button'
 import { Icon } from '@iconify/vue'
 import { hexToRgba } from '~/utils/color'
+import { extractBackgroundSelectionFromMessage, getBackgroundImageDataUrl, getLatestAssistantMessage } from '~/utils/backgroundManager'
 import type { ApiError, ChatMessage, AttachedFile, Message, AssistantMessage } from '~/types/chat'
 import { toast } from 'vue-sonner'
 import { logger } from '~/utils/logger'
@@ -492,58 +493,20 @@ watch(
 watch(
   () => messages.value,
   async (newMessages) => {
-    // 最新のアシスタントメッセージでFunction Callingの結果を確認
-    const latestAssistantMessage = newMessages.filter((msg) => msg.role === 'assistant').slice(-1)[0]
+    const latestMessage = getLatestAssistantMessage(newMessages)
+    if (!latestMessage) return
 
-    if (latestAssistantMessage?.functionResults) {
-      const backgroundResult = latestAssistantMessage.functionResults.find((result) => {
-        if (result.name === 'manageBackground' && result.result && typeof result.result === 'object') {
-          const resultData = result.result as Record<string, unknown>
-          return resultData.data && typeof resultData.data === 'object' && 'selectionResult' in resultData.data
-        }
-        return false
+    const selectionResult = extractBackgroundSelectionFromMessage(latestMessage)
+    if (!selectionResult) return
+
+    const dataUrl = await getBackgroundImageDataUrl(selectionResult.categoryName, selectionResult.imageName)
+    if (dataUrl) {
+      setTemporaryBackground(dataUrl)
+      logger.info('[ChatInterface] Function Callingの結果で一時的な背景画像を設定しました', {
+        component: 'ChatInterface',
+        categoryName: selectionResult.categoryName,
+        imageName: selectionResult.imageName,
       })
-
-      if (backgroundResult?.result && typeof backgroundResult.result === 'object' && 'data' in backgroundResult.result) {
-        const resultData = backgroundResult.result as Record<string, unknown>
-        if (resultData.data && typeof resultData.data === 'object' && 'selectionResult' in resultData.data) {
-          const data = resultData.data as Record<string, unknown>
-          const selectionResult = data.selectionResult as Record<string, unknown>
-
-          if (typeof selectionResult.categoryName === 'string' && typeof selectionResult.imageName === 'string') {
-            try {
-              // IndexedDBから画像データを取得
-              const { dbGetBackgroundImageByNames } = await import('~/lib/database')
-              const imageResult = await dbGetBackgroundImageByNames(selectionResult.categoryName, selectionResult.imageName)
-
-              if (imageResult.success && imageResult.data) {
-                const imageData = imageResult.data
-                const temporaryBackgroundUrl = `data:${imageData.mimeType};base64,${imageData.base64Data}`
-
-                setTemporaryBackground(temporaryBackgroundUrl)
-                logger.info('[ChatInterface] Function Callingの結果で一時的な背景画像を設定しました', {
-                  component: 'ChatInterface',
-                  categoryName: selectionResult.categoryName,
-                  imageName: selectionResult.imageName,
-                })
-              } else {
-                logger.warn('[ChatInterface] 背景画像データの取得に失敗しました', {
-                  component: 'ChatInterface',
-                  error: imageResult.error,
-                })
-              }
-            } catch (error) {
-              logger.error(
-                '[ChatInterface] 背景画像データの取得中にエラーが発生しました',
-                {
-                  component: 'ChatInterface',
-                },
-                error
-              )
-            }
-          }
-        }
-      }
     }
   },
   { deep: true }
