@@ -128,6 +128,7 @@ import { Button } from '~/components/ui/button'
 import { Icon } from '@iconify/vue'
 import { hexToRgba } from '~/utils/color'
 import { extractBackgroundSelectionFromMessage, getBackgroundImageDataUrl, getLatestAssistantMessage } from '~/utils/backgroundManager'
+import { parseMarkdown, type MarkdownInlineNode, type MarkdownBlockNode } from '~/lib/markdown'
 import type { ApiError, ChatMessage, AttachedFile, Message, AssistantMessage } from '~/types/chat'
 import { toast } from 'vue-sonner'
 import { logger } from '~/utils/logger'
@@ -489,24 +490,87 @@ watch(
   { immediate: true }
 )
 
-// Function Callingの結果を監視して一時的な背景画像を設定
+// Function Callingの結果とDirectiveを監視して一時的な背景画像を設定
 watch(
   () => messages.value,
   async (newMessages) => {
     const latestMessage = getLatestAssistantMessage(newMessages)
     if (!latestMessage) return
 
-    const selectionResult = extractBackgroundSelectionFromMessage(latestMessage)
-    if (!selectionResult) return
+    let categoryName: string | null = null
+    let imageName: string | null = null
+    let source = ''
 
-    const dataUrl = await getBackgroundImageDataUrl(selectionResult.categoryName, selectionResult.imageName)
-    if (dataUrl) {
-      setTemporaryBackground(dataUrl)
-      logger.info('[ChatInterface] Function Callingの結果で一時的な背景画像を設定しました', {
-        component: 'ChatInterface',
-        categoryName: selectionResult.categoryName,
-        imageName: selectionResult.imageName,
-      })
+    // 1. Function Calling結果をチェック（優先）
+    const functionCallingResult = extractBackgroundSelectionFromMessage(latestMessage)
+    if (functionCallingResult) {
+      categoryName = functionCallingResult.categoryName
+      imageName = functionCallingResult.imageName
+      source = 'Function Calling'
+    }
+
+    // 2. Function Callingがない場合、Directiveをチェック
+    if (!categoryName && latestMessage.content) {
+      console.log('[DEBUG] メッセージ内容:', latestMessage.content)
+      const nodes = parseMarkdown(latestMessage.content)
+      console.log('[DEBUG] パース結果:', JSON.stringify(nodes, null, 2))
+
+      // ノードから背景ディレクティブを探す（最後のものを優先）
+      const findDirective = (blockNodes: MarkdownBlockNode[]): { categoryName: string; imageName: string } | null => {
+        let lastDirective: { categoryName: string; imageName: string } | null = null
+
+        const traverseInline = (inlineNodes: MarkdownInlineNode[]) => {
+          for (const node of inlineNodes) {
+            if (node.type === 'backgroundDirective') {
+              lastDirective = { categoryName: node.categoryName, imageName: node.imageName }
+            } else if ('children' in node && Array.isArray(node.children)) {
+              traverseInline(node.children)
+            }
+          }
+        }
+
+        const traverseBlock = (blockNodes: MarkdownBlockNode[]) => {
+          for (const node of blockNodes) {
+            if (node.type === 'paragraph' || node.type === 'heading') {
+              traverseInline(node.children)
+            } else if (node.type === 'blockquote') {
+              traverseBlock(node.children)
+            } else if (node.type === 'list') {
+              for (const item of node.items) {
+                traverseBlock(item.children)
+              }
+            }
+          }
+        }
+
+        traverseBlock(blockNodes)
+        return lastDirective
+      }
+
+      const directive = findDirective(nodes)
+      if (directive) {
+        categoryName = directive.categoryName
+        imageName = directive.imageName
+        source = 'Directive'
+      }
+    }
+
+    console.log('categoryName', categoryName)
+    console.log('imageName', imageName)
+    console.log('source', source)
+
+    // 3. 背景画像を取得して設定
+    if (categoryName && imageName) {
+      const dataUrl = await getBackgroundImageDataUrl(categoryName, imageName)
+      if (dataUrl) {
+        setTemporaryBackground(dataUrl)
+        logger.info(`[ChatInterface] ${source}の結果で一時的な背景画像を設定しました`, {
+          component: 'ChatInterface',
+          source,
+          categoryName,
+          imageName,
+        })
+      }
     }
   },
   { deep: true }

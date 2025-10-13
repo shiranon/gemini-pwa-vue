@@ -54,6 +54,12 @@ export interface MarkdownCharacterImageNode {
   title?: string | null
 }
 
+export interface MarkdownBackgroundDirectiveNode {
+  type: 'backgroundDirective'
+  categoryName: string
+  imageName: string
+}
+
 export type MarkdownInlineNode =
   | MarkdownTextNode
   | MarkdownBreakNode
@@ -64,6 +70,7 @@ export type MarkdownInlineNode =
   | MarkdownLinkNode
   | MarkdownImageNode
   | MarkdownCharacterImageNode
+  | MarkdownBackgroundDirectiveNode
 
 export interface MarkdownParagraphNode {
   type: 'paragraph'
@@ -131,6 +138,7 @@ export const parseMarkdown = (content: string): MarkdownBlockNode[] => {
 
   try {
     const tokens = marked.lexer(content, markedOptions)
+    console.log('[DEBUG markdown.ts] marked.lexer結果:', JSON.stringify(tokens, null, 2))
     return transformBlockTokens(tokens)
   } catch (error) {
     logger.warn('Markdownの解析に失敗しました:', { component: 'markdown' }, error)
@@ -247,8 +255,11 @@ const transformInlineTokens = (tokens?: TokensList): MarkdownInlineNode[] => {
         if ('tokens' in token && token.tokens) {
           result.push(...transformInlineTokens(token.tokens))
         } else if (token.text) {
-          // カスタム画像表記を検出して変換
-          result.push(...transformTextWithCharacterImages(token.text))
+          console.log('[DEBUG markdown.ts] token.text:', token.text)
+          // カスタム画像表記と背景ディレクティブを検出して変換
+          const transformed = transformTextWithDirectives(token.text)
+          console.log('[DEBUG markdown.ts] transformed:', transformed)
+          result.push(...transformed)
         }
         break
       }
@@ -489,4 +500,77 @@ const transformTextWithCharacterImages = (text: string): MarkdownInlineNode[] =>
 
   // カスタム画像表記が見つからない場合は通常のテキストノード
   return [{ type: 'text', value: text }]
+}
+
+/**
+ * テキストノードを背景ディレクティブを含むノードに変換する
+ * 対応形式: (!BG: background/...) または (!BG :background/...)
+ */
+const transformTextWithDirectives = (text: string): MarkdownInlineNode[] => {
+  console.log('[DEBUG transformTextWithDirectives] input text:', text)
+  const pattern = /\(!BG\s*:\s*background\/([^/]+)\/([^)]+)\)/g
+  console.log('[DEBUG transformTextWithDirectives] pattern:', pattern)
+  const parts: string[] = []
+  const directives: MarkdownBackgroundDirectiveNode[] = []
+  let lastIndex = 0
+  let match: RegExpExecArray | null
+
+  // 全てのディレクティブを検出
+  while ((match = pattern.exec(text)) !== null) {
+    console.log('[DEBUG transformTextWithDirectives] match found:', match)
+    // ディレクティブの前のテキスト部分を追加
+    if (match.index > lastIndex) {
+      parts.push(text.substring(lastIndex, match.index))
+    }
+
+    // ディレクティブを追加
+    const categoryName = match[1]?.trim()
+    const imageName = match[2]?.trim()
+    console.log('[DEBUG transformTextWithDirectives] categoryName:', categoryName, 'imageName:', imageName)
+
+    if (categoryName && imageName) {
+      directives.push({
+        type: 'backgroundDirective',
+        categoryName,
+        imageName,
+      })
+      console.log('[DEBUG transformTextWithDirectives] directive added, directives.length:', directives.length)
+    } else {
+      logger.warn(`Invalid background directive format: ${match[0]}`, { component: 'markdown' })
+    }
+
+    lastIndex = pattern.lastIndex
+  }
+
+  console.log('[DEBUG transformTextWithDirectives] after loop - directives.length:', directives.length, 'parts.length:', parts.length)
+
+  // 最後のディレクティブの後のテキスト部分を追加
+  if (lastIndex < text.length) {
+    parts.push(text.substring(lastIndex))
+  }
+
+  // ディレクティブが見つからない場合は、キャラクター画像のパースを試みる
+  if (directives.length === 0) {
+    console.log('[DEBUG transformTextWithDirectives] no directives found, falling back to character images')
+    return transformTextWithCharacterImages(text)
+  }
+
+  // 結果を構築
+  const result: MarkdownInlineNode[] = []
+
+  // テキスト部分とディレクティブを交互に追加
+  const maxLength = Math.max(parts.length, directives.length)
+  for (let i = 0; i < maxLength; i++) {
+    // テキスト部分を追加
+    if (i < parts.length && parts[i]) {
+      result.push(...transformTextWithCharacterImages(parts[i]!))
+    }
+    // ディレクティブを追加（非表示だが、後で抽出するために含める）
+    if (i < directives.length) {
+      result.push(directives[i]!)
+    }
+  }
+
+  console.log('[DEBUG transformTextWithDirectives] final result:', result)
+  return result
 }

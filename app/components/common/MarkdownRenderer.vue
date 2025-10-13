@@ -70,6 +70,16 @@ const renderInlineNodes = (inlineNodes: MarkdownInlineNode[]): VNodeChild[] => {
           alt: node.alt,
           title: node.title,
         })
+      case 'backgroundDirective':
+        // 背景ディレクティブの通知を表示
+        return h(
+          'span',
+          {
+            key: index,
+            class: 'text-muted-foreground text-sm',
+          },
+          `[背景: ${node.categoryName}/${node.imageName}]`
+        )
       default:
         return null
     }
