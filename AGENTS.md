@@ -20,3 +20,9 @@ Keep secrets in `.env` and expose client-safe values through `NUXT_PUBLIC_*`, mi
 
 ## Agent-Specific Instructions
 Keep diffs minimal, favor additive updates, and leave unrelated user changes untouched. Always run `bun run lint --fix`, `bun run typecheck`, and relevant tests before handoff; `bun test` can be deferred until handoff if it slows down development loops. Stop and confirm with the user if unexpected modifications appear outside your changes.
+
+**IMPORTANT: DO NOT COMMIT CHANGES AUTOMATICALLY**
+- Never run `git commit` or `git add` commands without explicit user permission
+- Only make file changes, never commit them
+- Let the user handle all git operations including staging and committing
+- If changes are made, inform the user that they need to commit manually
