@@ -2,11 +2,39 @@ import { logger } from '~/utils/logger'
 import type { ChatMessage } from '~/types/chat'
 
 /**
+ * Base64データの最大サイズ（約10MB）
+ * Base64は元のデータサイズの約1.33倍になるため、10MB * 1.33 = 13,107,200バイト
+ */
+const MAX_BASE64_SIZE_BYTES = 13_107_200
+
+/**
  * Function Calling結果から背景画像の選択結果を抽出する
  */
 export interface BackgroundSelectionResult {
   categoryName: string
   imageName: string
+}
+
+/**
+ * 型ガード：オブジェクトが指定されたプロパティを持つかチェック
+ */
+function hasProperty<T extends string>(obj: unknown, prop: T): obj is Record<T, unknown> {
+  return typeof obj === 'object' && obj !== null && prop in obj
+}
+
+/**
+ * 型ガード：Function Calling結果のdata構造をチェック
+ */
+function isBackgroundSelectionData(data: unknown): data is { selectionResult: { categoryName: string; imageName: string } } {
+  return (
+    hasProperty(data, 'selectionResult') &&
+    typeof data.selectionResult === 'object' &&
+    data.selectionResult !== null &&
+    'categoryName' in data.selectionResult &&
+    'imageName' in data.selectionResult &&
+    typeof (data.selectionResult as { categoryName: unknown }).categoryName === 'string' &&
+    typeof (data.selectionResult as { imageName: unknown }).imageName === 'string'
+  )
 }
 
 /**
@@ -20,33 +48,23 @@ export function extractBackgroundSelectionFromMessage(message: ChatMessage): Bac
   }
 
   const backgroundResult = message.functionResults.find((result) => {
-    if (result.name === 'manageBackground' && result.result && typeof result.result === 'object') {
-      const resultData = result.result as Record<string, unknown>
-      return resultData.data && typeof resultData.data === 'object' && 'selectionResult' in resultData.data
+    if (result.name !== 'manageBackground' || !result.result || typeof result.result !== 'object') {
+      return false
     }
-    return false
+    return hasProperty(result.result, 'data') && typeof result.result.data === 'object' && result.result.data !== null && 'selectionResult' in result.result.data
   })
 
-  if (!backgroundResult?.result || typeof backgroundResult.result !== 'object' || !('data' in backgroundResult.result)) {
+  if (!backgroundResult?.result) {
     return null
   }
 
-  const resultData = backgroundResult.result as Record<string, unknown>
-  if (!resultData.data || typeof resultData.data !== 'object' || !('selectionResult' in resultData.data)) {
+  const resultData = backgroundResult.result
+  if (!hasProperty(resultData, 'data') || !isBackgroundSelectionData(resultData.data)) {
     return null
   }
 
-  const data = resultData.data as Record<string, unknown>
-  const selectionResult = data.selectionResult as Record<string, unknown>
-
-  if (typeof selectionResult.categoryName === 'string' && typeof selectionResult.imageName === 'string') {
-    return {
-      categoryName: selectionResult.categoryName,
-      imageName: selectionResult.imageName,
-    }
-  }
-
-  return null
+  const { categoryName, imageName } = resultData.data.selectionResult
+  return { categoryName, imageName }
 }
 
 /**
@@ -62,6 +80,20 @@ export async function getBackgroundImageDataUrl(categoryName: string, imageName:
 
     if (imageResult.success && imageResult.data) {
       const imageData = imageResult.data
+
+      // Base64データのサイズチェック（メモリ枯渇対策）
+      const base64Size = imageData.base64Data.length
+      if (base64Size > MAX_BASE64_SIZE_BYTES) {
+        logger.warn('[backgroundManager] 背景画像のサイズが上限を超えています', {
+          component: 'backgroundManager',
+          size: base64Size,
+          maxSize: MAX_BASE64_SIZE_BYTES,
+          categoryName,
+          imageName,
+        })
+        return null
+      }
+
       return `data:${imageData.mimeType};base64,${imageData.base64Data}`
     } else {
       logger.warn('[backgroundManager] 背景画像データの取得に失敗しました', {

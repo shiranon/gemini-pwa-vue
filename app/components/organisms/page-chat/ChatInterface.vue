@@ -490,91 +490,119 @@ watch(
   { immediate: true }
 )
 
+// 最新のアシスタントメッセージを computed で取得（パフォーマンス最適化）
+const latestAssistantMessage = computed(() => getLatestAssistantMessage(messages.value))
+
+// タイムスタンプのみを監視してパフォーマンスを最適化
+const latestAssistantMessageTimestamp = computed(() => latestAssistantMessage.value?.timestamp ?? null)
+
+// 競合状態対策：最後に処理したタイムスタンプを記録
+const lastProcessedTimestamp = ref<number | null>(null)
+
 // Function Callingの結果とDirectiveを監視して一時的な背景画像を設定
-watch(
-  () => messages.value,
-  async (newMessages) => {
-    const latestMessage = getLatestAssistantMessage(newMessages)
-    if (!latestMessage) return
+watch(latestAssistantMessageTimestamp, async (timestamp) => {
+  // 競合状態対策：既に処理済みのメッセージはスキップ
+  if (!timestamp || timestamp === lastProcessedTimestamp.value) return
 
-    let categoryName: string | null = null
-    let imageName: string | null = null
-    let source = ''
+  const latestMessage = latestAssistantMessage.value
+  if (!latestMessage) return
 
-    // 1. Function Calling結果をチェック（優先）
-    const functionCallingResult = extractBackgroundSelectionFromMessage(latestMessage)
-    if (functionCallingResult) {
-      categoryName = functionCallingResult.categoryName
-      imageName = functionCallingResult.imageName
-      source = 'Function Calling'
-    }
+  lastProcessedTimestamp.value = timestamp
 
-    // 2. Function Callingがない場合、Directiveをチェック
-    if (!categoryName && latestMessage.content) {
-      console.log('[DEBUG] メッセージ内容:', latestMessage.content)
-      const nodes = parseMarkdown(latestMessage.content)
-      console.log('[DEBUG] パース結果:', JSON.stringify(nodes, null, 2))
+  let categoryName: string | null = null
+  let imageName: string | null = null
+  let source = ''
 
-      // ノードから背景ディレクティブを探す（最後のものを優先）
-      const findDirective = (blockNodes: MarkdownBlockNode[]): { categoryName: string; imageName: string } | null => {
-        let lastDirective: { categoryName: string; imageName: string } | null = null
+  // 1. Function Calling結果をチェック（優先）
+  const functionCallingResult = extractBackgroundSelectionFromMessage(latestMessage)
+  if (functionCallingResult) {
+    categoryName = functionCallingResult.categoryName
+    imageName = functionCallingResult.imageName
+    source = 'Function Calling'
+  }
 
-        const traverseInline = (inlineNodes: MarkdownInlineNode[]) => {
-          for (const node of inlineNodes) {
-            if (node.type === 'backgroundDirective') {
-              lastDirective = { categoryName: node.categoryName, imageName: node.imageName }
-            } else if ('children' in node && Array.isArray(node.children)) {
-              traverseInline(node.children)
+  // 2. Function Callingがない場合、Directiveをチェック
+  if (!categoryName && latestMessage.content) {
+    console.log('[DEBUG] メッセージ内容:', latestMessage.content)
+    const nodes = parseMarkdown(latestMessage.content)
+    console.log('[DEBUG] パース結果:', JSON.stringify(nodes, null, 2))
+
+    // ノードから背景ディレクティブを探す（最後のものを優先）
+    // 再帰深度の保護を追加
+    const findDirective = (blockNodes: MarkdownBlockNode[], maxDepth = 10): { categoryName: string; imageName: string } | null => {
+      let lastDirective: { categoryName: string; imageName: string } | null = null
+
+      const traverseInline = (inlineNodes: MarkdownInlineNode[], depth = 0) => {
+        if (depth > maxDepth) {
+          logger.warn('[ChatInterface] 再帰深度の上限に達しました（inline）', { component: 'ChatInterface', depth })
+          return
+        }
+
+        for (const node of inlineNodes) {
+          if (node.type === 'backgroundDirective') {
+            lastDirective = { categoryName: node.categoryName, imageName: node.imageName }
+          } else if ('children' in node && Array.isArray(node.children)) {
+            traverseInline(node.children, depth + 1)
+          }
+        }
+      }
+
+      const traverseBlock = (blockNodes: MarkdownBlockNode[], depth = 0) => {
+        if (depth > maxDepth) {
+          logger.warn('[ChatInterface] 再帰深度の上限に達しました（block）', { component: 'ChatInterface', depth })
+          return
+        }
+
+        for (const node of blockNodes) {
+          if (node.type === 'paragraph' || node.type === 'heading') {
+            traverseInline(node.children, depth)
+          } else if (node.type === 'blockquote') {
+            traverseBlock(node.children, depth + 1)
+          } else if (node.type === 'list') {
+            for (const item of node.items) {
+              traverseBlock(item.children, depth + 1)
             }
           }
         }
-
-        const traverseBlock = (blockNodes: MarkdownBlockNode[]) => {
-          for (const node of blockNodes) {
-            if (node.type === 'paragraph' || node.type === 'heading') {
-              traverseInline(node.children)
-            } else if (node.type === 'blockquote') {
-              traverseBlock(node.children)
-            } else if (node.type === 'list') {
-              for (const item of node.items) {
-                traverseBlock(item.children)
-              }
-            }
-          }
-        }
-
-        traverseBlock(blockNodes)
-        return lastDirective
       }
 
-      const directive = findDirective(nodes)
-      if (directive) {
-        categoryName = directive.categoryName
-        imageName = directive.imageName
-        source = 'Directive'
-      }
+      traverseBlock(blockNodes)
+      return lastDirective
     }
 
-    console.log('categoryName', categoryName)
-    console.log('imageName', imageName)
-    console.log('source', source)
-
-    // 3. 背景画像を取得して設定
-    if (categoryName && imageName) {
-      const dataUrl = await getBackgroundImageDataUrl(categoryName, imageName)
-      if (dataUrl) {
-        setTemporaryBackground(dataUrl)
-        logger.info(`[ChatInterface] ${source}の結果で一時的な背景画像を設定しました`, {
-          component: 'ChatInterface',
-          source,
-          categoryName,
-          imageName,
-        })
-      }
+    const directive = findDirective(nodes)
+    if (directive) {
+      categoryName = directive.categoryName
+      imageName = directive.imageName
+      source = 'Directive'
     }
-  },
-  { deep: true }
-)
+  }
+
+  console.log('categoryName', categoryName)
+  console.log('imageName', imageName)
+  console.log('source', source)
+
+  // 3. 背景画像を取得して設定
+  if (categoryName && imageName) {
+    const dataUrl = await getBackgroundImageDataUrl(categoryName, imageName)
+    if (dataUrl) {
+      setTemporaryBackground(dataUrl)
+      logger.info(`[ChatInterface] ${source}の結果で一時的な背景画像を設定しました`, {
+        component: 'ChatInterface',
+        source,
+        categoryName,
+        imageName,
+      })
+    } else {
+      // エラーハンドリング：dataUrl が null の場合
+      logger.warn('[ChatInterface] 背景画像の取得に失敗しました', {
+        component: 'ChatInterface',
+        categoryName,
+        imageName,
+      })
+    }
+  }
+})
 
 defineExpose({
   clearChat,
