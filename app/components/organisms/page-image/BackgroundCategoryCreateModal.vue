@@ -122,6 +122,7 @@ import { Button } from '~/components/ui/button'
 import { Input } from '~/components/ui/input'
 import { useBackgroundImages } from '~/composables/useBackgroundImages'
 import { useFolderUpload } from '~/composables/useFolderUpload'
+import { useFunctionCalling } from '~/composables/useFunctionCalling'
 import { logger } from '~/utils/logger'
 import type { BackgroundCategoryRecord } from '~/types/database'
 
@@ -139,6 +140,7 @@ const emit = defineEmits<Emits>()
 
 const { createCategory, bulkUploadImages } = useBackgroundImages()
 const folderUpload = useFolderUpload()
+const { refreshManageBackgroundDeclaration } = useFunctionCalling()
 
 // フォルダ選択サポートの確認
 onMounted(() => {
@@ -226,6 +228,16 @@ const handleCreate = async () => {
         logger.warn(`一部の画像のアップロードに失敗: 成功${result.success}件、失敗${result.failed}件`, { component: 'BackgroundCategoryCreateModal' })
       } else {
         logger.info(`全ての画像をアップロード成功: ${result.success}件`, { component: 'BackgroundCategoryCreateModal' })
+      }
+
+      // 画像が1件でも成功した場合はFunction Declarationを更新
+      if (result.success > 0) {
+        try {
+          await refreshManageBackgroundDeclaration()
+          logger.info('Function Declarationを更新しました', { component: 'BackgroundCategoryCreateModal' })
+        } catch (refreshError) {
+          logger.error('Function Declarationの更新に失敗しました', { component: 'BackgroundCategoryCreateModal' }, refreshError)
+        }
       }
     }
 

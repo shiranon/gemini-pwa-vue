@@ -116,6 +116,7 @@ import { useGeminiStore } from '~/stores/gemini'
 import { useOpenAiStore } from '~/stores/openai'
 import { useClaudeStore } from '~/stores/claude'
 import { useSettings } from '~/composables/useSettings'
+import { useTemporaryBackground } from '~/composables/useTemporaryBackground'
 import { scrollToBottom } from '~/lib/scroll'
 import MessageWithAvatar from '~/components/molecules/page-chat/MessageWithAvatar.vue'
 import MessageBubble from '~/components/molecules/page-chat/MessageBubble.vue'
@@ -161,14 +162,19 @@ const messageContainer = ref<HTMLElement>()
 const backgroundUrl = ref<string | null>(null)
 const isProfileLoading = ref(false)
 
+// 一時的な背景画像管理
+const { currentBackgroundUrl, setTemporaryBackground } = useTemporaryBackground()
+
 // プロファイル関連の変数
 const profiles = computed(() => profilesStore.sortedProfiles)
 const selectedProfileId = computed(() => profilesStore.activeProfileId)
 // selectedProfile は ProfileAvatarButton 内で使用されるため、ここでは不要
+// 一時的な背景画像が設定されている場合はそれを優先、そうでなければ通常の背景画像を使用
 const backgroundStyle = computed(() => {
-  if (!backgroundUrl.value) return {}
+  const url = currentBackgroundUrl.value || backgroundUrl.value
+  if (!url) return {}
   return {
-    backgroundImage: `url(${backgroundUrl.value})`,
+    backgroundImage: `url(${url})`,
     backgroundSize: 'cover',
     backgroundPosition: 'center',
     backgroundAttachment: 'fixed',
@@ -480,6 +486,67 @@ watch(
     backgroundUrl.value = dataUrl || null
   },
   { immediate: true }
+)
+
+// Function Callingの結果を監視して一時的な背景画像を設定
+watch(
+  () => messages.value,
+  async (newMessages) => {
+    // 最新のアシスタントメッセージでFunction Callingの結果を確認
+    const latestAssistantMessage = newMessages.filter((msg) => msg.role === 'assistant').slice(-1)[0]
+
+    if (latestAssistantMessage?.functionResults) {
+      const backgroundResult = latestAssistantMessage.functionResults.find((result) => {
+        if (result.name === 'manageBackground' && result.result && typeof result.result === 'object') {
+          const resultData = result.result as Record<string, unknown>
+          return resultData.data && typeof resultData.data === 'object' && 'selectionResult' in resultData.data
+        }
+        return false
+      })
+
+      if (backgroundResult?.result && typeof backgroundResult.result === 'object' && 'data' in backgroundResult.result) {
+        const resultData = backgroundResult.result as Record<string, unknown>
+        if (resultData.data && typeof resultData.data === 'object' && 'selectionResult' in resultData.data) {
+          const data = resultData.data as Record<string, unknown>
+          const selectionResult = data.selectionResult as Record<string, unknown>
+
+          if (typeof selectionResult.categoryName === 'string' && typeof selectionResult.imageName === 'string') {
+            try {
+              // IndexedDBから画像データを取得
+              const { dbGetBackgroundImageByNames } = await import('~/lib/database')
+              const imageResult = await dbGetBackgroundImageByNames(selectionResult.categoryName, selectionResult.imageName)
+
+              if (imageResult.success && imageResult.data) {
+                const imageData = imageResult.data
+                const temporaryBackgroundUrl = `data:${imageData.mimeType};base64,${imageData.base64Data}`
+
+                setTemporaryBackground(temporaryBackgroundUrl)
+                logger.info('[ChatInterface] Function Callingの結果で一時的な背景画像を設定しました', {
+                  component: 'ChatInterface',
+                  categoryName: selectionResult.categoryName,
+                  imageName: selectionResult.imageName,
+                })
+              } else {
+                logger.warn('[ChatInterface] 背景画像データの取得に失敗しました', {
+                  component: 'ChatInterface',
+                  error: imageResult.error,
+                })
+              }
+            } catch (error) {
+              logger.error(
+                '[ChatInterface] 背景画像データの取得中にエラーが発生しました',
+                {
+                  component: 'ChatInterface',
+                },
+                error
+              )
+            }
+          }
+        }
+      }
+    }
+  },
+  { deep: true }
 )
 
 defineExpose({

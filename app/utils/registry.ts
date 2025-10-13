@@ -4,6 +4,7 @@ import { getCurrentDateTime, getCurrentDateTimeDeclaration } from './functions/d
 import { generateRandomString, generateRandomStringDeclaration } from './functions/generateRandomString'
 import { getRandomChoice, getRandomChoiceDeclaration } from './functions/getRandomChoice'
 import { getRandomInteger, getRandomIntegerDeclaration } from './functions/getRandomInteger'
+import { manageBackground, createManageBackgroundDeclaration } from './functions/manageBackground'
 import { manageCharacterStatus, manageCharacterStatusDeclaration } from './functions/manageCharacterStatus'
 import { manageFlags, manageFlagsDeclaration } from './functions/manageFlags'
 import { manageGameDate, manageGameDateDeclaration } from './functions/manageGameDate'
@@ -216,3 +217,25 @@ export const functionToolDefinitions: FunctionToolDefinition[] = [
     },
   },
 ]
+
+/**
+ * manageBackground関数の定義を動的に生成
+ * DBから背景画像リストを取得するため、非同期で初期化
+ */
+export async function createManageBackgroundDefinition(): Promise<FunctionToolDefinition> {
+  const declaration = await createManageBackgroundDeclaration()
+  return {
+    declaration,
+    handler: manageBackground,
+    meta: {
+      id: 'manageBackground',
+      displayName: '背景画像設定',
+      description: 'シーンの状況に応じて背景画像を設定します。',
+      category: 'story',
+      tags: ['background', 'image'],
+      defaultEnabled: false,
+      argsHint: 'scene, categoryName, imageName - シーンの説明と選択する背景画像を指定',
+      contextHint: 'DBから取得した背景画像リストの中から、シーンに適した背景を選択します。',
+    },
+  }
+}

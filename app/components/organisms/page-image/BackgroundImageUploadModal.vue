@@ -135,6 +135,7 @@ import { Button } from '~/components/ui/button'
 import { Input } from '~/components/ui/input'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '~/components/ui/dialog'
 import { useBackgroundImages } from '~/composables/useBackgroundImages'
+import { useFunctionCalling } from '~/composables/useFunctionCalling'
 import { logger } from '~/utils/logger'
 import type { BackgroundCategoryRecord } from '~/types/database'
 
@@ -157,6 +158,7 @@ const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
 const { uploadImage } = useBackgroundImages()
+const { refreshManageBackgroundDeclaration } = useFunctionCalling()
 
 // Dialogの開閉状態
 const isOpen = ref(true)
@@ -294,6 +296,14 @@ const handleUpload = async () => {
     if (successCount > 0) {
       // 成功した場合は完了イベントを発火
       emit('uploaded')
+
+      // manageBackground関数のFunction Declarationを更新
+      try {
+        await refreshManageBackgroundDeclaration()
+        logger.info('Function Declarationを更新しました', { component: 'BackgroundImageUploadModal' })
+      } catch (refreshError) {
+        logger.error('Function Declarationの更新に失敗しました', { component: 'BackgroundImageUploadModal' }, refreshError)
+      }
     }
   } catch (err) {
     error.value = 'アップロードに失敗しました'

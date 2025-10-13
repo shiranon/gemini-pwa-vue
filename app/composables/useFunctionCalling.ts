@@ -20,7 +20,7 @@ import type {
 } from '~/types/function-calling'
 
 import { logger } from '~/utils/logger'
-import { functionToolDefinitions } from '~/utils/registry'
+import { createManageBackgroundDefinition, functionToolDefinitions } from '~/utils/registry'
 
 const functionRegistry = reactive<Map<string, FunctionRegistryEntry>>(new Map())
 
@@ -149,6 +149,22 @@ export const useFunctionCalling = () => {
     }))
   }
 
+  /**
+   * manageBackground関数のFunction Declarationを再生成・更新する
+   * 背景画像の追加・削除時に呼び出す
+   */
+  const refreshManageBackgroundDeclaration = async () => {
+    try {
+      logger.info('[Function Calling] manageBackground関数のDeclarationを更新します', { component: 'useFunctionCalling' })
+      const manageBackgroundDef = await createManageBackgroundDefinition()
+      registerFunctionDefinition(manageBackgroundDef, { enabled: functionRegistry.get('manageBackground')?.enabled })
+      logger.info('[Function Calling] manageBackground関数のDeclarationを更新しました', { component: 'useFunctionCalling' })
+    } catch (error) {
+      logger.error('[Function Calling] manageBackground関数のDeclaration更新に失敗しました', { component: 'useFunctionCalling' }, error)
+      throw error
+    }
+  }
+
   const executeFunction = async (functionCall: FunctionCall, context: FunctionExecutionContext): Promise<FunctionCallResult> => {
     const startTime = Date.now()
     const logId = `${functionCall.name}_${startTime}`
@@ -173,7 +189,7 @@ export const useFunctionCalling = () => {
         throw new Error(`関数が無効化されています: ${functionCall.name}`)
       }
 
-      effectiveArgs = entry.prepareArgs ? entry.prepareArgs(functionCall.args) : functionCall.args
+      effectiveArgs = entry.prepareArgs ? await entry.prepareArgs(functionCall.args) : functionCall.args
       if (entry.validateArgs) {
         entry.validateArgs(effectiveArgs)
       }
@@ -263,7 +279,8 @@ export const useFunctionCalling = () => {
   /**
    * デフォルト関数を初期化する
    */
-  const initializeDefaultFunctions = (definitions: FunctionToolDefinition[] = functionToolDefinitions) => {
+  const initializeDefaultFunctions = async (definitions: FunctionToolDefinition[] = functionToolDefinitions) => {
+    // 通常の関数を登録
     definitions.forEach((definition) => {
       const name = definition.declaration.name
       if (!name) {
@@ -275,6 +292,16 @@ export const useFunctionCalling = () => {
       }
       registerFunctionDefinition(definition)
     })
+
+    // manageBackground関数を動的に登録
+    try {
+      const manageBackgroundDef = await createManageBackgroundDefinition()
+      if (!functionRegistry.has('manageBackground')) {
+        registerFunctionDefinition(manageBackgroundDef)
+      }
+    } catch (error) {
+      logger.error('[Function Calling] manageBackground関数の初期化に失敗しました', { component: 'useFunctionCalling' }, error)
+    }
 
     logger.info('[Function Calling] デフォルト関数が初期化されました', {
       total: functionRegistry.size,
@@ -305,7 +332,9 @@ export const useFunctionCalling = () => {
 
   // 初期化時にデフォルト関数を登録
   if (functionRegistry.size === 0) {
-    initializeDefaultFunctions()
+    initializeDefaultFunctions().catch((error) => {
+      logger.error('[Function Calling] デフォルト関数の初期化に失敗しました', { component: 'useFunctionCalling' }, error)
+    })
   }
 
   return {
@@ -320,6 +349,7 @@ export const useFunctionCalling = () => {
     getEnabledFunctionDeclarations,
     getEnabledFunctionNames,
     getFunctionRegistryEntries,
+    refreshManageBackgroundDeclaration,
 
     executeFunction,
     executeFunctions,
