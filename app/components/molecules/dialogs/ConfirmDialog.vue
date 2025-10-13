@@ -1,7 +1,7 @@
 <template>
   <Dialog
     v-model:open="isOpen"
-    :modal="false"
+    :modal="true"
   >
     <DialogContent>
       <DialogHeader>

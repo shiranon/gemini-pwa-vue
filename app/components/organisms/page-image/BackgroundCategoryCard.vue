@@ -65,7 +65,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Button } from '~/components/ui/button'
 import type { BackgroundCategoryRecord, BackgroundImageRecord } from '~/types/database'
@@ -98,7 +98,17 @@ const loadThumbnail = async () => {
       thumbnailImage.value = images[0] || null
     }
   } catch (error) {
-    logger.error('サムネイル画像の読み込みに失敗', { component: 'BackgroundCategoryCard' }, error)
+    // カテゴリが削除された場合のエラーを適切に処理
+    logger.warn(
+      'サムネイル画像の読み込みに失敗（カテゴリが削除された可能性）',
+      {
+        component: 'BackgroundCategoryCard',
+        categoryId: props.category.id,
+      },
+      error
+    )
+    // サムネイルをクリアしてデフォルトアイコンを表示
+    thumbnailImage.value = null
   } finally {
     isLoadingThumbnail.value = false
   }
@@ -119,8 +129,13 @@ const deleteCategory = () => {
   emit('delete', props.category)
 }
 
-// コンポーネントマウント時にサムネイルを読み込み
-onMounted(() => {
-  loadThumbnail()
-})
+// カテゴリIDの変更を監視してサムネイルを再読み込み
+// immediate: true により、初回マウント時にも実行される
+watch(
+  () => props.category.id,
+  () => {
+    loadThumbnail()
+  },
+  { immediate: true }
+)
 </script>

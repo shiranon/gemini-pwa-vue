@@ -15,6 +15,20 @@ import { useSettingsStore } from '~/stores/settings'
 import type { BackgroundCategoryRecord, BackgroundImageRecord, DatabaseOperationResult } from '~/types/database'
 import { logger } from '~/utils/logger'
 
+/** エラーメッセージの判定用定数 */
+const ERROR_PATTERNS = {
+  NOT_FOUND: /not\s*found|見つかりません|存在しません/i,
+  DELETED: /削除|delete/i,
+} as const
+
+/**
+ * カテゴリが存在しないエラーかどうかを判定
+ */
+const isCategoryNotFoundError = (errorMessage?: string): boolean => {
+  if (!errorMessage) return false
+  return ERROR_PATTERNS.NOT_FOUND.test(errorMessage) || ERROR_PATTERNS.DELETED.test(errorMessage)
+}
+
 /**
  * 背景画像管理Composable
  */
@@ -223,6 +237,15 @@ export function useBackgroundImages() {
       async () => {
         const result = await dbGetCategoryImages(categoryId)
         if (!result.success) {
+          // カテゴリが削除された場合のエラーを適切に処理
+          if (isCategoryNotFoundError(result.error)) {
+            logger.warn('カテゴリーが削除された可能性があります', {
+              component: 'useBackgroundImages',
+              categoryId,
+              error: result.error,
+            })
+            return [] // 空配列を返してエラーを回避
+          }
           throw new Error(result.error || 'カテゴリー画像の取得に失敗しました')
         }
         return result.data || []

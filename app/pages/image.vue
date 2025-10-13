@@ -357,14 +357,31 @@ const deleteCategory = async (category: BackgroundCategoryRecord) => {
   }
 
   try {
+    // 削除前にカテゴリの存在確認
+    const categoryExists = categories.value.some((c) => c.id === category.id)
+    if (!categoryExists) {
+      logger.warn('削除対象のカテゴリが既に存在しません', { component: 'image.vue', categoryId: category.id })
+      // ユーザーに通知
+      await showConfirm('このカテゴリーは既に削除されています。', '削除済み')
+      // 念のため一覧を再読み込み
+      await loadCategories()
+      return
+    }
+
     const success = await deleteCategoryFromDB(category.id)
     if (success) {
       // 削除成功後、即座に配列から除外してカードを削除
       // これにより、削除されたカテゴリーの画像読み込みが発生しない
       categories.value = categories.value.filter((c) => c.id !== category.id)
+      logger.info('カテゴリーの削除が完了しました', { component: 'image.vue', categoryId: category.id })
+    } else {
+      // 削除失敗時もユーザーに通知
+      await showConfirm('カテゴリーの削除に失敗しました。もう一度お試しください。', '削除エラー')
     }
   } catch (err) {
     logger.error('カテゴリーの削除に失敗', { component: 'image.vue' }, err)
+    // エラー時もユーザーに通知
+    await showConfirm('カテゴリーの削除中にエラーが発生しました。', 'エラー')
   }
 }
 
