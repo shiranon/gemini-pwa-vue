@@ -128,7 +128,7 @@ import { Button } from '~/components/ui/button'
 import { Icon } from '@iconify/vue'
 import { hexToRgba } from '~/utils/color'
 import { extractBackgroundSelectionFromMessage, getBackgroundImageDataUrl, getLatestAssistantMessage } from '~/utils/backgroundManager'
-import { parseMarkdown, type MarkdownInlineNode, type MarkdownBlockNode } from '~/lib/markdown'
+import { useBackgroundDirectiveExtractor } from '~/composables/useBackgroundDirectiveExtractor'
 import type { ApiError, ChatMessage, AttachedFile, Message, AssistantMessage } from '~/types/chat'
 import { toast } from 'vue-sonner'
 import { logger } from '~/utils/logger'
@@ -166,6 +166,12 @@ const isProfileLoading = ref(false)
 
 // 一時的な背景画像管理
 const { currentBackgroundUrl, setTemporaryBackground } = useTemporaryBackground()
+
+// 背景ディレクティブ抽出用のcomposable
+const { extractDirectiveFromContent } = useBackgroundDirectiveExtractor({
+  maxDepth: 10,
+  enableCaching: true,
+})
 
 // プロファイル関連の変数
 const profiles = computed(() => profilesStore.sortedProfiles)
@@ -546,64 +552,7 @@ watch(latestAssistantMessageTimestamp, async (timestamp) => {
 
     // 2. Function Callingがない場合のみ、Directiveをチェック
     if (!categoryName && latestMessage.content) {
-      const nodes = parseMarkdown(latestMessage.content)
-
-      // ノードから背景ディレクティブを探す（最後のものを優先）
-      // スタックベースの実装で深度制限を厳密に管理
-      const findDirective = (blockNodes: MarkdownBlockNode[], maxDepth = 10): { categoryName: string; imageName: string } | null => {
-        let lastDirective: { categoryName: string; imageName: string } | null = null
-
-        const stack: Array<{ nodes: MarkdownBlockNode[] | MarkdownInlineNode[]; depth: number; type: 'block' | 'inline' }> = []
-
-        // 初期ノードをスタックに追加
-        stack.push({ nodes: blockNodes, depth: 0, type: 'block' })
-
-        while (stack.length > 0) {
-          const current = stack.pop()!
-
-          // 深度チェック
-          if (current.depth > maxDepth) {
-            logger.warn('[ChatInterface] 再帰深度の上限に達しました', {
-              component: 'ChatInterface',
-              depth: current.depth,
-              type: current.type,
-            })
-            continue
-          }
-
-          if (current.type === 'block') {
-            // ブロックノードの処理
-            for (const node of current.nodes as MarkdownBlockNode[]) {
-              if (node.type === 'paragraph' || node.type === 'heading') {
-                // インラインノードをスタックに追加
-                stack.push({ nodes: node.children, depth: current.depth, type: 'inline' })
-              } else if (node.type === 'blockquote') {
-                // ブロッククォートの子ノードをスタックに追加
-                stack.push({ nodes: node.children, depth: current.depth + 1, type: 'block' })
-              } else if (node.type === 'list') {
-                // リストアイテムの子ノードをスタックに追加
-                for (const item of node.items) {
-                  stack.push({ nodes: item.children, depth: current.depth + 1, type: 'block' })
-                }
-              }
-            }
-          } else {
-            // インラインノードの処理
-            for (const node of current.nodes as MarkdownInlineNode[]) {
-              if (node.type === 'backgroundDirective') {
-                lastDirective = { categoryName: node.categoryName, imageName: node.imageName }
-              } else if ('children' in node && Array.isArray(node.children)) {
-                // 子ノードをスタックに追加
-                stack.push({ nodes: node.children, depth: current.depth + 1, type: 'inline' })
-              }
-            }
-          }
-        }
-
-        return lastDirective
-      }
-
-      const directive = findDirective(nodes)
+      const directive = extractDirectiveFromContent(latestMessage.content)
       if (directive) {
         categoryName = directive.categoryName
         imageName = directive.imageName
