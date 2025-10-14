@@ -42,6 +42,12 @@ class LRUCache<T> {
   }
 
   clear(): void {
+    // すべてのObject URLをクリーンアップしてからキャッシュをクリア
+    for (const [, url] of this.cache.entries()) {
+      if (url && typeof url === 'string' && url.startsWith('blob:')) {
+        URL.revokeObjectURL(url)
+      }
+    }
     this.cache.clear()
   }
 }
@@ -98,6 +104,11 @@ export function useTemporaryBackground() {
    * @param imageUrl - 設定する背景画像のURL
    */
   const setTemporaryBackground = async (imageUrl: string) => {
+    // 既存のObject URLをクリーンアップ
+    if (temporaryBackgroundUrl.value) {
+      cleanupObjectUrl(temporaryBackgroundUrl.value)
+    }
+
     // 元の背景画像を保存（まだ保存されていない場合のみ）
     if (originalBackgroundUrl.value === null) {
       originalBackgroundUrl.value = settingsStore.settings.backgroundImageDataUrl
@@ -149,6 +160,26 @@ export function useTemporaryBackground() {
   }
 
   /**
+   * 一時的な背景画像をクリア（メモリリーク対策）
+   */
+  const clearTemporaryBackground = () => {
+    // 現在のObject URLをクリーンアップ
+    if (temporaryBackgroundUrl.value) {
+      cleanupObjectUrl(temporaryBackgroundUrl.value)
+    }
+
+    // キャッシュ内のすべてのObject URLをクリーンアップ
+    objectUrlCache.clear()
+
+    temporaryBackgroundUrl.value = null
+    originalBackgroundUrl.value = null
+
+    logger.info('[TemporaryBackground] 一時的な背景画像をクリアしました', {
+      component: 'useTemporaryBackground',
+    })
+  }
+
+  /**
    * 現在の背景画像URLを取得（一時的な背景が設定されている場合はそれを優先）
    */
   const currentBackgroundUrl = computed(() => {
@@ -195,5 +226,6 @@ export function useTemporaryBackground() {
     backgroundStyle,
     setTemporaryBackground,
     restoreOriginalBackground,
+    clearTemporaryBackground,
   }
 }

@@ -40,12 +40,6 @@ export function useImageUpload(options: ImageUploadOptions = {}) {
       const optimizationResult = await optimizeImage(file, optimizationOptions)
       if (optimizationResult) {
         processedFile = optimizationResult.file
-        console.log('画像最適化完了:', {
-          originalSize: optimizationResult.originalSize,
-          optimizedSize: optimizationResult.optimizedSize,
-          compressionRatio: optimizationResult.compressionRatio,
-          details: optimizationResult.details,
-        })
       } else {
         error.value = '画像の最適化に失敗しました'
         return null
