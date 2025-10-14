@@ -80,7 +80,7 @@ export interface FunctionToolMeta {
 /**
  * Function Callingに渡す引数整形・検証関数の型
  */
-export type FunctionArgsPreparer = (rawArgs: FunctionCallArgs) => FunctionCallArgs
+export type FunctionArgsPreparer = (rawArgs: FunctionCallArgs) => FunctionCallArgs | Promise<FunctionCallArgs>
 export type FunctionArgsValidator = (args: FunctionCallArgs) => void
 export type FunctionExecutionContextEnhancer = (context: FunctionExecutionContext) => FunctionExecutionContext
 

@@ -116,6 +116,7 @@ import { useGeminiStore } from '~/stores/gemini'
 import { useOpenAiStore } from '~/stores/openai'
 import { useClaudeStore } from '~/stores/claude'
 import { useSettings } from '~/composables/useSettings'
+import { useTemporaryBackground } from '~/composables/useTemporaryBackground'
 import { scrollToBottom } from '~/lib/scroll'
 import MessageWithAvatar from '~/components/molecules/page-chat/MessageWithAvatar.vue'
 import MessageBubble from '~/components/molecules/page-chat/MessageBubble.vue'
@@ -126,6 +127,8 @@ import ProfileSelect from '~/components/molecules/page-setting/ProfileSelect.vue
 import { Button } from '~/components/ui/button'
 import { Icon } from '@iconify/vue'
 import { hexToRgba } from '~/utils/color'
+import { extractBackgroundSelectionFromMessage, getBackgroundImageDataUrl, getLatestAssistantMessage } from '~/utils/backgroundManager'
+import { useBackgroundDirectiveExtractor } from '~/composables/useBackgroundDirectiveExtractor'
 import type { ApiError, ChatMessage, AttachedFile, Message, AssistantMessage } from '~/types/chat'
 import { toast } from 'vue-sonner'
 import { logger } from '~/utils/logger'
@@ -161,14 +164,25 @@ const messageContainer = ref<HTMLElement>()
 const backgroundUrl = ref<string | null>(null)
 const isProfileLoading = ref(false)
 
+// 一時的な背景画像管理
+const { currentBackgroundUrl, setTemporaryBackground } = useTemporaryBackground()
+
+// 背景ディレクティブ抽出用のcomposable
+const { extractDirectiveFromContent } = useBackgroundDirectiveExtractor({
+  maxDepth: 10,
+  enableCaching: true,
+})
+
 // プロファイル関連の変数
 const profiles = computed(() => profilesStore.sortedProfiles)
 const selectedProfileId = computed(() => profilesStore.activeProfileId)
 // selectedProfile は ProfileAvatarButton 内で使用されるため、ここでは不要
+// 一時的な背景画像が設定されている場合はそれを優先、そうでなければ通常の背景画像を使用
 const backgroundStyle = computed(() => {
-  if (!backgroundUrl.value) return {}
+  const url = currentBackgroundUrl.value || backgroundUrl.value
+  if (!url) return {}
   return {
-    backgroundImage: `url(${backgroundUrl.value})`,
+    backgroundImage: `url(${url})`,
     backgroundSize: 'cover',
     backgroundPosition: 'center',
     backgroundAttachment: 'fixed',
@@ -481,6 +495,77 @@ watch(
   },
   { immediate: true }
 )
+
+// 最新のアシスタントメッセージを computed で取得
+const latestAssistantMessage = computed(() => getLatestAssistantMessage(messages.value))
+
+// タイムスタンプのみを監視
+const latestAssistantMessageTimestamp = computed(() => latestAssistantMessage.value?.timestamp ?? null)
+
+const lastProcessedTimestamp = ref<number | null>(null)
+const isProcessingBackground = ref(false)
+
+// Function Callingの結果とDirectiveを監視して一時的な背景画像を設定
+watch(latestAssistantMessageTimestamp, async (timestamp) => {
+  if (!timestamp || timestamp === lastProcessedTimestamp.value || isProcessingBackground.value) return
+
+  const latestMessage = latestAssistantMessage.value
+  if (!latestMessage) return
+
+  // 処理開始時に即座にタイムスタンプを更新
+  lastProcessedTimestamp.value = timestamp
+  isProcessingBackground.value = true
+
+  try {
+    let categoryName: string | null = null
+    let imageName: string | null = null
+    let source = ''
+
+    // 1. Function Calling結果をチェック（優先）
+    const functionCallingResult = extractBackgroundSelectionFromMessage(latestMessage)
+    if (functionCallingResult) {
+      categoryName = functionCallingResult.categoryName
+      imageName = functionCallingResult.imageName
+      source = 'Function Calling'
+    }
+
+    // 2. Function Callingがない場合のみ、Directiveをチェック
+    if (!categoryName && latestMessage.content) {
+      const directive = extractDirectiveFromContent(latestMessage.content)
+      if (directive) {
+        categoryName = directive.categoryName
+        imageName = directive.imageName
+        source = 'Directive'
+      }
+    }
+
+    // 3. 背景画像を取得して設定
+    if (categoryName && imageName) {
+      const dataUrl = await getBackgroundImageDataUrl(categoryName, imageName)
+      if (dataUrl) {
+        setTemporaryBackground(dataUrl)
+        logger.info(`[ChatInterface] ${source}の結果で一時的な背景画像を設定しました`, {
+          component: 'ChatInterface',
+          source,
+          categoryName,
+          imageName,
+        })
+      } else {
+        // エラーハンドリング：dataUrl が null の場合
+        logger.warn('[ChatInterface] 背景画像の取得に失敗しました', {
+          component: 'ChatInterface',
+          categoryName,
+          imageName,
+        })
+      }
+    }
+  } catch (error) {
+    logger.error('[ChatInterface] 背景画像設定エラー', { component: 'ChatInterface' }, error)
+  } finally {
+    // 処理完了フラグをリセット
+    isProcessingBackground.value = false
+  }
+})
 
 defineExpose({
   clearChat,

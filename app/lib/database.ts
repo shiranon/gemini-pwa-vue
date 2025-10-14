@@ -9,6 +9,8 @@ import type { AttachedFile, ChatSession, Message, UserMessage } from '~/types/ch
 import type {
   AppMetaRecord,
   AttachedFileRecord,
+  BackgroundCategoryRecord,
+  BackgroundImageRecord,
   CharacterImageRecord,
   CharacterOutfitRecord,
   CharacterRecord,
@@ -40,6 +42,8 @@ export const TABLES = {
   characters: 'characters',
   characterOutfits: 'characterOutfits',
   characterImages: 'characterImages',
+  backgroundCategories: 'backgroundCategories',
+  backgroundImages: 'backgroundImages',
 } as const
 
 const APP_META_KEYS = {
@@ -70,6 +74,8 @@ export class GeminiDatabase extends Dexie {
   characters!: Table<CharacterRecord>
   characterOutfits!: Table<CharacterOutfitRecord>
   characterImages!: Table<CharacterImageRecord>
+  backgroundCategories!: Table<BackgroundCategoryRecord>
+  backgroundImages!: Table<BackgroundImageRecord>
 
   // Change listeners
   private changeListeners = new Set<(changeType: string, table: string, key: string | number | null) => void>()
@@ -113,6 +119,14 @@ export class GeminiDatabase extends Dexie {
       })
       .upgrade(() => {
         logger.info('キャラクター画像管理機能のためにバージョン5へアップグレード中...', { component: 'Database' })
+      })
+    this.version(6)
+      .stores({
+        backgroundCategories: 'id, name, createdAt, updatedAt',
+        backgroundImages: 'id, categoryId, name, mimeType, size, createdAt, updatedAt, [categoryId+name]',
+      })
+      .upgrade(() => {
+        logger.info('背景画像管理機能のためにバージョン6へアップグレード中...', { component: 'Database' })
       })
 
     this.setupHooks()
@@ -194,6 +208,26 @@ export class GeminiDatabase extends Dexie {
     })
     this.characterImages.hook('deleting', (primKey) => {
       this.notifyChange('delete', 'characterImages', primKey)
+    })
+
+    this.backgroundCategories.hook('creating', () => {
+      this.notifyChange('create', 'backgroundCategories', null)
+    })
+    this.backgroundCategories.hook('updating', (_modifications, primKey) => {
+      this.notifyChange('update', 'backgroundCategories', primKey)
+    })
+    this.backgroundCategories.hook('deleting', (primKey) => {
+      this.notifyChange('delete', 'backgroundCategories', primKey)
+    })
+
+    this.backgroundImages.hook('creating', () => {
+      this.notifyChange('create', 'backgroundImages', null)
+    })
+    this.backgroundImages.hook('updating', (_modifications, primKey) => {
+      this.notifyChange('update', 'backgroundImages', primKey)
+    })
+    this.backgroundImages.hook('deleting', (primKey) => {
+      this.notifyChange('delete', 'backgroundImages', primKey)
     })
   }
 
@@ -1661,6 +1695,334 @@ export async function dbGetCharacterImageStats(): Promise<
     }
   } catch (error) {
     logger.error('キャラクター画像統計の取得に失敗しました:', { component: 'database' }, error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+// ============================================================================
+// 背景画像管理
+// ============================================================================
+
+/** 背景カテゴリーを作成 */
+export async function dbCreateBackgroundCategory(name: string, description?: string): Promise<DatabaseOperationResult<BackgroundCategoryRecord>> {
+  try {
+    const startTime = Date.now()
+
+    // 同名のカテゴリーが存在するかチェック
+    const existingCategory = await db.backgroundCategories.where('name').equals(name).first()
+    if (existingCategory) {
+      return {
+        success: false,
+        error: '同じ名前のカテゴリーが既に存在します',
+      }
+    }
+
+    const category: BackgroundCategoryRecord = {
+      id: crypto.randomUUID(),
+      name,
+      description: description || '',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    }
+
+    await db.backgroundCategories.add(category)
+
+    const executionTime = Date.now() - startTime
+    return {
+      success: true,
+      data: category,
+      performance: {
+        queryType: 'createBackgroundCategory',
+        executionTime,
+        resultCount: 1,
+      },
+    }
+  } catch (error) {
+    logger.error('背景カテゴリーの作成に失敗しました:', { component: 'database' }, error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+/** 全背景カテゴリーを取得 */
+export async function dbGetAllBackgroundCategories(): Promise<DatabaseOperationResult<BackgroundCategoryRecord[]>> {
+  try {
+    const startTime = Date.now()
+
+    const categories = await db.backgroundCategories.orderBy('createdAt').reverse().toArray()
+
+    const executionTime = Date.now() - startTime
+    return {
+      success: true,
+      data: categories,
+      performance: {
+        queryType: 'getAllBackgroundCategories',
+        executionTime,
+        resultCount: categories.length,
+      },
+    }
+  } catch (error) {
+    logger.error('背景カテゴリー一覧の取得に失敗しました:', { component: 'database' }, error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+/** 背景カテゴリーを更新 */
+export async function dbUpdateBackgroundCategory(id: string, updates: Partial<Pick<BackgroundCategoryRecord, 'name' | 'description'>>): Promise<DatabaseOperationResult<BackgroundCategoryRecord>> {
+  try {
+    const startTime = Date.now()
+
+    // 名前の重複チェック（名前が変更される場合）
+    if (updates.name) {
+      const existingCategory = await db.backgroundCategories.where('name').equals(updates.name).first()
+      if (existingCategory && existingCategory.id !== id) {
+        return {
+          success: false,
+          error: '同じ名前のカテゴリーが既に存在します',
+        }
+      }
+    }
+
+    const updateData = {
+      ...updates,
+      updatedAt: Date.now(),
+    }
+
+    await db.backgroundCategories.update(id, updateData)
+    const updatedCategory = await db.backgroundCategories.get(id)
+
+    if (!updatedCategory) {
+      return {
+        success: false,
+        error: 'カテゴリーが見つかりません',
+      }
+    }
+
+    const executionTime = Date.now() - startTime
+    return {
+      success: true,
+      data: updatedCategory,
+      performance: {
+        queryType: 'updateBackgroundCategory',
+        executionTime,
+        resultCount: 1,
+      },
+    }
+  } catch (error) {
+    logger.error('背景カテゴリーの更新に失敗しました:', { component: 'database' }, error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+/** 背景カテゴリーを削除 */
+export async function dbDeleteBackgroundCategory(id: string): Promise<DatabaseOperationResult<boolean>> {
+  try {
+    const startTime = Date.now()
+
+    await db.transaction('rw', [db.backgroundCategories, db.backgroundImages], async () => {
+      // 関連する画像も削除
+      await db.backgroundImages.where('categoryId').equals(id).delete()
+      await db.backgroundCategories.delete(id)
+    })
+
+    const executionTime = Date.now() - startTime
+    return {
+      success: true,
+      data: true,
+      performance: {
+        queryType: 'deleteBackgroundCategory',
+        executionTime,
+        resultCount: 1,
+      },
+    }
+  } catch (error) {
+    logger.error('背景カテゴリーの削除に失敗しました:', { component: 'database' }, error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+/** 背景画像をアップロード */
+export async function dbUploadBackgroundImage(categoryId: string, name: string, base64Data: string, mimeType: string, size: number): Promise<DatabaseOperationResult<BackgroundImageRecord>> {
+  try {
+    const startTime = Date.now()
+
+    // カテゴリーの存在確認
+    const category = await db.backgroundCategories.get(categoryId)
+    if (!category) {
+      return {
+        success: false,
+        error: '指定されたカテゴリーが見つかりません',
+      }
+    }
+
+    // 同じカテゴリーの同名画像が存在するかチェック
+    const existingImage = await db.backgroundImages.where('[categoryId+name]').equals([categoryId, name]).first()
+    if (existingImage) {
+      return {
+        success: false,
+        error: '同じカテゴリーの同名画像が既に存在します',
+      }
+    }
+
+    const image: BackgroundImageRecord = {
+      id: crypto.randomUUID(),
+      categoryId,
+      name,
+      mimeType,
+      base64Data,
+      size,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    }
+
+    await db.backgroundImages.add(image)
+
+    const executionTime = Date.now() - startTime
+    return {
+      success: true,
+      data: image,
+      performance: {
+        queryType: 'uploadBackgroundImage',
+        executionTime,
+        resultCount: 1,
+      },
+    }
+  } catch (error) {
+    logger.error('背景画像のアップロードに失敗しました:', { component: 'database' }, error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+/** カテゴリーの画像一覧を取得 */
+export async function dbGetCategoryImages(categoryId: string): Promise<DatabaseOperationResult<BackgroundImageRecord[]>> {
+  try {
+    const startTime = Date.now()
+
+    // カテゴリーIDで画像を直接取得（存在確認は不要）
+    const images = await db.backgroundImages.where('categoryId').equals(categoryId).reverse().sortBy('createdAt')
+
+    const executionTime = Date.now() - startTime
+    return {
+      success: true,
+      data: images,
+      performance: {
+        queryType: 'getCategoryImages',
+        executionTime,
+        resultCount: images.length,
+      },
+    }
+  } catch (error) {
+    logger.error('カテゴリー画像一覧の取得に失敗しました:', { component: 'database' }, error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+/** カテゴリー名と画像名から背景画像を直接取得 */
+export async function dbGetBackgroundImageByNames(categoryName: string, imageName: string): Promise<DatabaseOperationResult<BackgroundImageRecord | null>> {
+  try {
+    const startTime = Date.now()
+
+    // 1. カテゴリー名からIDを取得
+    const category = await db.backgroundCategories.where('name').equals(categoryName).first()
+    if (!category) {
+      return {
+        success: true,
+        data: null,
+        performance: {
+          queryType: 'getBackgroundImageByNames',
+          executionTime: Date.now() - startTime,
+          resultCount: 0,
+        },
+      }
+    }
+
+    // 2. 画像を直接取得（複合インデックス使用）
+    const image = await db.backgroundImages.where('[categoryId+name]').equals([category.id, imageName]).first()
+
+    const executionTime = Date.now() - startTime
+    return {
+      success: true,
+      data: image || null,
+      performance: {
+        queryType: 'getBackgroundImageByNames',
+        executionTime,
+        resultCount: image ? 1 : 0,
+      },
+    }
+  } catch (error) {
+    logger.error('背景画像の取得に失敗しました:', { component: 'database' }, error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+/** 背景画像を削除 */
+export async function dbDeleteBackgroundImage(id: string): Promise<DatabaseOperationResult<boolean>> {
+  try {
+    const startTime = Date.now()
+
+    await db.backgroundImages.delete(id)
+
+    const executionTime = Date.now() - startTime
+    return {
+      success: true,
+      data: true,
+      performance: {
+        queryType: 'deleteBackgroundImage',
+        executionTime,
+        resultCount: 1,
+      },
+    }
+  } catch (error) {
+    logger.error('背景画像の削除に失敗しました:', { component: 'database' }, error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+/** 全背景画像を取得（エクスポート用） */
+export async function dbGetAllBackgroundImages(): Promise<DatabaseOperationResult<BackgroundImageRecord[]>> {
+  try {
+    const startTime = Date.now()
+
+    const images = await db.backgroundImages.orderBy('createdAt').reverse().toArray()
+
+    const executionTime = Date.now() - startTime
+    return {
+      success: true,
+      data: images,
+      performance: {
+        queryType: 'getAllBackgroundImages',
+        executionTime,
+        resultCount: images.length,
+      },
+    }
+  } catch (error) {
+    logger.error('全背景画像の取得に失敗しました:', { component: 'database' }, error)
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',

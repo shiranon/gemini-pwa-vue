@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { logger } from '~/utils/logger'
 
 // File System Access API の型定義
@@ -38,6 +38,11 @@ export function useFolderUpload() {
     isSupported.value = 'showDirectoryPicker' in window
     return isSupported.value
   }
+
+  // 初期化時にサポート確認を実行
+  onMounted(() => {
+    checkSupport()
+  })
 
   // フォルダを選択して構造を解析（キャラクター作成用）
   const selectFolder = async (): Promise<FolderStructure | null> => {
@@ -169,10 +174,59 @@ export function useFolderUpload() {
     }
   }
 
+  // 背景画像用のフォルダを選択（フォルダ内の全画像を取得）
+  const selectImageFolder = async (): Promise<{ folderName: string; images: File[] } | null> => {
+    if (!checkSupport()) {
+      throw new Error('このブラウザはフォルダ選択をサポートしていません')
+    }
+
+    try {
+      const directoryHandle = await (window as unknown as FileSystemAccessAPI).showDirectoryPicker({
+        mode: 'read',
+      })
+
+      const images: File[] = []
+
+      // 画像ファイルの拡張子
+      const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.avif']
+
+      for await (const [name, handle] of directoryHandle.entries()) {
+        if (handle.kind === 'file') {
+          const extension = name.toLowerCase().substring(name.lastIndexOf('.'))
+          if (imageExtensions.includes(extension)) {
+            try {
+              const file = await (handle as FileSystemFileHandle).getFile()
+              images.push(file)
+            } catch (error) {
+              logger.warn(`ファイルの読み込みに失敗: ${name}`, { component: 'useFolderUpload' }, error)
+            }
+          }
+        }
+      }
+
+      if (images.length === 0) {
+        throw new Error('選択されたフォルダに画像ファイルが見つかりません')
+      }
+
+      return {
+        folderName: directoryHandle.name,
+        images,
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        // ユーザーがキャンセルした場合
+        return null
+      }
+      logger.error('フォルダ選択に失敗', { component: 'useFolderUpload' }, error)
+      throw error
+    }
+  }
+
   return {
     isSupported,
     checkSupport,
     selectFolder,
     selectOutfitFolder,
+    selectImageFolder,
   }
 }

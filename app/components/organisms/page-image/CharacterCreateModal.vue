@@ -113,7 +113,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, onMounted } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Button } from '~/components/ui/button'
 import { Input } from '~/components/ui/input'
@@ -137,6 +137,11 @@ const emit = defineEmits<Emits>()
 
 const { createCharacter, bulkUploadFromFolder } = useCharacterImages()
 const folderUpload = useFolderUpload()
+
+// フォルダ選択サポートの確認
+onMounted(() => {
+  folderUpload.checkSupport()
+})
 
 // Dialogの開閉状態
 const isOpen = ref(props.open)

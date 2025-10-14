@@ -327,13 +327,13 @@ export function useCharacterImages() {
         // FileオブジェクトかAttachedFileかで処理を分岐
         if (file instanceof File) {
           // useImageUploadでファイルを処理
-          const processedData = await imageUpload.uploadImage(file)
-          if (!processedData) {
+          const uploadResult = await imageUpload.uploadImage(file)
+          if (!uploadResult) {
             throw new Error(imageUpload.error.value || '画像の処理に失敗しました')
           }
-          base64Data = processedData
-          mimeType = file.type
-          size = file.size
+          base64Data = uploadResult.base64Data
+          mimeType = uploadResult.mimeType
+          size = uploadResult.size
         } else {
           // AttachedFileの場合は既にBase64データが含まれている
           base64Data = file.data
@@ -456,8 +456,8 @@ export function useCharacterImages() {
             const expression = getFileNameWithoutExtension(file.name)
 
             // useImageUploadでファイルを処理
-            const base64Data = await imageUpload.uploadImage(file)
-            if (!base64Data) {
+            const uploadResult = await imageUpload.uploadImage(file)
+            if (!uploadResult) {
               failedCount++
               const errorMessage = imageUpload.error.value || '画像の処理に失敗しました'
               errors.push(`${expression}: ${errorMessage}`)
@@ -466,7 +466,7 @@ export function useCharacterImages() {
             }
 
             // Base64データから実際のデータ部分を抽出
-            const base64 = base64Data.split(',')[1]
+            const base64 = uploadResult.base64Data.split(',')[1]
             if (!base64) {
               failedCount++
               errors.push(`${expression}: 画像データの抽出に失敗しました`)
@@ -474,7 +474,7 @@ export function useCharacterImages() {
               continue
             }
 
-            const result = await dbUploadCharacterImage(characterId, outfitId, expression, base64, file.type, file.size)
+            const result = await dbUploadCharacterImage(characterId, outfitId, expression, base64, uploadResult.mimeType, uploadResult.size)
 
             if (result.success) {
               successCount++

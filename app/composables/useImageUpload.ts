@@ -10,6 +10,13 @@ export interface ImageUploadOptions {
   optimizationOptions?: ImageOptimizationOptions // 最適化オプション
 }
 
+export interface ImageUploadResult {
+  base64Data: string
+  file: File
+  mimeType: string
+  size: number
+}
+
 const DEFAULT_MAX_SIZE = 5 * 1024 * 1024 // 5MB
 const DEFAULT_ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif']
 
@@ -20,7 +27,7 @@ export function useImageUpload(options: ImageUploadOptions = {}) {
   const error = ref<string | null>(null)
   const { optimizeImage, isProcessing: isOptimizing } = useImageOptimization()
 
-  const uploadImage = async (file: File): Promise<string | null> => {
+  const uploadImage = async (file: File): Promise<ImageUploadResult | null> => {
     if (!file) {
       error.value = 'ファイルが選択されていません'
       return null
@@ -33,12 +40,6 @@ export function useImageUpload(options: ImageUploadOptions = {}) {
       const optimizationResult = await optimizeImage(file, optimizationOptions)
       if (optimizationResult) {
         processedFile = optimizationResult.file
-        console.log('画像最適化完了:', {
-          originalSize: optimizationResult.originalSize,
-          optimizedSize: optimizationResult.optimizedSize,
-          compressionRatio: optimizationResult.compressionRatio,
-          details: optimizationResult.details,
-        })
       } else {
         error.value = '画像の最適化に失敗しました'
         return null
@@ -79,7 +80,12 @@ export function useImageUpload(options: ImageUploadOptions = {}) {
               return
             }
 
-            resolve(result)
+            resolve({
+              base64Data: result,
+              file: processedFile,
+              mimeType: processedFile.type,
+              size: processedFile.size,
+            })
           } else {
             reject(new Error('ファイルの読み込みに失敗しました'))
           }
@@ -111,7 +117,7 @@ export function useImageUpload(options: ImageUploadOptions = {}) {
       target.value = ''
     }
 
-    return result
+    return result?.base64Data ?? null
   }
 
   const removeImage = () => {
