@@ -490,10 +490,10 @@ watch(
   { immediate: true }
 )
 
-// 最新のアシスタントメッセージを computed で取得（パフォーマンス最適化）
+// 最新のアシスタントメッセージを computed で取得
 const latestAssistantMessage = computed(() => getLatestAssistantMessage(messages.value))
 
-// タイムスタンプのみを監視してパフォーマンスを最適化
+// タイムスタンプのみを監視
 const latestAssistantMessageTimestamp = computed(() => latestAssistantMessage.value?.timestamp ?? null)
 
 const lastProcessedTimestamp = ref<number | null>(null)
@@ -506,9 +506,9 @@ watch(latestAssistantMessageTimestamp, async (timestamp) => {
   const latestMessage = latestAssistantMessage.value
   if (!latestMessage) return
 
-  // 処理開始フラグを設定
-  isProcessingBackground.value = true
+  // 処理開始時に即座にタイムスタンプを更新
   lastProcessedTimestamp.value = timestamp
+  isProcessingBackground.value = true
 
   try {
     let categoryName: string | null = null
@@ -549,45 +549,57 @@ watch(latestAssistantMessageTimestamp, async (timestamp) => {
       const nodes = parseMarkdown(latestMessage.content)
 
       // ノードから背景ディレクティブを探す（最後のものを優先）
-      // 再帰深度の保護を追加
+      // スタックベースの実装で深度制限を厳密に管理
       const findDirective = (blockNodes: MarkdownBlockNode[], maxDepth = 10): { categoryName: string; imageName: string } | null => {
         let lastDirective: { categoryName: string; imageName: string } | null = null
 
-        const traverseInline = (inlineNodes: MarkdownInlineNode[], depth = 0) => {
-          if (depth > maxDepth) {
-            logger.warn('[ChatInterface] 再帰深度の上限に達しました（inline）', { component: 'ChatInterface', depth })
-            return
+        const stack: Array<{ nodes: MarkdownBlockNode[] | MarkdownInlineNode[]; depth: number; type: 'block' | 'inline' }> = []
+
+        // 初期ノードをスタックに追加
+        stack.push({ nodes: blockNodes, depth: 0, type: 'block' })
+
+        while (stack.length > 0) {
+          const current = stack.pop()!
+
+          // 深度チェック
+          if (current.depth > maxDepth) {
+            logger.warn('[ChatInterface] 再帰深度の上限に達しました', {
+              component: 'ChatInterface',
+              depth: current.depth,
+              type: current.type,
+            })
+            continue
           }
 
-          for (const node of inlineNodes) {
-            if (node.type === 'backgroundDirective') {
-              lastDirective = { categoryName: node.categoryName, imageName: node.imageName }
-            } else if ('children' in node && Array.isArray(node.children)) {
-              traverseInline(node.children, depth + 1)
+          if (current.type === 'block') {
+            // ブロックノードの処理
+            for (const node of current.nodes as MarkdownBlockNode[]) {
+              if (node.type === 'paragraph' || node.type === 'heading') {
+                // インラインノードをスタックに追加
+                stack.push({ nodes: node.children, depth: current.depth, type: 'inline' })
+              } else if (node.type === 'blockquote') {
+                // ブロッククォートの子ノードをスタックに追加
+                stack.push({ nodes: node.children, depth: current.depth + 1, type: 'block' })
+              } else if (node.type === 'list') {
+                // リストアイテムの子ノードをスタックに追加
+                for (const item of node.items) {
+                  stack.push({ nodes: item.children, depth: current.depth + 1, type: 'block' })
+                }
+              }
             }
-          }
-        }
-
-        const traverseBlock = (blockNodes: MarkdownBlockNode[], depth = 0) => {
-          if (depth > maxDepth) {
-            logger.warn('[ChatInterface] 再帰深度の上限に達しました（block）', { component: 'ChatInterface', depth })
-            return
-          }
-
-          for (const node of blockNodes) {
-            if (node.type === 'paragraph' || node.type === 'heading') {
-              traverseInline(node.children, depth)
-            } else if (node.type === 'blockquote') {
-              traverseBlock(node.children, depth + 1)
-            } else if (node.type === 'list') {
-              for (const item of node.items) {
-                traverseBlock(item.children, depth + 1)
+          } else {
+            // インラインノードの処理
+            for (const node of current.nodes as MarkdownInlineNode[]) {
+              if (node.type === 'backgroundDirective') {
+                lastDirective = { categoryName: node.categoryName, imageName: node.imageName }
+              } else if ('children' in node && Array.isArray(node.children)) {
+                // 子ノードをスタックに追加
+                stack.push({ nodes: node.children, depth: current.depth + 1, type: 'inline' })
               }
             }
           }
         }
 
-        traverseBlock(blockNodes)
         return lastDirective
       }
 
@@ -618,6 +630,8 @@ watch(latestAssistantMessageTimestamp, async (timestamp) => {
         })
       }
     }
+  } catch (error) {
+    logger.error('[ChatInterface] 背景画像設定エラー', { component: 'ChatInterface' }, error)
   } finally {
     // 処理完了フラグをリセット
     isProcessingBackground.value = false
