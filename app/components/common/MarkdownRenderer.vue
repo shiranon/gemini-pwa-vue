@@ -174,6 +174,10 @@ const RenderBlock = defineComponent({
   list-style-type: disc;
 }
 
+ol.markdown-list {
+  list-style-type: decimal;
+}
+
 .markdown-list--loose {
   gap: 0.5rem;
 }

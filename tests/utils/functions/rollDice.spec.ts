@@ -288,16 +288,22 @@ describe('rollDice', () => {
       }
 
       const results = []
-      for (let i = 0; i < 10; i++) {
+      for (let i = 0; i < 20; i++) {
         const result = await rollDice(args, mockContext)
         if (!('error' in result)) {
           results.push(result.rolls[0])
         }
       }
 
-      // 全て異なる結果が得られることを確認（確率的に）
+      // 20回の実行で異なる結果が得られることを確認（確率的に）
       const uniqueResults = new Set(results)
       expect(uniqueResults.size).toBeGreaterThan(1)
+
+      // 各結果が有効な範囲内であることを確認
+      results.forEach((roll) => {
+        expect(roll).toBeGreaterThanOrEqual(1)
+        expect(roll).toBeLessThanOrEqual(100)
+      })
     })
 
     it('複数ダイスでもそれぞれがランダム', async () => {
@@ -311,8 +317,23 @@ describe('rollDice', () => {
       if (!('error' in result)) {
         expect(result.rolls).toHaveLength(5)
 
-        // 全て異なる結果が得られることを確認（確率的に）
-        const uniqueResults = new Set(result.rolls)
+        // 各ダイスが有効な範囲内の値であることを確認
+        result.rolls.forEach((roll) => {
+          expect(roll).toBeGreaterThanOrEqual(1)
+          expect(roll).toBeLessThanOrEqual(6)
+        })
+
+        // 複数回実行してランダム性を確認（確率的に）
+        const allResults = []
+        for (let i = 0; i < 10; i++) {
+          const testResult = await rollDice(args, mockContext)
+          if (!('error' in testResult)) {
+            allResults.push(...testResult.rolls)
+          }
+        }
+
+        // 50回のダイスロール中に異なる値が含まれることを確認
+        const uniqueResults = new Set(allResults)
         expect(uniqueResults.size).toBeGreaterThan(1)
       }
     })
@@ -325,7 +346,7 @@ describe('rollDice', () => {
       }
 
       let foundMin = false
-      for (let i = 0; i < 100; i++) {
+      for (let i = 0; i < 200; i++) {
         const result = await rollDice(args, mockContext)
         if (!('error' in result) && result.rolls[0] === 1) {
           foundMin = true
@@ -341,7 +362,7 @@ describe('rollDice', () => {
       }
 
       let foundMax = false
-      for (let i = 0; i < 100; i++) {
+      for (let i = 0; i < 200; i++) {
         const result = await rollDice(args, mockContext)
         if (!('error' in result) && result.rolls[0] === 2) {
           foundMax = true
