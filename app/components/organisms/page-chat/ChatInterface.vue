@@ -527,27 +527,6 @@ watch(latestAssistantMessageTimestamp, async (timestamp) => {
       categoryName = functionCallingResult.categoryName
       imageName = functionCallingResult.imageName
       source = 'Function Calling'
-
-      // Function Calling成功時は早期リターンでDirective解析をスキップ
-      if (categoryName && imageName) {
-        const dataUrl = await getBackgroundImageDataUrl(categoryName, imageName)
-        if (dataUrl) {
-          setTemporaryBackground(dataUrl)
-          logger.info(`[ChatInterface] ${source}の結果で一時的な背景画像を設定しました`, {
-            component: 'ChatInterface',
-            source,
-            categoryName,
-            imageName,
-          })
-        } else {
-          logger.warn('[ChatInterface] 背景画像の取得に失敗しました', {
-            component: 'ChatInterface',
-            categoryName,
-            imageName,
-          })
-        }
-        return
-      }
     }
 
     // 2. Function Callingがない場合のみ、Directiveをチェック
@@ -559,6 +538,7 @@ watch(latestAssistantMessageTimestamp, async (timestamp) => {
         source = 'Directive'
       }
     }
+
     // 3. 背景画像を取得して設定
     if (categoryName && imageName) {
       const dataUrl = await getBackgroundImageDataUrl(categoryName, imageName)
