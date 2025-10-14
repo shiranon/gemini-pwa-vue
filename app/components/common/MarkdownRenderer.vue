@@ -174,7 +174,7 @@ const RenderBlock = defineComponent({
   list-style-type: disc;
 }
 
-.markdown-list:is(ol) {
+ol.markdown-list {
   list-style-type: decimal;
 }
 

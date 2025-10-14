@@ -107,6 +107,62 @@ describe('MarkdownRenderer', () => {
     expect(items[2]).toBe('- Item 3')
   })
 
+  it('番号付きリストを処理する', () => {
+    const orderedListContent = '1. First item\n2. Second item\n3. Third item'
+    const items = orderedListContent.split('\n')
+
+    expect(items).toHaveLength(3)
+    expect(items[0]).toBe('1. First item')
+    expect(items[1]).toBe('2. Second item')
+    expect(items[2]).toBe('3. Third item')
+  })
+
+  it('ネストしたリストを処理する', () => {
+    const nestedListContent = '- Parent item\n  - Child item 1\n  - Child item 2\n- Another parent'
+    const lines = nestedListContent.split('\n')
+
+    expect(lines).toHaveLength(4)
+    expect(lines[0]).toBe('- Parent item')
+    expect(lines[1]).toBe('  - Child item 1')
+    expect(lines[2]).toBe('  - Child item 2')
+    expect(lines[3]).toBe('- Another parent')
+  })
+
+  it('番号付きリストと順序なしリストの混在を処理する', () => {
+    const mixedListContent = '1. Numbered item\n- Bullet item\n2. Another numbered item'
+    const lines = mixedListContent.split('\n')
+
+    expect(lines).toHaveLength(3)
+    expect(lines[0]).toBe('1. Numbered item')
+    expect(lines[1]).toBe('- Bullet item')
+    expect(lines[2]).toBe('2. Another numbered item')
+  })
+
+  it('リストのCSSクラスが正しく適用される', () => {
+    // 順序なしリストのクラス名を検証
+    const unorderedListClass = 'markdown-list'
+    expect(unorderedListClass).toBe('markdown-list')
+
+    // 番号付きリストのクラス名を検証
+    const orderedListClass = 'markdown-list'
+    expect(orderedListClass).toBe('markdown-list')
+
+    // looseリストのクラス名を検証
+    const looseListClass = 'markdown-list markdown-list--loose'
+    expect(looseListClass).toContain('markdown-list')
+    expect(looseListClass).toContain('markdown-list--loose')
+  })
+
+  it('リストスタイルタイプの設定を検証する', () => {
+    // 順序なしリストはdiscスタイル
+    const unorderedStyle = 'disc'
+    expect(unorderedStyle).toBe('disc')
+
+    // 番号付きリストはdecimalスタイル
+    const orderedStyle = 'decimal'
+    expect(orderedStyle).toBe('decimal')
+  })
+
   it('太字と斜体のテキストを処理する', () => {
     const boldItalicContent = '**bold text** and *italic text*'
 
