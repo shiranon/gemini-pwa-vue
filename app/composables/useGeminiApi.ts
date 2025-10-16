@@ -273,6 +273,7 @@ export const useGeminiApi = () => {
         if ('text' in p) return { text: p.text }
         if ('functionCall' in p) return createPartFromFunctionCall(p.functionCall.name, (p.functionCall.args ?? {}) as Record<string, unknown>)
         if ('functionResponse' in p) return createPartFromFunctionResponse(generateMessageId(), p.functionResponse.name, (p.functionResponse.response ?? {}) as Record<string, unknown>)
+        if ('inlineData' in p) return { inlineData: { mimeType: p.inlineData.mimeType, data: p.inlineData.data } }
         return { text: '' }
       })
       return { role: m.role, parts }

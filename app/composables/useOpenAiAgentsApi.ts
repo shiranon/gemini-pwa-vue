@@ -64,6 +64,9 @@ export interface OpenAiApiSettings extends Omit<GeminiApiSettings, 'model'> {
   modelSettings?: Gpt5ModelSettings
 }
 
+type UserContentArray = Exclude<Parameters<typeof user>[0], string>
+type UserContentPayload = UserContentArray extends Array<infer U> ? U : never
+
 export interface OpenAiStreamingChunk {
   type: 'chunk'
   contentText: string
@@ -372,15 +375,42 @@ export const useOpenAiAgentsApi = () => {
    */
   const toAgentInputItems = (messages: GeminiMessage[]): AgentInputItem[] => {
     return messages.map((m) => {
-      // parts から text を抽出
-      const textParts = m.parts.filter((p) => 'text' in p)
-      const content = textParts.map((p) => ('text' in p ? p.text : '')).join('\n')
+      if (m.role === 'user') {
+        const contentItems: UserContentPayload[] = []
+        let hasText = false
 
-      // user() または assistant() ヘルパー関数を使用
-      // role が 'user' ならuser()、それ以外（'model' または 'assistant'）なら assistant()
-      const result = m.role === 'user' ? user(content) : assistant(content)
+        for (const part of m.parts) {
+          if ('text' in part) {
+            const text = part.text ?? ''
+            if (text.trim().length > 0) {
+              contentItems.push({ type: 'input_text', text })
+              hasText = true
+            }
+          } else if ('inlineData' in part) {
+            const mimeType = part.inlineData.mimeType || 'application/octet-stream'
+            const dataUrl = `data:${mimeType};base64,${part.inlineData.data}`
 
-      return result
+            if (mimeType.startsWith('image/')) {
+              contentItems.push({ type: 'input_image', image: dataUrl })
+            } else {
+              contentItems.push({ type: 'input_file', file: dataUrl })
+            }
+          }
+        }
+
+        if (!hasText) {
+          contentItems.unshift({ type: 'input_text', text: '' })
+        }
+
+        return user(contentItems as UserContentArray)
+      }
+
+      const assistantText = m.parts
+        .filter((p) => 'text' in p)
+        .map((p) => ('text' in p ? p.text : ''))
+        .join('\n')
+
+      return assistant(assistantText)
     })
   }
 

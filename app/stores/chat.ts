@@ -759,6 +759,7 @@ export const useChatStore = defineStore('chat', () => {
       translatedThoughts: msg.role === 'assistant' ? (msg as AssistantMessage).translatedThoughts : undefined,
       functionCalls: msg.role === 'assistant' ? (msg as AssistantMessage).functionCalls : undefined,
       functionResults: msg.role === 'assistant' ? (msg as AssistantMessage).functionResults : undefined,
+      attachments: msg.role === 'user' ? [...((msg as UserMessage).attachments ?? [])] : undefined,
     }))
   })
 
@@ -771,9 +772,10 @@ export const useChatStore = defineStore('chat', () => {
     translatedThoughts?: string
     functionCalls?: FunctionCall[]
     functionResults?: FunctionCallResult[]
+    attachments?: AttachedFile[]
   }) => {
     if (message.role === 'user') {
-      addUserMessage(message.content)
+      addUserMessage(message.content, message.attachments)
     } else if (message.role === 'assistant') {
       addAssistantMessage(message.content, {
         error: message.error,

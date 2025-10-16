@@ -4,7 +4,7 @@ import { Type } from '@google/genai'
 import { useFunctionCalling } from '~/composables/useFunctionCalling'
 import { generateMessageId } from '~/lib/ids'
 import { useChatStore } from '~/stores/chat'
-import type { ChatMessage, ClaudeApiSettings } from '~/types/chat'
+import type { AttachedFile, ChatMessage, ClaudeApiSettings } from '~/types/chat'
 import type { FunctionCall, FunctionCallResult } from '~/types/function-calling'
 import { logger } from '~/utils/logger'
 
@@ -32,6 +32,52 @@ export interface ClaudeCombinedResponse {
   thoughts?: string
   toolCalls?: FunctionCall[]
   toolResults?: FunctionCallResult[]
+}
+
+const ALLOWED_IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp'])
+
+const normalizeMimeType = (mimeType: string | undefined): string => {
+  if (!mimeType || mimeType.trim().length === 0) {
+    return 'application/octet-stream'
+  }
+  if (mimeType === 'image/jpg') return 'image/jpeg'
+  return mimeType
+}
+
+const buildAttachmentBlocks = (attachments: AttachedFile[]): ContentBlockParam[] => {
+  const blocks: ContentBlockParam[] = []
+
+  for (const file of attachments) {
+    const mimeType = normalizeMimeType(file.type)
+
+    if (mimeType.startsWith('image/')) {
+      if (ALLOWED_IMAGE_MIME_TYPES.has(mimeType)) {
+        blocks.push({
+          type: 'image',
+          source: {
+            type: 'base64',
+            media_type: mimeType as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp',
+            data: file.data,
+          },
+        })
+      } else {
+        blocks.push({ type: 'text', text: `添付ファイル（画像）: ${file.name}` })
+      }
+    } else if (mimeType === 'application/pdf') {
+      blocks.push({
+        type: 'document',
+        source: {
+          type: 'base64',
+          media_type: 'application/pdf',
+          data: file.data,
+        },
+      })
+    } else {
+      blocks.push({ type: 'text', text: `添付ファイル: ${file.name} (${mimeType})` })
+    }
+  }
+
+  return blocks
 }
 
 export const useClaudeApi = () => {
@@ -446,6 +492,10 @@ export const useClaudeApi = () => {
           blocks.push({ type: 'text', text: m.content })
         }
 
+        if (m.attachments?.length) {
+          blocks.push(...buildAttachmentBlocks(m.attachments))
+        }
+
         // 直前のassistantメッセージのtool_use IDを取得
         const prevAssistantIdx = i - 1
         const toolUseIds = toolUseIdMap.get(prevAssistantIdx) || []
@@ -477,11 +527,30 @@ export const useClaudeApi = () => {
           content: blocks,
         })
       } else {
-        // 通常のメッセージ
-        result.push({
-          role: m.role === 'assistant' ? ('assistant' as const) : ('user' as const),
-          content: m.content,
-        })
+        if (m.role === 'user') {
+          const blocks: ContentBlockParam[] = []
+          if (m.content) {
+            blocks.push({ type: 'text', text: m.content })
+          }
+          if (m.attachments?.length) {
+            blocks.push(...buildAttachmentBlocks(m.attachments))
+          }
+
+          if (blocks.length === 0) {
+            blocks.push({ type: 'text', text: '' })
+          }
+
+          result.push({
+            role: 'user',
+            content: blocks,
+          })
+        } else {
+          // 通常のアシスタントメッセージ
+          result.push({
+            role: 'assistant' as const,
+            content: m.content,
+          })
+        }
       }
     }
 

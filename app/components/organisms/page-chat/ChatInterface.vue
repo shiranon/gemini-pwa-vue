@@ -52,6 +52,40 @@
       </template>
     </div>
 
+    <div
+      v-if="attachedFiles.length > 0"
+      class="bg-muted/60 border-border rounded-lg border border-dashed p-3"
+    >
+      <div class="flex flex-col gap-3">
+        <div
+          v-for="file in attachedFiles"
+          :key="file.id"
+          class="bg-background/80 flex items-center justify-between gap-3 rounded-md px-3 py-2"
+        >
+          <div class="flex min-w-0 flex-1 items-center gap-3">
+            <Icon
+              :icon="getAttachmentIcon(file.type)"
+              class="text-muted-foreground h-4 w-4 flex-shrink-0"
+            />
+            <div class="min-w-0">
+              <p class="truncate text-sm font-medium">{{ file.name }}</p>
+              <p class="text-muted-foreground text-xs">{{ formatFileSize(file.size) }}</p>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            class="h-8 w-8"
+            @click="removeAttachment(file.id)"
+          >
+            <Icon
+              icon="mdi:close"
+              class="h-4 w-4"
+            />
+          </Button>
+        </div>
+      </div>
+    </div>
     <div class="border-border bg-background/90 sticky bottom-0 z-20 border-t p-2 shadow-lg backdrop-blur">
       <div class="flex gap-2">
         <div class="flex flex-col gap-1">
@@ -69,17 +103,19 @@
             @update:selected-profile-id="handleProfileChange"
           />
         </div>
-        <textarea
-          id="chat-input"
-          v-model="inputText"
-          :disabled="isSending"
-          placeholder="メッセージを入力..."
-          class="border-input focus:border-primary focus:ring-primary min-h-[80px] flex-1 resize-none rounded-lg border p-4 text-lg focus:ring-2 focus:outline-none"
-          @keydown="handleKeydown"
-        />
+        <div class="flex flex-1 flex-col gap-2">
+          <textarea
+            id="chat-input"
+            v-model="inputText"
+            :disabled="isSending"
+            placeholder="メッセージを入力..."
+            class="border-input focus:border-primary focus:ring-primary min-h-[80px] flex-1 resize-none rounded-lg border p-4 text-lg focus:ring-2 focus:outline-none"
+            @keydown="handleKeydown"
+          />
+        </div>
         <div class="flex flex-col gap-2">
           <Button
-            :disabled="isSending || !inputText.trim()"
+            :disabled="isSending || (!inputText.trim() && !hasAttachments)"
             class="size-10 p-2 text-lg sm:size-11"
             @click="sendMessage"
           >
@@ -92,8 +128,27 @@
             </div>
             <div v-else>送</div>
           </Button>
+          <Button
+            variant="outline"
+            class="size-10 p-2 text-lg sm:size-11"
+            :disabled="isSending"
+            @click="openAttachmentDialog"
+          >
+            <Icon
+              icon="material-symbols:attach-file"
+              class="h-5 w-5"
+            />
+          </Button>
         </div>
       </div>
+      <input
+        ref="attachmentInputRef"
+        class="hidden"
+        type="file"
+        :accept="attachmentAccept"
+        multiple
+        @change="handleAttachmentChange"
+      />
     </div>
     <RetryConfirmDialog
       v-model="showRetryDialogLocal"
@@ -108,6 +163,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { storeToRefs } from 'pinia'
 import { onBeforeRouteLeave } from 'vue-router'
 import { useChatStore } from '~/stores/chat'
 import { useSettingsStore } from '~/stores/settings'
@@ -132,6 +188,8 @@ import { useBackgroundDirectiveExtractor } from '~/composables/useBackgroundDire
 import type { ApiError, ChatMessage, AttachedFile, Message, AssistantMessage } from '~/types/chat'
 import { toast } from 'vue-sonner'
 import { logger } from '~/utils/logger'
+import { convertFileToAttachedFile } from '~/lib/file'
+import { formatFileSize } from '~/lib/format'
 
 const chatStore = useChatStore()
 const settingsStore = useSettingsStore()
@@ -139,6 +197,7 @@ const profilesStore = useSettingsProfilesStore()
 const geminiStore = useGeminiStore()
 const openaiStore = useOpenAiStore()
 const claudeStore = useClaudeStore()
+const { attachedFiles } = storeToRefs(chatStore)
 
 // 現在のプロバイダーに応じて適切なストアを取得
 const currentApiStore = computed(() => {
@@ -163,6 +222,7 @@ const inputText = ref('')
 const messageContainer = ref<HTMLElement>()
 const backgroundUrl = ref<string | null>(null)
 const isProfileLoading = ref(false)
+const attachmentInputRef = ref<HTMLInputElement | null>(null)
 
 // 一時的な背景画像管理
 const { currentBackgroundUrl, setTemporaryBackground } = useTemporaryBackground()
@@ -211,6 +271,78 @@ const messages = computed(() =>
 const retryDialogTargetMessage = computed(() => chatStore.retryTargetMessage as Message | null)
 const retryDialogResendMessage = computed(() => chatStore.retryResendMessage as Message | null)
 const isSending = computed(() => geminiStore.isSending)
+const hasAttachments = computed(() => attachedFiles.value.length > 0)
+const attachmentAccept = 'image/*,application/pdf,text/*,audio/*'
+const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024
+const SUPPORTED_ATTACHMENT_TYPES = new Set([
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+  'image/gif',
+  'application/pdf',
+  'text/plain',
+  'text/csv',
+  'text/html',
+  'text/css',
+  'text/javascript',
+  'application/json',
+  'application/xml',
+  'text/xml',
+  'audio/mpeg',
+  'audio/wav',
+  'audio/ogg',
+  'audio/mp4',
+  'audio/webm',
+  'audio/aac',
+  'audio/flac',
+])
+
+const getAttachmentIcon = (mimeType: string) => {
+  if (mimeType.startsWith('image/')) return 'mdi:file-image-outline'
+  if (mimeType === 'application/pdf') return 'mdi:file-pdf-box'
+  if (mimeType.startsWith('audio/')) return 'mdi:file-music-outline'
+  if (mimeType.startsWith('text/') || mimeType === 'application/json' || mimeType === 'application/xml' || mimeType === 'text/xml') return 'mdi:file-document-outline'
+  return 'mdi:file-outline'
+}
+
+const openAttachmentDialog = () => {
+  if (isSending.value) return
+  attachmentInputRef.value?.click()
+}
+
+const handleAttachmentSelection = async (files: FileList | null) => {
+  if (!files || files.length === 0) return
+
+  for (const file of Array.from(files)) {
+    if (file.size > MAX_ATTACHMENT_SIZE) {
+      toast.error(`"${file.name}" は上限サイズ（${formatFileSize(MAX_ATTACHMENT_SIZE)}）を超えています`)
+      continue
+    }
+
+    if (!SUPPORTED_ATTACHMENT_TYPES.has(file.type)) {
+      toast.error(`"${file.name}" は対応していない形式です`)
+      continue
+    }
+
+    try {
+      const attachedFile = await convertFileToAttachedFile(file)
+      chatStore.attachFile(attachedFile)
+    } catch (error) {
+      logger.error('ファイル添付に失敗しました', { component: 'ChatInterface', fileName: file.name }, error)
+      toast.error(`"${file.name}" の読み込みに失敗しました`)
+    }
+  }
+}
+
+const handleAttachmentChange = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  void handleAttachmentSelection(target.files)
+  if (target) target.value = ''
+}
+
+const removeAttachment = (fileId: string) => {
+  chatStore.removeAttachment(fileId)
+}
 
 // ローカルなダイアログ状態管理
 const showRetryDialogLocal = ref(false)
@@ -310,15 +442,17 @@ const handleGeminiError = (error: ApiError | null) => {
 const sendMessage = async (options?: { contentOverride?: string; skipAddingUserMessage?: boolean; attachmentsOverride?: AttachedFile[] }) => {
   const rawContent = options?.contentOverride ?? inputText.value
   const content = rawContent.trim()
-  const hasAttachmentsOverride = (options?.attachmentsOverride?.length ?? 0) > 0
-  if (!content && !hasAttachmentsOverride) return
+  const attachmentsToSend = options?.attachmentsOverride ?? attachedFiles.value.map((file) => ({ ...file }))
+  const hasAttachmentsToSend = attachmentsToSend.length > 0
+
+  if (!content && !hasAttachmentsToSend) return
 
   dismissRetryToast()
 
   try {
     const success = await currentApiStore.value.sendChatMessage({
       content: rawContent,
-      attachments: options?.attachmentsOverride,
+      attachments: attachmentsToSend,
       skipAddingUserMessage: options?.skipAddingUserMessage,
       onError: handleGeminiError,
       onRetryScheduled: notifyRetryScheduled,

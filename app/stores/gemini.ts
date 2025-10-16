@@ -11,7 +11,7 @@ import { proofreadText } from '~/composables/useProofreader'
 import { translateThoughts } from '~/composables/useTranslator'
 import { useChatStore } from '~/stores/chat'
 import { useSettingsStore } from '~/stores/settings'
-import type { ApiError, AssistantMessage, AttachedFile, ChatMessage, GeminiApiSettings, GeminiMessage } from '~/types/chat'
+import type { ApiError, AssistantMessage, AttachedFile, ChatMessage, GeminiApiSettings, GeminiMessage, GeminiPart } from '~/types/chat'
 import type { FunctionCall, FunctionCallResult } from '~/types/function-calling'
 
 export const useGeminiStore = defineStore('gemini', () => {
@@ -41,11 +41,37 @@ export const useGeminiStore = defineStore('gemini', () => {
   /**
    * チャットメッセージをGemini API用の形式に変換する
    */
+  const normalizeMimeType = (mime: string | undefined): string => {
+    if (!mime || mime.trim().length === 0) {
+      return 'application/octet-stream'
+    }
+    if (mime === 'image/jpg') return 'image/jpeg'
+    return mime
+  }
+
   const prepareMessagesForApi = (messages: ChatMessage[]): GeminiMessage[] => {
-    return messages.map((msg) => ({
-      role: msg.role === 'assistant' ? 'model' : msg.role,
-      parts: [{ text: msg.content }],
-    }))
+    return messages.map((msg) => {
+      const parts: GeminiPart[] = []
+
+      if (msg.content && msg.content.length > 0) {
+        parts.push({ text: msg.content })
+      }
+
+      if (msg.attachments && msg.attachments.length > 0) {
+        for (const file of msg.attachments) {
+          parts.push({ inlineData: { mimeType: normalizeMimeType(file.type), data: file.data } })
+        }
+      }
+
+      if (parts.length === 0) {
+        parts.push({ text: '' })
+      }
+
+      return {
+        role: msg.role === 'assistant' ? 'model' : msg.role,
+        parts,
+      }
+    })
   }
 
   /**
