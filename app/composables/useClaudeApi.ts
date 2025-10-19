@@ -8,6 +8,7 @@ import type { ThoughtExtractionResult } from '~/types/api'
 import type { AttachedFile, ChatMessage, ClaudeApiSettings } from '~/types/chat'
 import type { FunctionCall, FunctionCallResult } from '~/types/function-calling'
 import { logger } from '~/utils/logger'
+import { executeFunctionCallsCommon, filterFunctionsByAllowedNames, buildApiErrorMessage, logFunctionCallCompletion } from '~/lib/apiCommon'
 
 export interface ClaudeStreamingChunk {
   type: 'chunk'
@@ -333,32 +334,9 @@ export const useClaudeApi = () => {
     // 有効時のみFunction Callingツールを追加
     if (settings.functionCalling?.enabled) {
       const enabledFunctions = getEnabledFunctionDeclarations()
-      logger.info('[関数呼び出し] 有効な関数:', {
-        component: 'useClaudeApi',
-        count: enabledFunctions.length,
-        names: enabledFunctions.map((f) => f.name),
-        functions: enabledFunctions,
-      })
 
-      let functionDeclarations = enabledFunctions
-      if (settings.functionCalling.allowedFunctionNames?.length) {
-        const allowedSet = new Set(settings.functionCalling.allowedFunctionNames)
-        const availableNames = new Set(enabledFunctions.map((declaration) => declaration.name).filter((name): name is string => typeof name === 'string'))
-        const missingNames = settings.functionCalling.allowedFunctionNames.filter((name) => !availableNames.has(name))
-        if (missingNames.length > 0) {
-          logger.warn('[関数呼び出し] allowedFunctionNamesに未登録の関数があります:', { component: 'useClaudeApi' }, missingNames)
-        }
-
-        functionDeclarations = enabledFunctions.filter((declaration) => declaration.name && allowedSet.has(declaration.name))
-
-        if (functionDeclarations.length !== enabledFunctions.length) {
-          logger.info('[関数呼び出し] allowedFunctionNamesで関数をフィルタリングしました', {
-            before: enabledFunctions.length,
-            after: functionDeclarations.length,
-            allowedFunctionNames: settings.functionCalling.allowedFunctionNames,
-          })
-        }
-      }
+      // 共通関数を使用してフィルタリング
+      const functionDeclarations = filterFunctionsByAllowedNames(enabledFunctions, settings.functionCalling.allowedFunctionNames, 'useClaudeApi')
 
       if (functionDeclarations.length > 0) {
         // Gemini FunctionDeclaration型からClaude Tool型への変換
@@ -379,8 +357,6 @@ export const useClaudeApi = () => {
           }
         })
       }
-    } else {
-      logger.info('[関数呼び出し] Function Calling は無効です', { component: 'useClaudeApi' })
     }
 
     return tools.length > 0 ? { tools } : {}
@@ -390,50 +366,41 @@ export const useClaudeApi = () => {
    * Tool Use を検出・実行する
    */
   const handleToolCalls = async (content: Array<Anthropic.ContentBlock>, messageId?: string): Promise<{ toolCalls: FunctionCall[]; toolResults: FunctionCallResult[] }> => {
-    logger.info('[非ストリーミング] Tool Use処理開始:', { messageId })
     const toolCalls: FunctionCall[] = []
-    const toolResults: FunctionCallResult[] = []
 
     for (let i = 0; i < content.length; i++) {
       const block = content[i]
-      logger.info(`[非ストリーミング] コンテンツブロック ${i + 1}:`, { component: 'useClaudeApi' }, block)
 
       if (block && block.type === 'tool_use') {
         const toolCall: FunctionCall = {
           name: block.name,
           args: block.input as Record<string, unknown>,
         }
-        logger.info(`[非ストリーミング] Tool Call検出 ${toolCalls.length + 1}:`, { component: 'useClaudeApi' }, toolCall)
         toolCalls.push(toolCall)
-
-        try {
-          logger.info(`[非ストリーミング] 関数実行開始 ${toolResults.length + 1}:`, { component: 'useClaudeApi' }, toolCall.name)
-          const result = await executeFunction(toolCall, {
-            messageId,
-            timestamp: Date.now(),
-            persistentMemory: chatStore.currentSession?.persistentMemory || {},
-          })
-          logger.info(`[非ストリーミング] 関数実行完了 ${toolResults.length + 1}:`, { component: 'useClaudeApi' }, toolCall.name, result)
-          toolResults.push(result)
-        } catch (error) {
-          logger.error(`[非ストリーミング] 関数の実行に失敗 ${toolResults.length + 1}:`, { component: 'useClaudeApi' }, toolCall.name, error)
-          const errorResult = {
-            name: toolCall.name,
-            args: toolCall.args,
-            result: null,
-            error: error instanceof Error ? error.message : String(error),
-          }
-          toolResults.push(errorResult)
-        }
       }
     }
 
-    logger.info('[非ストリーミング] Tool Use処理完了:', {
-      toolCallsCount: toolCalls.length,
-      toolResultsCount: toolResults.length,
-      toolCalls: toolCalls.map((tc) => ({ name: tc.name, args: tc.args })),
-      toolResults: toolResults.map((tr) => ({ name: tr.name, hasResult: !!tr.result, hasError: !!tr.error })),
+    // 共通関数を使用してTool Callを実行
+    const toolResults = await executeFunctionCallsCommon(toolCalls, {
+      executeFunction,
+      context: {
+        messageId,
+        timestamp: Date.now(),
+        persistentMemory: chatStore.currentSession?.persistentMemory || {},
+      },
+      componentName: 'useClaudeApi',
+      isStreaming: false,
     })
+
+    // persistentMemoryを更新
+    for (const result of toolResults) {
+      if (result.context?.persistentMemory && chatStore.currentSession) {
+        chatStore.currentSession.persistentMemory = result.context.persistentMemory as typeof chatStore.currentSession.persistentMemory
+      }
+    }
+
+    // 共通関数を使用してログ出力
+    logFunctionCallCompletion(toolCalls, toolResults, 'useClaudeApi', '非ストリーミング')
 
     return { toolCalls, toolResults }
   }
@@ -597,11 +564,6 @@ export const useClaudeApi = () => {
         toolResults = tcResult.toolResults
 
         if (toolCalls.length > 0) {
-          logger.info('[非ストリーミング] Tool呼び出しを検出:', {
-            toolCallsCount: toolCalls.length,
-            toolResultsCount: toolResults.length,
-          })
-
           // Tool Call結果をメッセージに追加
           const assistantMessage: MessageParam = {
             role: 'assistant',
@@ -666,7 +628,8 @@ export const useClaudeApi = () => {
         thoughts,
       }
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Claude API call failed'
+      // 共通関数を使用してエラーメッセージを構築
+      const errorMessage = buildApiErrorMessage(error, 'Claude API call failed', 'Claude')
       throw new Error(errorMessage)
     }
   }
@@ -752,32 +715,27 @@ export const useClaudeApi = () => {
 
         // Tool Call を実行
         if (toolCalls.length > 0 && settings.functionCalling?.enabled) {
-          logger.info('[ストリーミング] Tool Call検出:', {
-            newToolCalls: toolCalls,
-            currentAccumulatedCalls: accumulatedToolCalls.length,
-            currentAccumulatedResults: accumulatedToolResults.length,
+          accumulatedToolCalls = [...accumulatedToolCalls, ...toolCalls]
+
+          // 共通関数を使用してTool Callを実行
+          const newResults = await executeFunctionCallsCommon(toolCalls, {
+            executeFunction,
+            context: {
+              messageId: generateMessageId(),
+              timestamp: Date.now(),
+              persistentMemory: chatStore.currentSession?.persistentMemory || {},
+            },
+            componentName: 'useClaudeApi',
+            isStreaming: true,
           })
 
-          accumulatedToolCalls = [...accumulatedToolCalls, ...toolCalls]
-          for (const toolCall of toolCalls) {
-            logger.info('[ストリーミング] 関数実行開始:', { component: 'useClaudeApi' }, toolCall.name, toolCall.args)
-            try {
-              const result = await executeFunction(toolCall, {
-                messageId: generateMessageId(),
-                timestamp: Date.now(),
-                persistentMemory: chatStore.currentSession?.persistentMemory || {},
-              })
-              logger.info('[ストリーミング] 関数実行完了:', { component: 'useClaudeApi' }, toolCall.name, result)
-              accumulatedToolResults.push(result)
-            } catch (error) {
-              logger.error('[ストリーミング] 関数の実行に失敗:', { component: 'useClaudeApi' }, toolCall.name, error)
-              const errorResult = {
-                name: toolCall.name,
-                args: toolCall.args,
-                result: null,
-                error: error instanceof Error ? error.message : String(error),
-              }
-              accumulatedToolResults.push(errorResult)
+          // 結果を蓄積
+          accumulatedToolResults.push(...newResults)
+
+          // persistentMemoryを更新
+          for (const result of newResults) {
+            if (result.context?.persistentMemory && chatStore.currentSession) {
+              chatStore.currentSession.persistentMemory = result.context.persistentMemory as typeof chatStore.currentSession.persistentMemory
             }
           }
         }
@@ -794,24 +752,6 @@ export const useClaudeApi = () => {
 
       // Tool Callがある場合、結果をAPIに送り返して最終回答をストリーミング
       if (accumulatedToolCalls.length > 0 && settings.functionCalling?.enabled) {
-        logger.info('[ストリーミング関数呼び出し] Tool結果をAPIへ送信', {
-          toolCallsCount: accumulatedToolCalls.length,
-          toolResultsCount: accumulatedToolResults.length,
-        })
-
-        // Tool CallとTool Resultの数が一致しているかチェック
-        if (accumulatedToolCalls.length !== accumulatedToolResults.length) {
-          logger.error('[ストリーミング関数呼び出し] Tool CallとTool Resultの数が一致しません', {
-            calls: accumulatedToolCalls.length,
-            results: accumulatedToolResults.length,
-            callNames: accumulatedToolCalls.map((c) => c.name),
-            resultNames: accumulatedToolResults.map((r) => r.name),
-          })
-          throw new Error(
-            `Tool CallとTool Resultの数が一致しません: ${accumulatedToolCalls.length} calls (${accumulatedToolCalls.map((c) => c.name).join(', ')}), ${accumulatedToolResults.length} results (${accumulatedToolResults.map((r) => r.name).join(', ')})`
-          )
-        }
-
         // アシスタントのTool Callレスポンスを追加（accumulatedContentを使用）
         currentContents.push({
           role: 'assistant',
@@ -875,7 +815,8 @@ export const useClaudeApi = () => {
         }
       }
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Claude streaming API call failed'
+      // 共通関数を使用してエラーメッセージを構築
+      const errorMessage = buildApiErrorMessage(error, 'Claude streaming API call failed', 'Claude')
       throw new Error(errorMessage)
     }
   }

@@ -738,7 +738,7 @@ describe('useOpenAiAgentsApi', () => {
         topK: 0,
       }
 
-      await expect(composable.generateContent(messages, {}, null, settings)).rejects.toThrow('Quota exceeded')
+      await expect(composable.generateContent(messages, {}, null, settings)).rejects.toThrow('OpenAI APIの利用制限に達しました')
     })
 
     it('レート制限エラーを正しく処理する', async () => {
@@ -769,7 +769,7 @@ describe('useOpenAiAgentsApi', () => {
         topK: 0,
       }
 
-      await expect(composable.generateContent(messages, {}, null, settings)).rejects.toThrow('Rate limit exceeded')
+      await expect(composable.generateContent(messages, {}, null, settings)).rejects.toThrow('OpenAI APIのレート制限に達しました')
     })
   })
 
