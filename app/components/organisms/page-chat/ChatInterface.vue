@@ -479,6 +479,7 @@ const sendMessage = async (options?: { contentOverride?: string; skipAddingUserM
   if (isSending.value) return
 
   const rawContent = options?.contentOverride ?? inputText.value
+  inputText.value = ''
   const content = rawContent.trim()
   const attachmentsToSend = options?.attachmentsOverride ?? attachedFiles.value.map((file) => ({ ...file }))
   const hasAttachmentsToSend = attachmentsToSend.length > 0
@@ -497,19 +498,20 @@ const sendMessage = async (options?: { contentOverride?: string; skipAddingUserM
       onRetryStarted: notifyRetryStarted,
     })
 
-    // 成功時のみ入力クリア（レースコンディション対策）
-    if (success && !options?.attachmentsOverride) {
-      // 添付ファイルのプレビューURLを解放
+    return success
+  } catch (error) {
+    logger.error('Message sending error:', { component: 'ChatInterface' }, error)
+    return false
+  } finally {
+    // 成功・失敗に関わらず、添付ファイルのプレビューURLを解放
+    if (!options?.attachmentsOverride) {
       attachmentsToSend.forEach((file) => {
         if (file.previewUrl) {
           URL.revokeObjectURL(file.previewUrl)
           previewUrls.value.delete(file.previewUrl)
         }
       })
-      chatStore.clearInput()
     }
-  } catch (error) {
-    logger.error('Message sending error:', { component: 'ChatInterface' }, error)
   }
 }
 
