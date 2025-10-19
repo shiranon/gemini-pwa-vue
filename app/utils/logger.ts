@@ -5,7 +5,7 @@
 
 import type { LogContext, LoggerConfig, LogLevel } from '~/types/logger'
 
-class Logger {
+export class Logger {
   private config: LoggerConfig
   private environment: string
 
@@ -172,6 +172,3 @@ class Logger {
 }
 
 export const logger = new Logger()
-
-export { Logger }
-export default logger

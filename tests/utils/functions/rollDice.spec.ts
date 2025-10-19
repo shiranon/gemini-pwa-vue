@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { Type } from '@google/genai'
+import { beforeEach, describe, expect, it, mock } from 'bun:test'
 import type { FunctionCallArgs, FunctionExecutionContext } from '~/types/function-calling'
 import { rollDice, rollDiceDeclaration } from '~/utils/functions/rollDice'
 
@@ -10,7 +11,7 @@ describe('rollDice', () => {
       persistentMemory: {},
       timestamp: Date.now(),
     }
-    vi.clearAllMocks()
+    mock.clearAllMocks()
   })
 
   describe('正常系', () => {
@@ -25,9 +26,9 @@ describe('rollDice', () => {
       if (!('error' in result)) {
         expect(result.expression).toBe('1d6')
         expect(result.rolls).toHaveLength(1)
-        expect(result.rolls[0]).toBeGreaterThanOrEqual(1)
-        expect(result.rolls[0]).toBeLessThanOrEqual(6)
-        expect(result.sum).toBe(result.rolls[0])
+        expect(result.rolls[0]!).toBeGreaterThanOrEqual(1)
+        expect(result.rolls[0]!).toBeLessThanOrEqual(6)
+        expect(result.sum).toBe(result.rolls[0]!)
         expect(result.modifier).toBe('なし')
         expect(result.total).toBe(result.sum)
       }
@@ -86,9 +87,9 @@ describe('rollDice', () => {
       if (!('error' in result)) {
         expect(result.expression).toBe('1d20-2')
         expect(result.rolls).toHaveLength(1)
-        expect(result.rolls[0]).toBeGreaterThanOrEqual(1)
-        expect(result.rolls[0]).toBeLessThanOrEqual(20)
-        expect(result.sum).toBe(result.rolls[0])
+        expect(result.rolls[0]!).toBeGreaterThanOrEqual(1)
+        expect(result.rolls[0]!).toBeLessThanOrEqual(20)
+        expect(result.sum).toBe(result.rolls[0]!)
         expect(result.modifier).toBe('-2')
         expect(result.total).toBe(result.sum - 2)
       }
@@ -425,7 +426,7 @@ describe('rollDice', () => {
     it('正しい宣言が定義されている', () => {
       expect(rollDiceDeclaration.name).toBe('rollDice')
       expect(rollDiceDeclaration.description).toContain('ダイスロールを実行')
-      expect(rollDiceDeclaration.parameters?.type).toBe('OBJECT')
+      expect(rollDiceDeclaration.parameters?.type).toBe(Type.OBJECT)
       expect(rollDiceDeclaration.parameters?.required).toContain('expression')
     })
   })

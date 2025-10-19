@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { Type } from '@google/genai'
+import { beforeEach, describe, expect, it, mock } from 'bun:test'
 import type { FunctionCallArgs, FunctionExecutionContext } from '~/types/function-calling'
 import { generateRandomString, generateRandomStringDeclaration } from '~/utils/functions/generateRandomString'
 
@@ -10,7 +11,7 @@ describe('generateRandomString', () => {
       persistentMemory: {},
       timestamp: Date.now(),
     }
-    vi.clearAllMocks()
+    mock.clearAllMocks()
   })
 
   describe('正常系', () => {
@@ -355,7 +356,7 @@ describe('generateRandomString', () => {
     it('正しい宣言が定義されている', () => {
       expect(generateRandomStringDeclaration.name).toBe('generateRandomString')
       expect(generateRandomStringDeclaration.description).toContain('ランダムな文字列を生成')
-      expect(generateRandomStringDeclaration.parameters?.type).toBe('OBJECT')
+      expect(generateRandomStringDeclaration.parameters?.type).toBe(Type.OBJECT)
       expect(generateRandomStringDeclaration.parameters?.required).toContain('stringLength')
     })
   })

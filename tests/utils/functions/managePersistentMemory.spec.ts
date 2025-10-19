@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { Type } from '@google/genai'
+import { beforeEach, describe, expect, it, mock } from 'bun:test'
 import type { FunctionCallArgs, FunctionExecutionContext } from '~/types/function-calling'
 import { managePersistentMemory, managePersistentMemoryDeclaration } from '~/utils/functions/managePersistentMemory'
 
@@ -10,7 +11,7 @@ describe('managePersistentMemory', () => {
       persistentMemory: {},
       timestamp: Date.now(),
     }
-    vi.clearAllMocks()
+    mock.clearAllMocks()
   })
 
   describe('正常系', () => {
@@ -518,7 +519,7 @@ describe('managePersistentMemory', () => {
     it('正しい宣言が定義されている', () => {
       expect(managePersistentMemoryDeclaration.name).toBe('managePersistentMemory')
       expect(managePersistentMemoryDeclaration.description).toContain('永続メモリ')
-      expect(managePersistentMemoryDeclaration.parameters?.type).toBe('OBJECT')
+      expect(managePersistentMemoryDeclaration.parameters?.type).toBe(Type.OBJECT)
       expect(managePersistentMemoryDeclaration.parameters?.required).toContain('action')
     })
   })

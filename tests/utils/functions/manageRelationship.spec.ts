@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { Type } from '@google/genai'
+import { beforeEach, describe, expect, it, mock } from 'bun:test'
 import type { FunctionCallArgs, FunctionExecutionContext } from '~/types/function-calling'
 import { manageRelationship, manageRelationshipDeclaration } from '~/utils/functions/manageRelationship'
 
@@ -12,7 +13,7 @@ describe('manageRelationship', () => {
       },
       timestamp: Date.now(),
     }
-    vi.clearAllMocks()
+    mock.clearAllMocks()
   })
 
   describe('正常系', () => {
@@ -608,7 +609,7 @@ describe('manageRelationship', () => {
     it('正しい宣言が定義されている', () => {
       expect(manageRelationshipDeclaration.name).toBe('manageRelationship')
       expect(manageRelationshipDeclaration.description).toContain('関係値')
-      expect(manageRelationshipDeclaration.parameters?.type).toBe('OBJECT')
+      expect(manageRelationshipDeclaration.parameters?.type).toBe(Type.OBJECT)
       expect(manageRelationshipDeclaration.parameters?.required).toContain('sourceCharacter')
       expect(manageRelationshipDeclaration.parameters?.required).toContain('action')
     })

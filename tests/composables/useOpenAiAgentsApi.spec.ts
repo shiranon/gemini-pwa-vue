@@ -31,7 +31,7 @@ mock.module('~/composables/useFunctionCalling', () => ({
         name: 'test_function',
         description: 'Test function',
         parameters: {
-          type: 'object',
+          type: 'OBJECT',
           properties: {
             param1: { type: 'string' },
           },
@@ -738,7 +738,7 @@ describe('useOpenAiAgentsApi', () => {
         topK: 0,
       }
 
-      await expect(composable.generateContent(messages, {}, null, settings)).rejects.toThrow('Quota exceeded')
+      await expect(composable.generateContent(messages, {}, null, settings)).rejects.toThrow('OpenAI APIの利用制限に達しました')
     })
 
     it('レート制限エラーを正しく処理する', async () => {
@@ -769,7 +769,7 @@ describe('useOpenAiAgentsApi', () => {
         topK: 0,
       }
 
-      await expect(composable.generateContent(messages, {}, null, settings)).rejects.toThrow('Rate limit exceeded')
+      await expect(composable.generateContent(messages, {}, null, settings)).rejects.toThrow('OpenAI APIのレート制限に達しました')
     })
   })
 
@@ -838,21 +838,6 @@ describe('useOpenAiAgentsApi', () => {
   describe('スキーマ変換', () => {
     it('GeminiスキーマをOpenAI形式に正しく変換する', () => {
       const composable = getComposable()
-
-      // 内部関数をテストするため、直接呼び出し
-      const _geminiSchema = {
-        type: 'OBJECT',
-        properties: {
-          param1: {
-            type: 'STRING',
-            description: 'Test parameter',
-          },
-          param2: {
-            type: 'NUMBER',
-            description: 'Number parameter',
-          },
-        },
-      }
 
       // convertGeminiSchemaToOpenAi関数は内部関数なので、
       // 実際の使用例でテストする

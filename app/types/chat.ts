@@ -156,6 +156,7 @@ export interface ChatMessage {
   functionCalls?: FunctionCall[]
   functionResults?: FunctionCallResult[]
   isStreamingComplete?: boolean
+  attachments?: AttachedFile[]
 }
 
 export interface MessageBubbleOptions {
@@ -210,7 +211,11 @@ export interface ProofreadingConfig {
 export type GeminiApiSettings = BaseGeminiApiSettings & ThoughtTranslationConfig & Partial<ProofreadingConfig>
 
 /** Gemini APIリクエスト用のメッセージ型 */
-export type GeminiPart = { text: string; thought?: boolean } | { functionCall: { name: string; args?: Record<string, unknown> } } | { functionResponse: { name: string; response: unknown } }
+export type GeminiPart =
+  | { text: string; thought?: boolean }
+  | { functionCall: { name: string; args?: Record<string, unknown> } }
+  | { functionResponse: { name: string; response: unknown } }
+  | { inlineData: { mimeType: string; data: string } }
 
 export interface GeminiMessage {
   role: string

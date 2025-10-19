@@ -153,7 +153,7 @@ server/                 # Server-side code
 #### Feature Composables
 - **`useTranslator`** - DeepL/Gemini translation
 - **`useProofreader`** - Text proofreading
-- **`useFontSettings`** - Font management
+- **`fontSettings`** - Font management
 - **`useSettings`** - Global settings management
 - **`useProfileSettings`** - Settings profile operations
 - **`useQuickActions`** - Quick settings modal actions

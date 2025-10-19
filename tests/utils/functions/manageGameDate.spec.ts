@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { Type } from '@google/genai'
+import { beforeEach, describe, expect, it, mock } from 'bun:test'
 import type { FunctionCallArgs, FunctionExecutionContext } from '~/types/function-calling'
 import { manageGameDate, manageGameDateDeclaration } from '~/utils/functions/manageGameDate'
 
@@ -10,7 +11,7 @@ describe('manageGameDate', () => {
       persistentMemory: {},
       timestamp: Date.now(),
     }
-    vi.clearAllMocks()
+    mock.clearAllMocks()
   })
 
   describe('正常系', () => {
@@ -327,7 +328,7 @@ describe('manageGameDate', () => {
     it('正しい宣言が定義されている', () => {
       expect(manageGameDateDeclaration.name).toBe('manageGameDate')
       expect(manageGameDateDeclaration.description).toContain('ゲーム内の経過日数')
-      expect(manageGameDateDeclaration.parameters?.type).toBe('OBJECT')
+      expect(manageGameDateDeclaration.parameters?.type).toBe(Type.OBJECT)
       expect(manageGameDateDeclaration.parameters?.required).toContain('action')
     })
   })

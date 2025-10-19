@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { Type } from '@google/genai'
+import { beforeEach, describe, expect, it, mock } from 'bun:test'
 import type { FunctionCallArgs, FunctionExecutionContext } from '~/types/function-calling'
 import { manageFlags, manageFlagsDeclaration } from '~/utils/functions/manageFlags'
 
@@ -10,7 +11,7 @@ describe('manageFlags', () => {
       persistentMemory: {},
       timestamp: Date.now(),
     }
-    vi.clearAllMocks()
+    mock.clearAllMocks()
   })
 
   describe('正常系', () => {
@@ -479,7 +480,7 @@ describe('manageFlags', () => {
     it('正しい宣言が定義されている', () => {
       expect(manageFlagsDeclaration.name).toBe('manageFlags')
       expect(manageFlagsDeclaration.description).toContain('フラグやカウンター')
-      expect(manageFlagsDeclaration.parameters?.type).toBe('OBJECT')
+      expect(manageFlagsDeclaration.parameters?.type).toBe(Type.OBJECT)
       expect(manageFlagsDeclaration.parameters?.required).toContain('action')
       expect(manageFlagsDeclaration.parameters?.required).toContain('key')
     })

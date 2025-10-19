@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue'
-import { useImageUpload } from '~/composables/useImageUpload'
+import { processFileOrAttachedFile, useImageUpload } from '~/composables/useImageUpload'
 import { IMAGE_LIMITS } from '~/constants/constants'
+import { createBulkImageUploader } from '~/lib/imageBulkUpload'
 import {
   dbCreateBackgroundCategory,
   dbDeleteBackgroundCategory,
@@ -54,20 +55,6 @@ export function useBackgroundImages() {
   // ============================================================================
   // 共通ユーティリティ
   // ============================================================================
-
-  /** ブラウザ環境でpath.parse(file.name).nameの動作を再現 */
-  const getFileNameWithoutExtension = (filename: string): string => {
-    // 最後のドットの位置を探す
-    const lastDotIndex = filename.lastIndexOf('.')
-
-    // ドットがない場合、または最初の文字がドットの場合（隠しファイル）はそのまま返す
-    if (lastDotIndex === -1 || lastDotIndex === 0) {
-      return filename
-    }
-
-    // 最後のドットより前の部分を返す
-    return filename.substring(0, lastDotIndex)
-  }
 
   /** データベース操作の共通エラーハンドリング */
   const handleDatabaseOperation = async <T>(operation: () => Promise<DatabaseOperationResult<T>>, errorMessage: string, successLog?: string): Promise<T | null> => {
@@ -175,32 +162,8 @@ export function useBackgroundImages() {
   const uploadImage = async (categoryId: string, name: string, file: File | import('~/types/chat').AttachedFile): Promise<BackgroundImageRecord | null> => {
     return handleImageOperation(
       async () => {
-        let base64Data: string
-        let mimeType: string
-        let size: number
-
-        // FileオブジェクトかAttachedFileかで処理を分岐
-        if (file instanceof File) {
-          // useImageUploadでファイルを処理
-          const uploadResult = await imageUpload.uploadImage(file)
-          if (!uploadResult) {
-            throw new Error(imageUpload.error.value || '画像の処理に失敗しました')
-          }
-          base64Data = uploadResult.base64Data
-          mimeType = uploadResult.mimeType
-          size = uploadResult.size
-        } else {
-          // AttachedFileの場合は既にBase64データが含まれている
-          base64Data = file.data
-          mimeType = file.type
-          size = file.size
-        }
-
-        // Base64データから実際のデータ部分を抽出
-        const base64 = base64Data.split(',')[1] || base64Data
-        if (!base64) {
-          throw new Error('画像データの抽出に失敗しました')
-        }
+        // 共通関数を使用してFileまたはAttachedFileを処理
+        const { base64, mimeType, size } = await processFileOrAttachedFile(file, imageUpload.uploadImage)
 
         const result = await dbUploadBackgroundImage(categoryId, name, base64, mimeType, size)
         if (!result.success) {
@@ -278,54 +241,10 @@ export function useBackgroundImages() {
   const bulkUploadImages = async (categoryId: string, files: File[]): Promise<{ success: number; failed: number; errors: string[] }> => {
     return handleBulkOperation(
       async () => {
-        let successCount = 0
-        let failedCount = 0
-        const errors: string[] = []
+        // 共通のバルクアップローダーを使用
+        const uploader = createBulkImageUploader(imageUpload, (imageName, base64, mimeType, size) => dbUploadBackgroundImage(categoryId, imageName, base64, mimeType, size), 'useBackgroundImages')
 
-        for (const file of files) {
-          try {
-            // ファイル名から画像名を取得（拡張子を除く）
-            const imageName = getFileNameWithoutExtension(file.name)
-
-            // useImageUploadでファイルを処理
-            const uploadResult = await imageUpload.uploadImage(file)
-            if (!uploadResult) {
-              failedCount++
-              const errorMessage = imageUpload.error.value || '画像の処理に失敗しました'
-              errors.push(`${imageName}: ${errorMessage}`)
-              logger.warn(`背景画像の処理失敗: ${imageName}`, { component: 'useBackgroundImages' })
-              continue
-            }
-
-            // Base64データから実際のデータ部分を抽出
-            const base64 = uploadResult.base64Data.split(',')[1]
-            if (!base64) {
-              failedCount++
-              errors.push(`${imageName}: 画像データの抽出に失敗しました`)
-              logger.warn(`背景画像のデータ抽出失敗: ${imageName}`, { component: 'useBackgroundImages' })
-              continue
-            }
-
-            const result = await dbUploadBackgroundImage(categoryId, imageName, base64, uploadResult.mimeType, uploadResult.size)
-
-            if (result.success) {
-              successCount++
-              logger.info(`背景画像をアップロード成功: ${imageName}`, { component: 'useBackgroundImages' })
-            } else {
-              failedCount++
-              errors.push(`${imageName}: ${result.error}`)
-              logger.warn(`背景画像のアップロード失敗: ${imageName}`, { component: 'useBackgroundImages' })
-            }
-          } catch (fileError) {
-            failedCount++
-            const errorMessage = fileError instanceof Error ? fileError.message : 'ファイル処理エラー'
-            errors.push(`${file.name}: ${errorMessage}`)
-            logger.error(`ファイル処理エラー: ${file.name}`, { component: 'useBackgroundImages' }, fileError)
-          }
-        }
-
-        logger.info(`一括アップロード完了: 成功${successCount}件、失敗${failedCount}件`, { component: 'useBackgroundImages' })
-        return { success: successCount, failed: failedCount, errors }
+        return await uploader(files)
       },
       '一括アップロードに失敗しました',
       { success: 0, failed: files.length, errors: ['一括アップロードに失敗しました'] }

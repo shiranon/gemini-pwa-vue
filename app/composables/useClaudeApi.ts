@@ -2,19 +2,13 @@ import Anthropic from '@anthropic-ai/sdk'
 import type { ContentBlockParam, MessageCreateParams, MessageParam, Tool, ToolResultBlockParam } from '@anthropic-ai/sdk/resources/messages.mjs'
 import { Type } from '@google/genai'
 import { useFunctionCalling } from '~/composables/useFunctionCalling'
+import { buildApiErrorMessage, executeFunctionCallsCommon, filterFunctionsByAllowedNames, logFunctionCallCompletion } from '~/lib/apiCommon'
 import { generateMessageId } from '~/lib/ids'
 import { useChatStore } from '~/stores/chat'
-import type { ChatMessage, ClaudeApiSettings } from '~/types/chat'
+import type { ThoughtExtractionResult } from '~/types/api'
+import type { AttachedFile, ChatMessage, ClaudeApiSettings } from '~/types/chat'
 import type { FunctionCall, FunctionCallResult } from '~/types/function-calling'
 import { logger } from '~/utils/logger'
-
-/**
- * Claude APIレスポンスから思考プロセスを抽出する
- */
-interface ThoughtExtractionResult {
-  content: string
-  thoughts?: string
-}
 
 export interface ClaudeStreamingChunk {
   type: 'chunk'
@@ -32,6 +26,70 @@ export interface ClaudeCombinedResponse {
   thoughts?: string
   toolCalls?: FunctionCall[]
   toolResults?: FunctionCallResult[]
+}
+
+const ALLOWED_IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp'])
+
+const normalizeMimeType = (mimeType: string | undefined): string => {
+  if (!mimeType || mimeType.trim().length === 0) {
+    return 'application/octet-stream'
+  }
+  if (mimeType === 'image/jpg') return 'image/jpeg'
+  return mimeType
+}
+
+const buildAttachmentBlocks = (attachments: AttachedFile[]): ContentBlockParam[] => {
+  const blocks: ContentBlockParam[] = []
+
+  for (const file of attachments) {
+    const mimeType = normalizeMimeType(file.type)
+
+    if (mimeType.startsWith('image/')) {
+      if (ALLOWED_IMAGE_MIME_TYPES.has(mimeType)) {
+        blocks.push({
+          type: 'image',
+          source: {
+            type: 'base64',
+            media_type: mimeType as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp',
+            data: file.data,
+          },
+        })
+      } else {
+        blocks.push({ type: 'text', text: `添付ファイル（画像）: ${file.name}` })
+      }
+    } else if (mimeType === 'application/pdf') {
+      blocks.push({
+        type: 'document',
+        source: {
+          type: 'base64',
+          media_type: 'application/pdf',
+          data: file.data,
+        },
+      })
+    } else if (mimeType.startsWith('text/')) {
+      // テキストファイルの内容を送信
+      try {
+        // base64デコードしてUTF-8として解釈
+        const binaryString = atob(file.data)
+        const bytes = new Uint8Array(binaryString.length)
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i)
+        }
+        const textContent = new TextDecoder('utf-8').decode(bytes)
+        blocks.push({
+          type: 'text',
+          text: `添付ファイル: ${file.name}\n\n内容:\n${textContent}`,
+        })
+      } catch (error) {
+        console.error('テキストファイルのデコードに失敗:', error)
+        blocks.push({ type: 'text', text: `添付ファイル: ${file.name} (デコードエラー)` })
+      }
+    } else {
+      blocks.push({ type: 'text', text: `添付ファイル: ${file.name} (${mimeType})` })
+    }
+  }
+
+  return blocks
 }
 
 export const useClaudeApi = () => {
@@ -294,32 +352,9 @@ export const useClaudeApi = () => {
     // 有効時のみFunction Callingツールを追加
     if (settings.functionCalling?.enabled) {
       const enabledFunctions = getEnabledFunctionDeclarations()
-      logger.info('[関数呼び出し] 有効な関数:', {
-        component: 'useClaudeApi',
-        count: enabledFunctions.length,
-        names: enabledFunctions.map((f) => f.name),
-        functions: enabledFunctions,
-      })
 
-      let functionDeclarations = enabledFunctions
-      if (settings.functionCalling.allowedFunctionNames?.length) {
-        const allowedSet = new Set(settings.functionCalling.allowedFunctionNames)
-        const availableNames = new Set(enabledFunctions.map((declaration) => declaration.name).filter((name): name is string => typeof name === 'string'))
-        const missingNames = settings.functionCalling.allowedFunctionNames.filter((name) => !availableNames.has(name))
-        if (missingNames.length > 0) {
-          logger.warn('[関数呼び出し] allowedFunctionNamesに未登録の関数があります:', { component: 'useClaudeApi' }, missingNames)
-        }
-
-        functionDeclarations = enabledFunctions.filter((declaration) => declaration.name && allowedSet.has(declaration.name))
-
-        if (functionDeclarations.length !== enabledFunctions.length) {
-          logger.info('[関数呼び出し] allowedFunctionNamesで関数をフィルタリングしました', {
-            before: enabledFunctions.length,
-            after: functionDeclarations.length,
-            allowedFunctionNames: settings.functionCalling.allowedFunctionNames,
-          })
-        }
-      }
+      // 共通関数を使用してフィルタリング
+      const functionDeclarations = filterFunctionsByAllowedNames(enabledFunctions, settings.functionCalling.allowedFunctionNames, 'useClaudeApi')
 
       if (functionDeclarations.length > 0) {
         // Gemini FunctionDeclaration型からClaude Tool型への変換
@@ -340,8 +375,6 @@ export const useClaudeApi = () => {
           }
         })
       }
-    } else {
-      logger.info('[関数呼び出し] Function Calling は無効です', { component: 'useClaudeApi' })
     }
 
     return tools.length > 0 ? { tools } : {}
@@ -351,50 +384,41 @@ export const useClaudeApi = () => {
    * Tool Use を検出・実行する
    */
   const handleToolCalls = async (content: Array<Anthropic.ContentBlock>, messageId?: string): Promise<{ toolCalls: FunctionCall[]; toolResults: FunctionCallResult[] }> => {
-    logger.info('[非ストリーミング] Tool Use処理開始:', { messageId })
     const toolCalls: FunctionCall[] = []
-    const toolResults: FunctionCallResult[] = []
 
     for (let i = 0; i < content.length; i++) {
       const block = content[i]
-      logger.info(`[非ストリーミング] コンテンツブロック ${i + 1}:`, { component: 'useClaudeApi' }, block)
 
       if (block && block.type === 'tool_use') {
         const toolCall: FunctionCall = {
           name: block.name,
           args: block.input as Record<string, unknown>,
         }
-        logger.info(`[非ストリーミング] Tool Call検出 ${toolCalls.length + 1}:`, { component: 'useClaudeApi' }, toolCall)
         toolCalls.push(toolCall)
-
-        try {
-          logger.info(`[非ストリーミング] 関数実行開始 ${toolResults.length + 1}:`, { component: 'useClaudeApi' }, toolCall.name)
-          const result = await executeFunction(toolCall, {
-            messageId,
-            timestamp: Date.now(),
-            persistentMemory: chatStore.currentSession?.persistentMemory || {},
-          })
-          logger.info(`[非ストリーミング] 関数実行完了 ${toolResults.length + 1}:`, { component: 'useClaudeApi' }, toolCall.name, result)
-          toolResults.push(result)
-        } catch (error) {
-          logger.error(`[非ストリーミング] 関数の実行に失敗 ${toolResults.length + 1}:`, { component: 'useClaudeApi' }, toolCall.name, error)
-          const errorResult = {
-            name: toolCall.name,
-            args: toolCall.args,
-            result: null,
-            error: error instanceof Error ? error.message : String(error),
-          }
-          toolResults.push(errorResult)
-        }
       }
     }
 
-    logger.info('[非ストリーミング] Tool Use処理完了:', {
-      toolCallsCount: toolCalls.length,
-      toolResultsCount: toolResults.length,
-      toolCalls: toolCalls.map((tc) => ({ name: tc.name, args: tc.args })),
-      toolResults: toolResults.map((tr) => ({ name: tr.name, hasResult: !!tr.result, hasError: !!tr.error })),
+    // 共通関数を使用してTool Callを実行
+    const toolResults = await executeFunctionCallsCommon(toolCalls, {
+      executeFunction,
+      context: {
+        messageId,
+        timestamp: Date.now(),
+        persistentMemory: chatStore.currentSession?.persistentMemory || {},
+      },
+      componentName: 'useClaudeApi',
+      isStreaming: false,
     })
+
+    // persistentMemoryを更新
+    for (const result of toolResults) {
+      if (result.context?.persistentMemory && chatStore.currentSession) {
+        chatStore.currentSession.persistentMemory = result.context.persistentMemory as typeof chatStore.currentSession.persistentMemory
+      }
+    }
+
+    // 共通関数を使用してログ出力
+    logFunctionCallCompletion(toolCalls, toolResults, 'useClaudeApi', '非ストリーミング')
 
     return { toolCalls, toolResults }
   }
@@ -407,10 +431,12 @@ export const useClaudeApi = () => {
     const result: MessageParam[] = []
     // assistantメッセージのtool_use IDを保存（次のuserメッセージで参照）
     const toolUseIdMap = new Map<number, string[]>()
+    const lastIndex = messages.length - 1
 
     for (let i = 0; i < messages.length; i++) {
       const m = messages[i]
       if (!m) continue
+      const isLatestMessage = i === lastIndex
 
       // assistantメッセージにfunctionCallsがある場合、content blocksに変換
       if (m.role === 'assistant' && m.functionCalls) {
@@ -446,6 +472,15 @@ export const useClaudeApi = () => {
           blocks.push({ type: 'text', text: m.content })
         }
 
+        // 最新メッセージ以外の添付ファイルは除外してトークンを節約
+        if (m.attachments?.length) {
+          if (isLatestMessage) {
+            blocks.push(...buildAttachmentBlocks(m.attachments))
+          } else {
+            blocks.push({ type: 'text', text: '[添付ファイル]' })
+          }
+        }
+
         // 直前のassistantメッセージのtool_use IDを取得
         const prevAssistantIdx = i - 1
         const toolUseIds = toolUseIdMap.get(prevAssistantIdx) || []
@@ -477,11 +512,35 @@ export const useClaudeApi = () => {
           content: blocks,
         })
       } else {
-        // 通常のメッセージ
-        result.push({
-          role: m.role === 'assistant' ? ('assistant' as const) : ('user' as const),
-          content: m.content,
-        })
+        if (m.role === 'user') {
+          const blocks: ContentBlockParam[] = []
+          if (m.content) {
+            blocks.push({ type: 'text', text: m.content })
+          }
+          // 最新メッセージ以外の添付ファイルは除外してトークンを節約
+          if (m.attachments?.length) {
+            if (isLatestMessage) {
+              blocks.push(...buildAttachmentBlocks(m.attachments))
+            } else {
+              blocks.push({ type: 'text', text: '[添付ファイル]' })
+            }
+          }
+
+          if (blocks.length === 0) {
+            blocks.push({ type: 'text', text: '' })
+          }
+
+          result.push({
+            role: 'user',
+            content: blocks,
+          })
+        } else {
+          // 通常のアシスタントメッセージ
+          result.push({
+            role: 'assistant' as const,
+            content: m.content,
+          })
+        }
       }
     }
 
@@ -535,11 +594,6 @@ export const useClaudeApi = () => {
         toolResults = tcResult.toolResults
 
         if (toolCalls.length > 0) {
-          logger.info('[非ストリーミング] Tool呼び出しを検出:', {
-            toolCallsCount: toolCalls.length,
-            toolResultsCount: toolResults.length,
-          })
-
           // Tool Call結果をメッセージに追加
           const assistantMessage: MessageParam = {
             role: 'assistant',
@@ -604,7 +658,8 @@ export const useClaudeApi = () => {
         thoughts,
       }
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Claude API call failed'
+      // 共通関数を使用してエラーメッセージを構築
+      const errorMessage = buildApiErrorMessage(error, 'Claude API call failed', 'Claude')
       throw new Error(errorMessage)
     }
   }
@@ -690,32 +745,27 @@ export const useClaudeApi = () => {
 
         // Tool Call を実行
         if (toolCalls.length > 0 && settings.functionCalling?.enabled) {
-          logger.info('[ストリーミング] Tool Call検出:', {
-            newToolCalls: toolCalls,
-            currentAccumulatedCalls: accumulatedToolCalls.length,
-            currentAccumulatedResults: accumulatedToolResults.length,
+          accumulatedToolCalls = [...accumulatedToolCalls, ...toolCalls]
+
+          // 共通関数を使用してTool Callを実行
+          const newResults = await executeFunctionCallsCommon(toolCalls, {
+            executeFunction,
+            context: {
+              messageId: generateMessageId(),
+              timestamp: Date.now(),
+              persistentMemory: chatStore.currentSession?.persistentMemory || {},
+            },
+            componentName: 'useClaudeApi',
+            isStreaming: true,
           })
 
-          accumulatedToolCalls = [...accumulatedToolCalls, ...toolCalls]
-          for (const toolCall of toolCalls) {
-            logger.info('[ストリーミング] 関数実行開始:', { component: 'useClaudeApi' }, toolCall.name, toolCall.args)
-            try {
-              const result = await executeFunction(toolCall, {
-                messageId: generateMessageId(),
-                timestamp: Date.now(),
-                persistentMemory: chatStore.currentSession?.persistentMemory || {},
-              })
-              logger.info('[ストリーミング] 関数実行完了:', { component: 'useClaudeApi' }, toolCall.name, result)
-              accumulatedToolResults.push(result)
-            } catch (error) {
-              logger.error('[ストリーミング] 関数の実行に失敗:', { component: 'useClaudeApi' }, toolCall.name, error)
-              const errorResult = {
-                name: toolCall.name,
-                args: toolCall.args,
-                result: null,
-                error: error instanceof Error ? error.message : String(error),
-              }
-              accumulatedToolResults.push(errorResult)
+          // 結果を蓄積
+          accumulatedToolResults.push(...newResults)
+
+          // persistentMemoryを更新
+          for (const result of newResults) {
+            if (result.context?.persistentMemory && chatStore.currentSession) {
+              chatStore.currentSession.persistentMemory = result.context.persistentMemory as typeof chatStore.currentSession.persistentMemory
             }
           }
         }
@@ -732,24 +782,6 @@ export const useClaudeApi = () => {
 
       // Tool Callがある場合、結果をAPIに送り返して最終回答をストリーミング
       if (accumulatedToolCalls.length > 0 && settings.functionCalling?.enabled) {
-        logger.info('[ストリーミング関数呼び出し] Tool結果をAPIへ送信', {
-          toolCallsCount: accumulatedToolCalls.length,
-          toolResultsCount: accumulatedToolResults.length,
-        })
-
-        // Tool CallとTool Resultの数が一致しているかチェック
-        if (accumulatedToolCalls.length !== accumulatedToolResults.length) {
-          logger.error('[ストリーミング関数呼び出し] Tool CallとTool Resultの数が一致しません', {
-            calls: accumulatedToolCalls.length,
-            results: accumulatedToolResults.length,
-            callNames: accumulatedToolCalls.map((c) => c.name),
-            resultNames: accumulatedToolResults.map((r) => r.name),
-          })
-          throw new Error(
-            `Tool CallとTool Resultの数が一致しません: ${accumulatedToolCalls.length} calls (${accumulatedToolCalls.map((c) => c.name).join(', ')}), ${accumulatedToolResults.length} results (${accumulatedToolResults.map((r) => r.name).join(', ')})`
-          )
-        }
-
         // アシスタントのTool Callレスポンスを追加（accumulatedContentを使用）
         currentContents.push({
           role: 'assistant',
@@ -813,7 +845,8 @@ export const useClaudeApi = () => {
         }
       }
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Claude streaming API call failed'
+      // 共通関数を使用してエラーメッセージを構築
+      const errorMessage = buildApiErrorMessage(error, 'Claude streaming API call failed', 'Claude')
       throw new Error(errorMessage)
     }
   }

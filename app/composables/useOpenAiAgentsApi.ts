@@ -5,7 +5,33 @@ import { generateMessageId } from '~/lib/ids'
 import { useChatStore } from '~/stores/chat'
 import type { GeminiApiSettings, GeminiMessage } from '~/types/chat'
 import type { FunctionCall, FunctionCallResult } from '~/types/function-calling'
+import type { ThoughtExtractionResult } from '~/types/api'
 import { logger } from '~/utils/logger'
+import { filterFunctionsByAllowedNames, buildApiErrorMessage } from '~/lib/apiCommon'
+
+const TEXT_LIKE_MIME_PREFIXES = ['text/', 'application/json', 'application/xml', 'application/javascript', 'application/x-yaml']
+
+const decodeBase64ToUtf8 = (base64: string): string | null => {
+  try {
+    if (typeof globalThis.atob === 'function') {
+      const binary = globalThis.atob(base64)
+      const bytes = new Uint8Array(binary.length)
+      for (let i = 0; i < binary.length; i += 1) {
+        bytes[i] = binary.charCodeAt(i)
+      }
+      return new TextDecoder('utf-8', { fatal: false }).decode(bytes)
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const bufferCtor = (globalThis as any).Buffer
+    if (bufferCtor && typeof bufferCtor.from === 'function') {
+      return bufferCtor.from(base64, 'base64').toString('utf-8')
+    }
+  } catch (error) {
+    logger.warn('[OpenAI] Base64 decode failed', { component: 'useOpenAiAgentsApi' }, error)
+  }
+  return null
+}
 
 /**
  * OpenAI Agents SDK のイベント型定義
@@ -21,14 +47,6 @@ interface StreamEvent {
   item_id?: string
   output_index?: number
   content_index?: number
-}
-
-/**
- * OpenAI APIレスポンスから思考プロセスを抽出する
- */
-interface ThoughtExtractionResult {
-  content: string
-  thoughts?: string
 }
 
 /**
@@ -63,6 +81,9 @@ export interface OpenAiApiSettings extends Omit<GeminiApiSettings, 'model'> {
   // GPT-5 モデル専用設定
   modelSettings?: Gpt5ModelSettings
 }
+
+type UserContentArray = Exclude<Parameters<typeof user>[0], string>
+type UserContentPayload = UserContentArray extends Array<infer U> ? U : never
 
 export interface OpenAiStreamingChunk {
   type: 'chunk'
@@ -221,10 +242,10 @@ export const useOpenAiAgentsApi = () => {
   }
 
   /**
-   * OpenAI Agentを作成（ベストプラクティスに基づく簡潔な実装）
+   * OpenAI Agentを作成
    */
   const createAgent = (settings: OpenAiApiSettings, systemInstruction?: string) => {
-    const instructions = systemInstruction || settings.systemPrompt || 'You are a helpful assistant'
+    const instructions = systemInstruction || settings.systemPrompt || ''
 
     // OpenAI Agents SDKのデフォルトクライアントを設定（ブラウザ環境対応）
     if (settings.apiKey) {
@@ -240,20 +261,11 @@ export const useOpenAiAgentsApi = () => {
 
     if (settings.functionCalling?.enabled) {
       const enabledFunctions = getEnabledFunctionDeclarations()
-      logger.info('[関数呼び出し] 有効な関数:', {
-        component: 'useOpenAiAgentsApi',
-        count: enabledFunctions.length,
-        names: enabledFunctions.map((f) => f.name),
-      })
 
-      for (const func of enabledFunctions) {
-        // allowedFunctionNamesでフィルタリング
-        if (settings.functionCalling.allowedFunctionNames?.length) {
-          if (!settings.functionCalling.allowedFunctionNames.includes(func.name || '')) {
-            continue
-          }
-        }
+      // 共通関数を使用してフィルタリング
+      const filteredFunctions = filterFunctionsByAllowedNames(enabledFunctions, settings.functionCalling.allowedFunctionNames, 'useOpenAiAgentsApi')
 
+      for (const func of filteredFunctions) {
         // Gemini API のスキーマを OpenAI 形式に変換
         const convertedParameters = func.parameters ? convertGeminiSchemaToOpenAi(func.parameters) : undefined
 
@@ -271,8 +283,6 @@ export const useOpenAiAgentsApi = () => {
               args: typeof input === 'string' ? JSON.parse(input) : (input as Record<string, unknown>),
             }
 
-            logger.info('[OpenAI] tool.execute 開始:', { component: 'useOpenAiAgentsApi' }, functionCall)
-
             // Function Callを記録
             recordedFunctionCalls.push(functionCall)
 
@@ -282,8 +292,6 @@ export const useOpenAiAgentsApi = () => {
                 timestamp: Date.now(),
                 persistentMemory: chatStore.currentSession?.persistentMemory || {},
               })
-
-              logger.info('[OpenAI] tool.execute 完了:', { component: 'useOpenAiAgentsApi' }, result)
 
               // 結果を記録
               recordedFunctionResults.push(result)
@@ -322,13 +330,10 @@ export const useOpenAiAgentsApi = () => {
       const mode = settings.functionCalling.mode
       if (mode === 'any') {
         toolChoice = 'required' // 必ずツールを呼び出す
-        logger.info('[useOpenAiAgentsApi] tool_choice: required (any mode)')
       } else if (mode === 'none') {
         toolChoice = 'none' // ツールを呼び出さない
-        logger.info('[useOpenAiAgentsApi] tool_choice: none')
       } else {
         toolChoice = 'auto' // モデルが自動的に判断（デフォルト）
-        logger.info('[useOpenAiAgentsApi] tool_choice: auto (auto mode)')
       }
     }
 
@@ -371,16 +376,61 @@ export const useOpenAiAgentsApi = () => {
    * メッセージを OpenAI Agents SDK の AgentInputItem 配列に変換
    */
   const toAgentInputItems = (messages: GeminiMessage[]): AgentInputItem[] => {
-    return messages.map((m) => {
-      // parts から text を抽出
-      const textParts = m.parts.filter((p) => 'text' in p)
-      const content = textParts.map((p) => ('text' in p ? p.text : '')).join('\n')
+    const lastIndex = messages.length - 1
+    return messages.map((m, index) => {
+      const isLatestMessage = index === lastIndex
+      if (m.role === 'user') {
+        const contentItems: UserContentPayload[] = []
+        let hasText = false
 
-      // user() または assistant() ヘルパー関数を使用
-      // role が 'user' ならuser()、それ以外（'model' または 'assistant'）なら assistant()
-      const result = m.role === 'user' ? user(content) : assistant(content)
+        for (const part of m.parts) {
+          if ('text' in part) {
+            const text = part.text ?? ''
+            if (text.trim().length > 0) {
+              contentItems.push({ type: 'input_text', text })
+              hasText = true
+            }
+          } else if ('inlineData' in part) {
+            // 最新メッセージ以外のinlineDataは除外してトークンを節約
+            if (isLatestMessage) {
+              const mimeType = part.inlineData.mimeType || 'application/octet-stream'
+              const dataUrl = `data:${mimeType};base64,${part.inlineData.data}`
 
-      return result
+              if (mimeType.startsWith('image/')) {
+                contentItems.push({ type: 'input_image', image: dataUrl })
+              } else {
+                const isTextLike = TEXT_LIKE_MIME_PREFIXES.some((prefix) => (prefix.endsWith('/') ? mimeType.startsWith(prefix) : mimeType === prefix))
+
+                if (isTextLike) {
+                  const decoded = decodeBase64ToUtf8(part.inlineData.data)
+                  const textForModel = decoded ?? `[Attachment: ${mimeType}] Base64 content (decode manually):\n\n${part.inlineData.data}`
+                  contentItems.push({ type: 'input_text', text: textForModel })
+                  hasText = true
+                } else {
+                  contentItems.push({ type: 'input_file', file: dataUrl })
+                }
+              }
+            } else {
+              // 添付ファイルがあったことを示すプレースホルダーテキストに置き換え
+              contentItems.push({ type: 'input_text', text: '[添付ファイル]' })
+              hasText = true
+            }
+          }
+        }
+
+        if (!hasText) {
+          contentItems.unshift({ type: 'input_text', text: '' })
+        }
+
+        return user(contentItems as UserContentArray)
+      }
+
+      const assistantText = m.parts
+        .filter((p) => 'text' in p)
+        .map((p) => ('text' in p ? p.text : ''))
+        .join('\n')
+
+      return assistant(assistantText)
     })
   }
 
@@ -438,14 +488,6 @@ export const useOpenAiAgentsApi = () => {
       }
 
       // 記録されたFunction Callsを取得
-      logger.info('[OpenAI] generateContent - 記録されたFunction Calls:', {
-        component: 'useOpenAiAgentsApi',
-        functionCallsCount: recordedFunctionCalls.length,
-        functionResultsCount: recordedFunctionResults.length,
-        functionCalls: recordedFunctionCalls.map((fc) => ({ name: fc.name, hasArgs: Object.keys(fc.args).length > 0 })),
-        functionResults: recordedFunctionResults.map((fr) => ({ name: fr.name, hasResult: !!fr.result, hasError: !!fr.error })),
-      })
-
       const combined: OpenAiCombinedResponse = {
         text,
         functionCalls: recordedFunctionCalls.length > 0 ? [...recordedFunctionCalls] : undefined,
@@ -454,26 +496,8 @@ export const useOpenAiAgentsApi = () => {
 
       return combined
     } catch (error: unknown) {
-      // ベストプラクティス: より具体的なエラーメッセージ
-      let errorMessage = 'OpenAI Agents API call failed'
-
-      if (error instanceof Error) {
-        errorMessage = error.message
-      } else if (typeof error === 'string') {
-        errorMessage = error
-      } else if (error && typeof error === 'object' && 'message' in error) {
-        errorMessage = String((error as { message: unknown }).message)
-      }
-
-      // 特定のエラータイプに基づく詳細メッセージ
-      if (errorMessage.includes('API key')) {
-        errorMessage = 'OpenAI APIキーが無効または設定されていません'
-      } else if (errorMessage.includes('quota')) {
-        errorMessage = 'OpenAI APIの利用制限に達しました'
-      } else if (errorMessage.includes('rate limit')) {
-        errorMessage = 'OpenAI APIのレート制限に達しました'
-      }
-
+      // 共通関数を使用してエラーメッセージを構築
+      const errorMessage = buildApiErrorMessage(error, 'OpenAI Agents API call failed', 'OpenAI')
       throw new Error(errorMessage)
     }
   }
@@ -551,14 +575,6 @@ export const useOpenAiAgentsApi = () => {
 
         // Function Callsが更新された場合、chunkをyield
         if (recordedFunctionCalls.length > lastFunctionCallsCount || recordedFunctionResults.length > lastFunctionResultsCount) {
-          logger.info('[OpenAI ストリーミング] Function Calls更新を検出:', {
-            component: 'useOpenAiAgentsApi',
-            previousCalls: lastFunctionCallsCount,
-            currentCalls: recordedFunctionCalls.length,
-            previousResults: lastFunctionResultsCount,
-            currentResults: recordedFunctionResults.length,
-          })
-
           lastFunctionCallsCount = recordedFunctionCalls.length
           lastFunctionResultsCount = recordedFunctionResults.length
 
@@ -575,15 +591,6 @@ export const useOpenAiAgentsApi = () => {
       // ストリーミング完了を待つ
       await stream.completed
 
-      // 記録されたFunction Callsをログ出力
-      logger.info('[OpenAI] generateContentStream - 記録されたFunction Calls:', {
-        component: 'useOpenAiAgentsApi',
-        functionCallsCount: recordedFunctionCalls.length,
-        functionResultsCount: recordedFunctionResults.length,
-        functionCalls: recordedFunctionCalls.map((fc) => ({ name: fc.name, hasArgs: Object.keys(fc.args).length > 0 })),
-        functionResults: recordedFunctionResults.map((fr) => ({ name: fr.name, hasResult: !!fr.result, hasError: !!fr.error })),
-      })
-
       // 最終チャンクを送信（Function Callがある場合のみ）
       if (recordedFunctionCalls.length > 0) {
         yield {
@@ -594,26 +601,8 @@ export const useOpenAiAgentsApi = () => {
         }
       }
     } catch (error: unknown) {
-      // ベストプラクティス: より具体的なエラーメッセージ
-      let errorMessage = 'OpenAI Agents streaming API call failed'
-
-      if (error instanceof Error) {
-        errorMessage = error.message
-      } else if (typeof error === 'string') {
-        errorMessage = error
-      } else if (error && typeof error === 'object' && 'message' in error) {
-        errorMessage = String((error as { message: unknown }).message)
-      }
-
-      // 特定のエラータイプに基づく詳細メッセージ
-      if (errorMessage.includes('API key')) {
-        errorMessage = 'OpenAI APIキーが無効または設定されていません'
-      } else if (errorMessage.includes('quota')) {
-        errorMessage = 'OpenAI APIの利用制限に達しました'
-      } else if (errorMessage.includes('rate limit')) {
-        errorMessage = 'OpenAI APIのレート制限に達しました'
-      }
-
+      // 共通関数を使用してエラーメッセージを構築
+      const errorMessage = buildApiErrorMessage(error, 'OpenAI Agents streaming API call failed', 'OpenAI')
       throw new Error(errorMessage)
     }
   }

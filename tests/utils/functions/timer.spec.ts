@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { Type } from '@google/genai'
+import { beforeEach, describe, expect, it, mock } from 'bun:test'
 import type { FunctionCallArgs, FunctionExecutionContext } from '~/types/function-calling'
 import { manageTimer, manageTimerDeclaration } from '~/utils/functions/timer'
 
@@ -10,7 +11,7 @@ describe('manageTimer', () => {
       persistentMemory: {},
       timestamp: Date.now(),
     }
-    vi.clearAllMocks()
+    mock.clearAllMocks()
   })
 
   describe('正常系', () => {
@@ -389,7 +390,7 @@ describe('manageTimer', () => {
     it('正しい宣言が定義されている', () => {
       expect(manageTimerDeclaration.name).toBe('manageTimer')
       expect(manageTimerDeclaration.description).toContain('タイマーを管理')
-      expect(manageTimerDeclaration.parameters?.type).toBe('OBJECT')
+      expect(manageTimerDeclaration.parameters?.type).toBe(Type.OBJECT)
       expect(manageTimerDeclaration.parameters?.required).toContain('action')
       expect(manageTimerDeclaration.parameters?.required).toContain('timerName')
     })

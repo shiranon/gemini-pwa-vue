@@ -1,10 +1,10 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, mock } from 'bun:test'
 
 describe('MarkdownImage', () => {
   beforeEach(() => {
     Object.defineProperty(globalThis, 'CSS', {
       value: {
-        supports: vi.fn(() => true),
+        supports: mock(() => true),
       },
       writable: true,
       configurable: true,

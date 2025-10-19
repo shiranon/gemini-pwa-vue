@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { Type } from '@google/genai'
+import { beforeEach, describe, expect, it, mock } from 'bun:test'
 import type { FunctionCallArgs, FunctionExecutionContext } from '~/types/function-calling'
 import { manageStyleProfile, manageStyleProfileDeclaration } from '~/utils/functions/manageStyleProfile'
 
@@ -10,7 +11,7 @@ describe('manageStyleProfile', () => {
       persistentMemory: {},
       timestamp: Date.now(),
     }
-    vi.clearAllMocks()
+    mock.clearAllMocks()
   })
 
   describe('正常系', () => {
@@ -266,7 +267,7 @@ describe('manageStyleProfile', () => {
     it('正しい宣言が定義されている', () => {
       expect(manageStyleProfileDeclaration.name).toBe('manageStyleProfile')
       expect(manageStyleProfileDeclaration.description).toContain('キャラクターの口調')
-      expect(manageStyleProfileDeclaration.parameters?.type).toBe('OBJECT')
+      expect(manageStyleProfileDeclaration.parameters?.type).toBe(Type.OBJECT)
       expect(manageStyleProfileDeclaration.parameters?.required).toContain('action')
     })
   })

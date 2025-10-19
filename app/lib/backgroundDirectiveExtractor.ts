@@ -12,10 +12,10 @@ export interface BackgroundDirectiveExtractorOptions {
 }
 
 /**
- * 背景ディレクティブを抽出するためのcomposable
+ * 背景ディレクティブを抽出するための関数
  * 複雑なMarkdown解析処理を分離し、パフォーマンスを最適化
  */
-export function useBackgroundDirectiveExtractor(options: BackgroundDirectiveExtractorOptions = {}) {
+export function backgroundDirectiveExtractor(options: BackgroundDirectiveExtractorOptions = {}) {
   const { maxDepth = 10, enableCaching = true } = options
 
   // パース結果のキャッシュ
@@ -56,9 +56,9 @@ export function useBackgroundDirectiveExtractor(options: BackgroundDirectiveExtr
       return directive
     } catch (error) {
       logger.error(
-        '[useBackgroundDirectiveExtractor] ディレクティブ抽出エラー',
+        '[backgroundDirectiveExtractor] ディレクティブ抽出エラー',
         {
-          component: 'useBackgroundDirectiveExtractor',
+          component: 'backgroundDirectiveExtractor',
         },
         error
       )
@@ -87,8 +87,8 @@ export function useBackgroundDirectiveExtractor(options: BackgroundDirectiveExtr
 
       // 深度チェック
       if (current.depth > maxDepth) {
-        logger.warn('[useBackgroundDirectiveExtractor] 再帰深度の上限に達しました', {
-          component: 'useBackgroundDirectiveExtractor',
+        logger.warn('[backgroundDirectiveExtractor] 再帰深度の上限に達しました', {
+          component: 'backgroundDirectiveExtractor',
           depth: current.depth,
           type: current.type,
         })

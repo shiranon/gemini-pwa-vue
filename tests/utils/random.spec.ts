@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { getRandomInt, getRandomIndex, getRandomElement, getRandomElements, getRandomString } from '~/utils/random'
+import { describe, expect, it } from 'bun:test'
+import { getRandomElement, getRandomElements, getRandomIndex, getRandomInt, getRandomString } from '~/utils/random'
 
 describe('random utilities', () => {
   describe('getRandomInt', () => {
@@ -105,7 +105,7 @@ describe('random utilities', () => {
 
       for (let i = 0; i < 50; i++) {
         const result = getRandomElement(array)
-        expect(array).toContain(result)
+        expect(array).toContain(result as string)
       }
     })
 
@@ -126,7 +126,7 @@ describe('random utilities', () => {
 
       for (let i = 0; i < 50; i++) {
         const result = getRandomElement(array)
-        expect(array).toContain(result)
+        expect(array).toContain(result as string)
       }
     })
 

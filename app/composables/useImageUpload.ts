@@ -1,5 +1,6 @@
 import { readonly, ref } from 'vue'
 import { useSettingsStore } from '~/stores/settings'
+import type { AttachedFile } from '~/types/chat'
 import { useImageOptimization, type ImageOptimizationOptions } from './useImageOptimization'
 
 export interface ImageUploadOptions {
@@ -19,6 +20,46 @@ export interface ImageUploadResult {
 
 const DEFAULT_MAX_SIZE = 5 * 1024 * 1024 // 5MB
 const DEFAULT_ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif']
+
+/**
+ * FileまたはAttachedFileを処理して画像データを取得する共通関数
+ * @param file - FileオブジェクトまたはAttachedFile
+ * @param uploadImage - useImageUploadのuploadImage関数
+ * @returns Base64データ、MIMEタイプ、サイズ
+ */
+export async function processFileOrAttachedFile(
+  file: File | AttachedFile,
+  uploadImage: (file: File) => Promise<ImageUploadResult | null>
+): Promise<{ mimeType: string; size: number; base64: string }> {
+  let base64Data: string
+  let mimeType: string
+  let size: number
+
+  // FileオブジェクトかAttachedFileかで処理を分岐
+  if (file instanceof File) {
+    // useImageUploadでファイルを処理
+    const uploadResult = await uploadImage(file)
+    if (!uploadResult) {
+      throw new Error('画像の処理に失敗しました')
+    }
+    base64Data = uploadResult.base64Data
+    mimeType = uploadResult.mimeType
+    size = uploadResult.size
+  } else {
+    // AttachedFileの場合は既にBase64データが含まれている
+    base64Data = file.data
+    mimeType = file.type
+    size = file.size
+  }
+
+  // Base64データから実際のデータ部分を抽出
+  const base64 = base64Data.split(',')[1] || base64Data
+  if (!base64) {
+    throw new Error('画像データの抽出に失敗しました')
+  }
+
+  return { mimeType, size, base64 }
+}
 
 export function useImageUpload(options: ImageUploadOptions = {}) {
   const { maxSize = DEFAULT_MAX_SIZE, allowedTypes = DEFAULT_ALLOWED_TYPES, enableOptimization = true, optimizationOptions = {} } = options
@@ -160,12 +201,12 @@ export function useImageUpload(options: ImageUploadOptions = {}) {
   }
 }
 
-// 特定用途向けのプリセット（設定に基づいて最適化を有効化）
+// 特定用途向けのプリセット
 export function useAvatarImageUpload() {
   const settingsStore = useSettingsStore()
   return useImageUpload({
-    maxSize: 5 * 1024 * 1024, // 5MB
-    allowedTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif'],
+    maxSize: DEFAULT_MAX_SIZE,
+    allowedTypes: DEFAULT_ALLOWED_TYPES,
     enableOptimization: settingsStore.settings.enableImageOptimization,
     optimizationOptions: {
       maxWidth: settingsStore.settings.maxImageWidth,
@@ -180,8 +221,8 @@ export function useAvatarImageUpload() {
 export function useBackgroundImageUpload() {
   const settingsStore = useSettingsStore()
   return useImageUpload({
-    maxSize: 5 * 1024 * 1024, // 5MB
-    allowedTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif'],
+    maxSize: DEFAULT_MAX_SIZE,
+    allowedTypes: DEFAULT_ALLOWED_TYPES,
     enableOptimization: settingsStore.settings.enableImageOptimization,
     optimizationOptions: {
       maxWidth: settingsStore.settings.maxImageWidth,
@@ -196,8 +237,8 @@ export function useBackgroundImageUpload() {
 export function useProfileImageUpload() {
   const settingsStore = useSettingsStore()
   return useImageUpload({
-    maxSize: 5 * 1024 * 1024, // 5MB
-    allowedTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif'],
+    maxSize: DEFAULT_MAX_SIZE,
+    allowedTypes: DEFAULT_ALLOWED_TYPES,
     enableOptimization: settingsStore.settings.enableImageOptimization,
     optimizationOptions: {
       maxWidth: settingsStore.settings.maxImageWidth,

@@ -52,6 +52,58 @@
       </template>
     </div>
 
+    <div
+      v-if="attachedFiles.length > 0"
+      class="bg-muted/60 border-border rounded-lg border border-dashed p-3"
+    >
+      <div class="flex flex-col gap-3">
+        <div
+          v-for="file in attachedFiles"
+          :key="file.id"
+          class="bg-background/80 flex items-center justify-between gap-3 rounded-md px-3 py-2"
+        >
+          <div class="flex min-w-0 flex-1 items-center gap-3">
+            <!-- 画像の場合はプレビュー、それ以外はアイコン -->
+            <img
+              v-if="isImageFile(file.type) && file.previewUrl"
+              :src="file.previewUrl"
+              :alt="file.name"
+              class="h-auto w-20 flex-shrink-0 rounded object-cover"
+            />
+            <Icon
+              v-else
+              :icon="getAttachmentIcon(file.type)"
+              class="text-muted-foreground h-4 w-4 flex-shrink-0"
+            />
+            <div class="min-w-0 flex-1">
+              <p class="truncate text-sm font-medium">{{ file.name }}</p>
+              <p class="text-muted-foreground text-xs">{{ formatFileSize(file.size) }}</p>
+
+              <!-- テキストファイルプレビュー -->
+              <div
+                v-if="isTextFile(file.type) && file.data"
+                class="mt-2"
+              >
+                <div class="bg-muted/30 max-h-24 overflow-y-auto rounded border p-2 text-xs">
+                  <pre class="whitespace-pre-wrap">{{ getTextPreview(file.data) }}</pre>
+                </div>
+              </div>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            class="h-8 w-8"
+            @click="removeAttachment(file.id)"
+          >
+            <Icon
+              icon="mdi:close"
+              class="h-4 w-4"
+            />
+          </Button>
+        </div>
+      </div>
+    </div>
     <div class="border-border bg-background/90 sticky bottom-0 z-20 border-t p-2 shadow-lg backdrop-blur">
       <div class="flex gap-2">
         <div class="flex flex-col gap-1">
@@ -69,17 +121,19 @@
             @update:selected-profile-id="handleProfileChange"
           />
         </div>
-        <textarea
-          id="chat-input"
-          v-model="inputText"
-          :disabled="isSending"
-          placeholder="メッセージを入力..."
-          class="border-input focus:border-primary focus:ring-primary min-h-[80px] flex-1 resize-none rounded-lg border p-4 text-lg focus:ring-2 focus:outline-none"
-          @keydown="handleKeydown"
-        />
+        <div class="flex flex-1 flex-col gap-2">
+          <textarea
+            id="chat-input"
+            v-model="inputText"
+            :disabled="isSending"
+            placeholder="メッセージを入力..."
+            class="border-input focus:border-primary focus:ring-primary min-h-[80px] flex-1 resize-none rounded-lg border p-4 text-lg focus:ring-2 focus:outline-none"
+            @keydown="handleKeydown"
+          />
+        </div>
         <div class="flex flex-col gap-2">
           <Button
-            :disabled="isSending || !inputText.trim()"
+            :disabled="isSending || (!inputText.trim() && !hasAttachments)"
             class="size-10 p-2 text-lg sm:size-11"
             @click="sendMessage"
           >
@@ -92,8 +146,27 @@
             </div>
             <div v-else>送</div>
           </Button>
+          <Button
+            variant="outline"
+            class="size-10 p-2 text-lg sm:size-11"
+            :disabled="isSending"
+            @click="openAttachmentDialog"
+          >
+            <Icon
+              icon="material-symbols:attach-file"
+              class="h-5 w-5"
+            />
+          </Button>
         </div>
       </div>
+      <input
+        ref="attachmentInputRef"
+        class="hidden"
+        type="file"
+        :accept="attachmentAccept"
+        multiple
+        @change="handleAttachmentChange"
+      />
     </div>
     <RetryConfirmDialog
       v-model="showRetryDialogLocal"
@@ -107,7 +180,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { storeToRefs } from 'pinia'
 import { onBeforeRouteLeave } from 'vue-router'
 import { useChatStore } from '~/stores/chat'
 import { useSettingsStore } from '~/stores/settings'
@@ -128,10 +202,13 @@ import { Button } from '~/components/ui/button'
 import { Icon } from '@iconify/vue'
 import { hexToRgba } from '~/utils/color'
 import { extractBackgroundSelectionFromMessage, getBackgroundImageDataUrl, getLatestAssistantMessage } from '~/utils/backgroundManager'
-import { useBackgroundDirectiveExtractor } from '~/composables/useBackgroundDirectiveExtractor'
+import { backgroundDirectiveExtractor } from '~/lib/backgroundDirectiveExtractor'
 import type { ApiError, ChatMessage, AttachedFile, Message, AssistantMessage } from '~/types/chat'
 import { toast } from 'vue-sonner'
 import { logger } from '~/utils/logger'
+import { formatFileSize } from '~/lib/format'
+import { convertFileToAttachedFile } from '~/lib/file'
+import { ATTACHMENT_LIMITS } from '~/constants/constants'
 
 const chatStore = useChatStore()
 const settingsStore = useSettingsStore()
@@ -139,6 +216,7 @@ const profilesStore = useSettingsProfilesStore()
 const geminiStore = useGeminiStore()
 const openaiStore = useOpenAiStore()
 const claudeStore = useClaudeStore()
+const { attachedFiles } = storeToRefs(chatStore)
 
 // 現在のプロバイダーに応じて適切なストアを取得
 const currentApiStore = computed(() => {
@@ -163,12 +241,13 @@ const inputText = ref('')
 const messageContainer = ref<HTMLElement>()
 const backgroundUrl = ref<string | null>(null)
 const isProfileLoading = ref(false)
+const attachmentInputRef = ref<HTMLInputElement | null>(null)
 
 // 一時的な背景画像管理
 const { currentBackgroundUrl, setTemporaryBackground } = useTemporaryBackground()
 
 // 背景ディレクティブ抽出用のcomposable
-const { extractDirectiveFromContent } = useBackgroundDirectiveExtractor({
+const { extractDirectiveFromContent } = backgroundDirectiveExtractor({
   maxDepth: 10,
   enableCaching: true,
 })
@@ -205,12 +284,100 @@ const messages = computed(() =>
     translatedThoughts: msg.role === 'assistant' ? (msg as AssistantMessage).translatedThoughts : undefined,
     functionCalls: msg.role === 'assistant' ? (msg as AssistantMessage).functionCalls : undefined,
     functionResults: msg.role === 'assistant' ? (msg as AssistantMessage).functionResults : undefined,
+    attachments: 'attachments' in msg ? msg.attachments : undefined,
     isStreamingComplete: true,
   }))
 )
 const retryDialogTargetMessage = computed(() => chatStore.retryTargetMessage as Message | null)
 const retryDialogResendMessage = computed(() => chatStore.retryResendMessage as Message | null)
 const isSending = computed(() => geminiStore.isSending)
+const hasAttachments = computed(() => attachedFiles.value.length > 0)
+const attachmentAccept = ATTACHMENT_LIMITS.SUPPORTED_TYPES.join(',')
+
+const getAttachmentIcon = (mimeType: string) => {
+  if (mimeType.startsWith('image/')) return 'mdi:file-image-outline'
+  if (mimeType.startsWith('text/') || mimeType === 'application/json' || mimeType === 'application/xml' || mimeType === 'text/xml') return 'mdi:file-document-outline'
+  return 'mdi:file-outline'
+}
+
+const isImageFile = (mimeType: string) => {
+  return ['image/png', 'image/jpeg', 'image/webp'].includes(mimeType)
+}
+
+const isTextFile = (mimeType: string) => {
+  return ['text/plain', 'text/csv', 'text/html', 'text/css', 'text/javascript', 'application/json', 'application/xml', 'text/xml', 'text/markdown'].includes(mimeType)
+}
+
+const getTextContent = (base64Data: string): string => {
+  try {
+    // Base64データをデコードしてテキストに変換（UTF-8対応）
+    const binaryString = atob(base64Data)
+    const bytes = new Uint8Array(binaryString.length)
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i)
+    }
+    return new TextDecoder('utf-8').decode(bytes)
+  } catch (error) {
+    console.warn('テキストのデコードに失敗しました:', error)
+    return '[テキストの読み込みに失敗しました]'
+  }
+}
+
+const getTextPreview = (base64Data: string): string => {
+  const content = getTextContent(base64Data)
+  return content.length > 30 ? content.substring(0, 30) + '...' : content
+}
+
+const openAttachmentDialog = () => {
+  if (isSending.value) return
+  attachmentInputRef.value?.click()
+}
+
+const handleAttachmentSelection = async (files: FileList | null) => {
+  if (!files || files.length === 0) return
+
+  for (const file of Array.from(files)) {
+    try {
+      const attachedFile = await convertFileToAttachedFile(file)
+      chatStore.attachFile(attachedFile)
+      // プレビューURLを管理対象に追加
+      if (attachedFile.previewUrl) {
+        previewUrls.value.add(attachedFile.previewUrl)
+      }
+    } catch (error) {
+      logger.error('ファイル添付に失敗しました', { component: 'ChatInterface', fileName: file.name }, error)
+      const errorMessage = error instanceof Error ? error.message : `"${file.name}" の読み込みに失敗しました`
+      toast.error(errorMessage)
+    }
+  }
+}
+
+const handleAttachmentChange = async (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const files = target.files
+
+  if (files && files.length > 0) {
+    try {
+      await handleAttachmentSelection(files)
+    } catch (error) {
+      logger.error('ファイル添付処理でエラーが発生しました', { component: 'ChatInterface' }, error)
+      toast.error('ファイルの処理中にエラーが発生しました')
+    } finally {
+      // 処理完了後にinputをクリア（同じファイルを再度選択可能にするため）
+      if (target) target.value = ''
+    }
+  }
+}
+
+const removeAttachment = (fileId: string) => {
+  // プレビューURLを解放
+  const file = attachedFiles.value.find((f) => f.id === fileId)
+  if (file?.previewUrl) {
+    URL.revokeObjectURL(file.previewUrl)
+    previewUrls.value.delete(file.previewUrl)
+  }
+  chatStore.removeAttachment(fileId)
+}
 
 // ローカルなダイアログ状態管理
 const showRetryDialogLocal = ref(false)
@@ -308,28 +475,43 @@ const handleGeminiError = (error: ApiError | null) => {
 }
 
 const sendMessage = async (options?: { contentOverride?: string; skipAddingUserMessage?: boolean; attachmentsOverride?: AttachedFile[] }) => {
+  // 二重送信防止の早期リターン
+  if (isSending.value) return
+
   const rawContent = options?.contentOverride ?? inputText.value
+  inputText.value = ''
   const content = rawContent.trim()
-  const hasAttachmentsOverride = (options?.attachmentsOverride?.length ?? 0) > 0
-  if (!content && !hasAttachmentsOverride) return
+  const attachmentsToSend = options?.attachmentsOverride ?? attachedFiles.value.map((file) => ({ ...file }))
+  const hasAttachmentsToSend = attachmentsToSend.length > 0
+
+  if (!content && !hasAttachmentsToSend) return
 
   dismissRetryToast()
 
   try {
     const success = await currentApiStore.value.sendChatMessage({
       content: rawContent,
-      attachments: options?.attachmentsOverride,
+      attachments: attachmentsToSend,
       skipAddingUserMessage: options?.skipAddingUserMessage,
       onError: handleGeminiError,
       onRetryScheduled: notifyRetryScheduled,
       onRetryStarted: notifyRetryStarted,
     })
 
-    if (success) {
-      inputText.value = ''
-    }
+    return success
   } catch (error) {
     logger.error('Message sending error:', { component: 'ChatInterface' }, error)
+    return false
+  } finally {
+    // 成功・失敗に関わらず、添付ファイルのプレビューURLを解放
+    if (!options?.attachmentsOverride) {
+      attachmentsToSend.forEach((file) => {
+        if (file.previewUrl) {
+          URL.revokeObjectURL(file.previewUrl)
+          previewUrls.value.delete(file.previewUrl)
+        }
+      })
+    }
   }
 }
 
@@ -484,8 +666,17 @@ watch(
   }
 )
 
+// プレビューURLを管理（メモリリーク防止）
+const previewUrls = ref<Set<string>>(new Set())
+
 onMounted(() => {
   scrollToBottomInternal()
+})
+
+onUnmounted(() => {
+  // プレビューURLをクリーンアップ
+  previewUrls.value.forEach((url) => URL.revokeObjectURL(url))
+  previewUrls.value.clear()
 })
 
 watch(

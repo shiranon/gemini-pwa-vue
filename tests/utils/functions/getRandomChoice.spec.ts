@@ -1,5 +1,6 @@
+import { Type } from '@google/genai'
+import { beforeEach, describe, expect, it, mock } from 'bun:test'
 import { fail } from 'node:assert'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { FunctionCallArgs, FunctionExecutionContext } from '~/types/function-calling'
 import { getRandomChoice, getRandomChoiceDeclaration } from '~/utils/functions/getRandomChoice'
 
@@ -11,7 +12,7 @@ describe('getRandomChoice', () => {
       persistentMemory: {},
       timestamp: Date.now(),
     }
-    vi.clearAllMocks()
+    mock.clearAllMocks()
   })
 
   describe('正常系', () => {
@@ -25,7 +26,7 @@ describe('getRandomChoice', () => {
       if ('success' in result) {
         expect(result.success).toBe(true)
         expect(result.results).toHaveLength(1)
-        expect(['りんご', 'バナナ', 'オレンジ']).toContain(result.results[0])
+        expect(['りんご', 'バナナ', 'オレンジ']).toContain(result.results[0] as string)
       } else {
         fail('Expected success result but got error result')
       }
@@ -41,7 +42,7 @@ describe('getRandomChoice', () => {
       if ('success' in result) {
         expect(result.success).toBe(true)
         expect(result.results).toHaveLength(1)
-        expect([1, 2, 3, 4, 5]).toContain(result.results[0])
+        expect([1, 2, 3, 4, 5]).toContain(result.results[0] as number)
       } else {
         fail('Expected success result but got error result')
       }
@@ -80,7 +81,7 @@ describe('getRandomChoice', () => {
         expect(result.success).toBe(true)
         expect(result.results).toHaveLength(3)
         result.results.forEach((choice) => {
-          expect(['A', 'B', 'C', 'D', 'E']).toContain(choice)
+          expect(['A', 'B', 'C', 'D', 'E']).toContain(choice as string)
         })
       } else {
         fail('Expected success result but got error result')
@@ -131,7 +132,7 @@ describe('getRandomChoice', () => {
         expect(result.success).toBe(true)
         expect(result.results).toHaveLength(4)
         result.results.forEach((choice) => {
-          expect(['A', 'B']).toContain(choice)
+          expect(['A', 'B']).toContain(choice as string)
         })
       } else {
         fail('Expected success result but got error result')
@@ -345,7 +346,7 @@ describe('getRandomChoice', () => {
     it('正しい宣言が定義されている', () => {
       expect(getRandomChoiceDeclaration.name).toBe('getRandomChoice')
       expect(getRandomChoiceDeclaration.description).toContain('ランダムに項目を選択')
-      expect(getRandomChoiceDeclaration.parameters?.type).toBe('OBJECT')
+      expect(getRandomChoiceDeclaration.parameters?.type).toBe(Type.OBJECT)
       expect(getRandomChoiceDeclaration.parameters?.required).toContain('choiceList')
     })
   })

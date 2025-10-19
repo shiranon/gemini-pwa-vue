@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { Type } from '@google/genai'
+import { beforeEach, describe, expect, it, mock } from 'bun:test'
 import type { FunctionCallArgs, FunctionExecutionContext } from '~/types/function-calling'
 import { manageCharacterStatus, manageCharacterStatusDeclaration } from '~/utils/functions/manageCharacterStatus'
 
@@ -10,7 +11,7 @@ describe('manageCharacterStatus', () => {
       persistentMemory: {},
       timestamp: Date.now(),
     }
-    vi.clearAllMocks()
+    mock.clearAllMocks()
   })
 
   describe('正常系', () => {
@@ -545,7 +546,7 @@ describe('manageCharacterStatus', () => {
     it('正しい宣言が定義されている', () => {
       expect(manageCharacterStatusDeclaration.name).toBe('manageCharacterStatus')
       expect(manageCharacterStatusDeclaration.description).toContain('キャラクターのステータス')
-      expect(manageCharacterStatusDeclaration.parameters?.type).toBe('OBJECT')
+      expect(manageCharacterStatusDeclaration.parameters?.type).toBe(Type.OBJECT)
       expect(manageCharacterStatusDeclaration.parameters?.required).toContain('characterName')
       expect(manageCharacterStatusDeclaration.parameters?.required).toContain('action')
       expect(manageCharacterStatusDeclaration.parameters?.required).toContain('statusKey')

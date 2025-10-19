@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { Type } from '@google/genai'
+import { beforeEach, describe, expect, it, mock } from 'bun:test'
 import type { FunctionCallArgs, FunctionExecutionContext } from '~/types/function-calling'
 import { getRandomInteger, getRandomIntegerDeclaration } from '~/utils/functions/getRandomInteger'
 
@@ -10,7 +11,7 @@ describe('getRandomInteger', () => {
       persistentMemory: {},
       timestamp: Date.now(),
     }
-    vi.clearAllMocks()
+    mock.clearAllMocks()
   })
 
   describe('正常系', () => {
@@ -368,7 +369,7 @@ describe('getRandomInteger', () => {
     it('正しい宣言が定義されている', () => {
       expect(getRandomIntegerDeclaration.name).toBe('getRandomInteger')
       expect(getRandomIntegerDeclaration.description).toContain('ランダムな整数を生成')
-      expect(getRandomIntegerDeclaration.parameters?.type).toBe('OBJECT')
+      expect(getRandomIntegerDeclaration.parameters?.type).toBe(Type.OBJECT)
       expect(getRandomIntegerDeclaration.parameters?.required).toContain('min')
       expect(getRandomIntegerDeclaration.parameters?.required).toContain('max')
     })

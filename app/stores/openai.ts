@@ -6,12 +6,12 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { useOpenAiAgentsApi, type OpenAiApiSettings } from '~/composables/useOpenAiAgentsApi'
-import { proofreadText } from '~/composables/useProofreader'
-import { translateThoughts } from '~/composables/useTranslator'
+import { proofreadText } from '~/lib/proofreader'
+import { translateThoughts } from '~/lib/translator'
 import { useChatStore } from '~/stores/chat'
 import { useSettingsStore } from '~/stores/settings'
 import { useSettingsProfilesStore } from '~/stores/settingsProfiles'
-import type { ApiError, AssistantMessage, AttachedFile, ChatMessage } from '~/types/chat'
+import type { ApiError, AssistantMessage, AttachedFile, ChatMessage, GeminiMessage, GeminiPart } from '~/types/chat'
 import type { FunctionCall, FunctionCallResult } from '~/types/function-calling'
 
 export const useOpenAiStore = defineStore('openai', () => {
@@ -38,14 +38,45 @@ export const useOpenAiStore = defineStore('openai', () => {
 
   const openaiApi = useOpenAiAgentsApi()
 
+  const normalizeMimeType = (mime: string | undefined): string => {
+    if (!mime || mime.trim().length === 0) {
+      return 'application/octet-stream'
+    }
+    if (mime === 'image/jpg') return 'image/jpeg'
+    return mime
+  }
+
   /**
    * チャットメッセージをOpenAI API用の形式に変換する
    */
-  const prepareMessagesForApi = (messages: ChatMessage[]): Array<{ role: string; parts: Array<{ text: string }> }> => {
-    return messages.map((msg) => ({
-      role: msg.role,
-      parts: [{ text: msg.content }],
-    }))
+  const prepareMessagesForApi = (messages: ChatMessage[]): GeminiMessage[] => {
+    return messages.map((msg) => {
+      const parts: GeminiPart[] = []
+
+      if (msg.content && msg.content.length > 0) {
+        parts.push({ text: msg.content })
+      }
+
+      if (msg.attachments && msg.attachments.length > 0) {
+        for (const file of msg.attachments) {
+          parts.push({
+            inlineData: {
+              mimeType: normalizeMimeType(file.type),
+              data: file.data,
+            },
+          })
+        }
+      }
+
+      if (parts.length === 0) {
+        parts.push({ text: '' })
+      }
+
+      return {
+        role: msg.role === 'assistant' ? 'model' : msg.role,
+        parts,
+      }
+    })
   }
 
   /**
@@ -188,7 +219,7 @@ export const useOpenAiStore = defineStore('openai', () => {
    * ストリーミングレスポンスを処理する（ベストプラクティス: メモリ効率とエラーハンドリングの改善）
    */
   const handleStreamingResponse = async (
-    messagesForApi: Array<{ role: string; parts: Array<{ text: string }> }>,
+    messagesForApi: GeminiMessage[],
     generationConfig: Record<string, unknown>,
     systemInstruction: { role: string; parts: Array<{ text: string }> } | null,
     settings: OpenAiApiSettings,
@@ -369,7 +400,7 @@ export const useOpenAiStore = defineStore('openai', () => {
    * 非ストリーミングレスポンスを処理する
    */
   const handleNonStreamingResponse = async (
-    messagesForApi: Array<{ role: string; parts: Array<{ text: string }> }>,
+    messagesForApi: GeminiMessage[],
     generationConfig: Record<string, unknown>,
     systemInstruction: { role: string; parts: Array<{ text: string }> } | null,
     settings: OpenAiApiSettings,

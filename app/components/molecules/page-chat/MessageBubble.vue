@@ -69,6 +69,11 @@
       :font-size="messageAppearanceSettings.thoughtFontSize"
     />
 
+    <MessageAttachments
+      v-if="message.attachments && message.attachments.length > 0"
+      :attachments="message.attachments"
+    />
+
     <div
       v-if="options.showTimestamp && message.timestamp"
       class="text-muted-foreground mt-2 text-sm"
@@ -155,6 +160,7 @@ import { useSettingsStore } from '~/stores/settings'
 import { hexToRgba } from '~/utils/color'
 import FunctionCallDisplay from '~/components/molecules/page-chat/FunctionCallDisplay.vue'
 import ThoughtProcessDisplay from '~/components/molecules/page-chat/ThoughtProcessDisplay.vue'
+import MessageAttachments from '~/components/molecules/page-chat/MessageAttachments.vue'
 import { storeToRefs } from 'pinia'
 import { Icon } from '@iconify/vue'
 import { logger } from '~/utils/logger'
