@@ -2,6 +2,7 @@ import { computed, ref } from 'vue'
 import { useFolderUpload, type FolderStructure } from '~/composables/useFolderUpload'
 import { processFileOrAttachedFile, useImageUpload } from '~/composables/useImageUpload'
 import { IMAGE_LIMITS } from '~/constants/constants'
+import { createBulkImageUploader } from '~/lib/imageBulkUpload'
 import {
   dbCreateCharacter,
   dbCreateCharacterOutfit,
@@ -50,20 +51,6 @@ export function useCharacterImages() {
   // ============================================================================
   // 共通ユーティリティ
   // ============================================================================
-
-  /** ブラウザ環境でpath.parse(file.name).nameの動作を再現 */
-  const getFileNameWithoutExtension = (filename: string): string => {
-    // 最後のドットの位置を探す
-    const lastDotIndex = filename.lastIndexOf('.')
-
-    // ドットがない場合、または最初の文字がドットの場合（隠しファイル）はそのまま返す
-    if (lastDotIndex === -1 || lastDotIndex === 0) {
-      return filename
-    }
-
-    // 最後のドットより前の部分を返す
-    return filename.substring(0, lastDotIndex)
-  }
 
   /** データベース操作の共通エラーハンドリング */
   const handleDatabaseOperation = async <T>(operation: () => Promise<DatabaseOperationResult<T>>, errorMessage: string, successLog?: string): Promise<T | null> => {
@@ -421,55 +408,14 @@ export function useCharacterImages() {
   const bulkUploadExpressions = async (characterId: string, outfitId: string, files: File[]): Promise<{ success: number; failed: number; errors: string[] }> => {
     return handleBulkOperation(
       async () => {
-        let successCount = 0
-        let failedCount = 0
-        const errors: string[] = []
+        // 共通のバルクアップローダーを使用
+        const uploader = createBulkImageUploader(
+          imageUpload,
+          (imageName, base64, mimeType, size) => dbUploadCharacterImage(characterId, outfitId, imageName, base64, mimeType, size),
+          'useCharacterImages'
+        )
 
-        for (const file of files) {
-          try {
-            // ファイル名から表情名を取得（拡張子を除く）
-            // path.parse(file.name).nameと同等の動作を保証
-            const expression = getFileNameWithoutExtension(file.name)
-
-            // useImageUploadでファイルを処理
-            const uploadResult = await imageUpload.uploadImage(file)
-            if (!uploadResult) {
-              failedCount++
-              const errorMessage = imageUpload.error.value || '画像の処理に失敗しました'
-              errors.push(`${expression}: ${errorMessage}`)
-              logger.warn(`表情画像の処理失敗: ${expression}`, { component: 'useCharacterImages' })
-              continue
-            }
-
-            // Base64データから実際のデータ部分を抽出
-            const base64 = uploadResult.base64Data.split(',')[1]
-            if (!base64) {
-              failedCount++
-              errors.push(`${expression}: 画像データの抽出に失敗しました`)
-              logger.warn(`表情画像のデータ抽出失敗: ${expression}`, { component: 'useCharacterImages' })
-              continue
-            }
-
-            const result = await dbUploadCharacterImage(characterId, outfitId, expression, base64, uploadResult.mimeType, uploadResult.size)
-
-            if (result.success) {
-              successCount++
-              logger.info(`表情画像をアップロード成功: ${expression}`, { component: 'useCharacterImages' })
-            } else {
-              failedCount++
-              errors.push(`${expression}: ${result.error}`)
-              logger.warn(`表情画像のアップロード失敗: ${expression}`, { component: 'useCharacterImages' })
-            }
-          } catch (fileError) {
-            failedCount++
-            const errorMessage = fileError instanceof Error ? fileError.message : 'ファイル処理エラー'
-            errors.push(`${file.name}: ${errorMessage}`)
-            logger.error(`ファイル処理エラー: ${file.name}`, { component: 'useCharacterImages' }, fileError)
-          }
-        }
-
-        logger.info(`一括アップロード完了: 成功${successCount}件、失敗${failedCount}件`, { component: 'useCharacterImages' })
-        return { success: successCount, failed: failedCount, errors }
+        return await uploader(files)
       },
       '一括アップロードに失敗しました',
       { success: 0, failed: files.length, errors: ['一括アップロードに失敗しました'] }
