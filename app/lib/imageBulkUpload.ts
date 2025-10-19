@@ -24,6 +24,18 @@ export interface BulkUploadResult {
   errors: string[]
 }
 
+/** 衣装アップロードデータの型 */
+export interface OutfitUploadData {
+  outfitName: string
+  images: File[]
+}
+
+/** 衣装作成関数の型 */
+export type CreateOutfitFunction = (characterId: string, outfitName: string) => Promise<{ id: string } | null>
+
+/** 画像一括アップロード関数の型 */
+export type UploadImagesFunction = (characterId: string, outfitId: string, files: File[]) => Promise<BulkUploadResult>
+
 /**
  * 画像一括アップロード処理を生成するファクトリー関数
  *
@@ -82,5 +94,47 @@ export const createBulkImageUploader = (imageUpload: ReturnType<typeof useImageU
 
     logger.info(`一括アップロード完了: 成功${successCount}件、失敗${failedCount}件`, { component: componentName })
     return { success: successCount, failed: failedCount, errors }
+  }
+}
+
+/**
+ * 衣装と画像の一括アップロード処理を生成するファクトリー関数
+ *
+ * @param createOutfit - 衣装作成関数
+ * @param uploadImages - 画像一括アップロード関数
+ * @param componentName - ログ出力用のコンポーネント名
+ * @returns 衣装と画像の一括アップロード処理を実行する関数
+ */
+export const createBulkOutfitUploader = (createOutfit: CreateOutfitFunction, uploadImages: UploadImagesFunction, componentName: string) => {
+  return async (characterId: string, outfits: OutfitUploadData[]): Promise<BulkUploadResult> => {
+    let totalSuccess = 0
+    let totalFailed = 0
+    const allErrors: string[] = []
+
+    for (const outfitData of outfits) {
+      try {
+        // 衣装を作成
+        const outfit = await createOutfit(characterId, outfitData.outfitName)
+        if (!outfit) {
+          allErrors.push(`衣装「${outfitData.outfitName}」の作成に失敗しました`)
+          totalFailed += outfitData.images.length
+          continue
+        }
+
+        // 画像を一括アップロード
+        const result = await uploadImages(characterId, outfit.id, outfitData.images)
+        totalSuccess += result.success
+        totalFailed += result.failed
+        allErrors.push(...result.errors.map((error) => `衣装「${outfitData.outfitName}」: ${error}`))
+      } catch (outfitError) {
+        const errorMessage = outfitError instanceof Error ? outfitError.message : '衣装処理エラー'
+        allErrors.push(`衣装「${outfitData.outfitName}」: ${errorMessage}`)
+        totalFailed += outfitData.images.length
+        logger.error(`衣装処理エラー: ${outfitData.outfitName}`, { component: componentName }, outfitError)
+      }
+    }
+
+    logger.info(`衣装一括処理完了: 成功${totalSuccess}件、失敗${totalFailed}件`, { component: componentName })
+    return { success: totalSuccess, failed: totalFailed, errors: allErrors }
   }
 }

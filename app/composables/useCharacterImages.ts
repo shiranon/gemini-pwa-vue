@@ -2,7 +2,7 @@ import { computed, ref } from 'vue'
 import { useFolderUpload, type FolderStructure } from '~/composables/useFolderUpload'
 import { processFileOrAttachedFile, useImageUpload } from '~/composables/useImageUpload'
 import { IMAGE_LIMITS } from '~/constants/constants'
-import { createBulkImageUploader } from '~/lib/imageBulkUpload'
+import { createBulkImageUploader, createBulkOutfitUploader } from '~/lib/imageBulkUpload'
 import {
   dbCreateCharacter,
   dbCreateCharacterOutfit,
@@ -146,40 +146,16 @@ export function useCharacterImages() {
           throw new Error('キャラクターの作成に失敗しました')
         }
 
-        let totalSuccess = 0
-        let totalFailed = 0
-        const allErrors: string[] = []
+        // 2. 衣装と画像を一括アップロード（共通関数を使用）
+        const uploader = createBulkOutfitUploader(createOutfit, bulkUploadExpressions, 'useCharacterImages')
+        const result = await uploader(character.id, folderStructure.outfits)
 
-        // 2. 各衣装を作成して画像をアップロード
-        for (const outfitData of folderStructure.outfits) {
-          try {
-            // 衣装を作成
-            const outfit = await createOutfit(character.id, outfitData.outfitName)
-            if (!outfit) {
-              allErrors.push(`衣装「${outfitData.outfitName}」の作成に失敗しました`)
-              totalFailed += outfitData.images.length
-              continue
-            }
-
-            // 画像を一括アップロード
-            const result = await bulkUploadExpressions(character.id, outfit.id, outfitData.images)
-            totalSuccess += result.success
-            totalFailed += result.failed
-            allErrors.push(...result.errors.map((error) => `衣装「${outfitData.outfitName}」: ${error}`))
-          } catch (outfitError) {
-            const errorMessage = outfitError instanceof Error ? outfitError.message : '衣装処理エラー'
-            allErrors.push(`衣装「${outfitData.outfitName}」: ${errorMessage}`)
-            totalFailed += outfitData.images.length
-            logger.error(`衣装処理エラー: ${outfitData.outfitName}`, { component: 'useCharacterImages' }, outfitError)
-          }
-        }
-
-        logger.info(`フォルダ一括アップロード完了: 成功${totalSuccess}件、失敗${totalFailed}件`, { component: 'useCharacterImages' })
+        logger.info(`フォルダ一括アップロード完了: 成功${result.success}件、失敗${result.failed}件`, { component: 'useCharacterImages' })
         return {
           character,
-          success: totalSuccess,
-          failed: totalFailed,
-          errors: allErrors,
+          success: result.success,
+          failed: result.failed,
+          errors: result.errors,
         }
       },
       'フォルダ一括アップロードに失敗しました',
@@ -203,40 +179,12 @@ export function useCharacterImages() {
   }> => {
     return handleBulkOperation(
       async () => {
-        let totalSuccess = 0
-        let totalFailed = 0
-        const allErrors: string[] = []
+        // 衣装と画像を一括アップロード（共通関数を使用）
+        const uploader = createBulkOutfitUploader(createOutfit, bulkUploadExpressions, 'useCharacterImages')
+        const result = await uploader(characterId, folderStructure.outfits)
 
-        // 各衣装を作成して画像をアップロード
-        for (const outfitData of folderStructure.outfits) {
-          try {
-            // 衣装を作成
-            const outfit = await createOutfit(characterId, outfitData.outfitName)
-            if (!outfit) {
-              allErrors.push(`衣装「${outfitData.outfitName}」の作成に失敗しました`)
-              totalFailed += outfitData.images.length
-              continue
-            }
-
-            // 画像を一括アップロード
-            const result = await bulkUploadExpressions(characterId, outfit.id, outfitData.images)
-            totalSuccess += result.success
-            totalFailed += result.failed
-            allErrors.push(...result.errors.map((error) => `衣装「${outfitData.outfitName}」: ${error}`))
-          } catch (outfitError) {
-            const errorMessage = outfitError instanceof Error ? outfitError.message : '衣装処理エラー'
-            allErrors.push(`衣装「${outfitData.outfitName}」: ${errorMessage}`)
-            totalFailed += outfitData.images.length
-            logger.error(`衣装処理エラー: ${outfitData.outfitName}`, { component: 'useCharacterImages' }, outfitError)
-          }
-        }
-
-        logger.info(`衣装一括追加完了: 成功${totalSuccess}件、失敗${totalFailed}件`, { component: 'useCharacterImages' })
-        return {
-          success: totalSuccess,
-          failed: totalFailed,
-          errors: allErrors,
-        }
+        logger.info(`衣装一括追加完了: 成功${result.success}件、失敗${result.failed}件`, { component: 'useCharacterImages' })
+        return result
       },
       '衣装一括追加に失敗しました',
       {
