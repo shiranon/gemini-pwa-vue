@@ -31,21 +31,6 @@ Object.defineProperty(global, 'sessionStorage', {
   writable: true,
 })
 
-// 各テスト前にモックをリセット
-beforeEach(() => {
-  localStorageMock.getItem.mockClear()
-  localStorageMock.setItem.mockClear()
-  localStorageMock.removeItem.mockClear()
-  localStorageMock.clear.mockClear()
-  localStorageMock.key.mockClear()
-
-  sessionStorageMock.getItem.mockClear()
-  sessionStorageMock.setItem.mockClear()
-  sessionStorageMock.removeItem.mockClear()
-  sessionStorageMock.clear.mockClear()
-  sessionStorageMock.key.mockClear()
-})
-
 // import.meta.client のモック
 Object.defineProperty(import.meta, 'client', {
   value: true,
@@ -89,7 +74,8 @@ Object.defineProperty(global, '$nuxt', {
 })
 
 // useFunctionCallingコンポーザブルのモック
-const mockUseFunctionCalling = () => ({
+// グローバルなモックインスタンスを一度だけ作成して再利用
+const globalMockFunctionCallingInstance = {
   functionRegistry: new Map(),
   executionLogs: [],
   registerFunction: mock(() => {}),
@@ -106,7 +92,9 @@ const mockUseFunctionCalling = () => ({
   clearExecutionLogs: mock(() => {}),
   initializeDefaultFunctions: mock(() => {}),
   getRegistryStats: mock(() => ({})),
-})
+}
+
+const mockUseFunctionCalling = () => globalMockFunctionCallingInstance
 
 // useFunctionCallingコンポーザブルのモック
 Object.defineProperty(global, 'useFunctionCalling', {
@@ -170,4 +158,35 @@ Object.defineProperty(global, 'Dexie', {
     })),
   })),
   writable: true,
+})
+
+// 各テスト前にモックをリセット
+beforeEach(() => {
+  localStorageMock.getItem.mockClear()
+  localStorageMock.setItem.mockClear()
+  localStorageMock.removeItem.mockClear()
+  localStorageMock.clear.mockClear()
+  localStorageMock.key.mockClear()
+
+  sessionStorageMock.getItem.mockClear()
+  sessionStorageMock.setItem.mockClear()
+  sessionStorageMock.removeItem.mockClear()
+  sessionStorageMock.clear.mockClear()
+  sessionStorageMock.key.mockClear()
+
+  // useFunctionCallingのモックもリセット
+  globalMockFunctionCallingInstance.registerFunction.mockClear()
+  globalMockFunctionCallingInstance.registerFunctionDefinition.mockClear()
+  globalMockFunctionCallingInstance.unregisterFunction.mockClear()
+  globalMockFunctionCallingInstance.toggleFunction.mockClear()
+  globalMockFunctionCallingInstance.setFunctionEnablement.mockClear()
+  globalMockFunctionCallingInstance.getEnabledFunctionDeclarations.mockClear()
+  globalMockFunctionCallingInstance.getEnabledFunctionNames.mockClear()
+  globalMockFunctionCallingInstance.getFunctionRegistryEntries.mockClear()
+  globalMockFunctionCallingInstance.refreshManageBackgroundDeclaration.mockClear()
+  globalMockFunctionCallingInstance.executeFunction.mockClear()
+  globalMockFunctionCallingInstance.executeFunctions.mockClear()
+  globalMockFunctionCallingInstance.clearExecutionLogs.mockClear()
+  globalMockFunctionCallingInstance.initializeDefaultFunctions.mockClear()
+  globalMockFunctionCallingInstance.getRegistryStats.mockClear()
 })

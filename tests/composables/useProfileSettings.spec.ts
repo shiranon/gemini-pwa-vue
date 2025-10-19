@@ -1,24 +1,14 @@
-import { beforeEach, describe, expect, it, mock } from 'bun:test'
+import { beforeEach, describe, expect, it } from 'bun:test'
 import { createPinia, setActivePinia } from 'pinia'
 import { useProfileSettings } from '~/composables/useProfileSettings'
 import { useSettingsProfilesStore } from '~/stores/settingsProfiles'
 import type { SettingsProfile } from '~/types/settings'
-
-// Nuxtプラグインのモック
-const mockSetFunctionEnablement = mock(() => {})
-Object.defineProperty(global, 'setFunctionEnablement', {
-  value: mockSetFunctionEnablement,
-  writable: true,
-})
 
 describe('useProfileSettings', () => {
   let store: ReturnType<typeof useSettingsProfilesStore>
   let composable: ReturnType<typeof useProfileSettings>
 
   beforeEach(() => {
-    // モックをリセット
-    mockSetFunctionEnablement.mockClear()
-
     setActivePinia(createPinia())
     store = useSettingsProfilesStore()
     composable = useProfileSettings()

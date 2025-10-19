@@ -6,6 +6,9 @@
 import { generateFileId } from '~/lib/ids'
 import type { AttachedFile } from '~/types/chat'
 
+// URL.createObjectURLで作成されたURLを追跡するためのSet
+const createdUrls = new Set<string>()
+
 /**
  * ファイルをAttachedFile形式に変換する
  * @param file - 変換するファイル
@@ -18,6 +21,7 @@ export const convertFileToAttachedFile = async (file: File): Promise<AttachedFil
   let previewUrl: string | undefined
   if (file.type.startsWith('image/')) {
     previewUrl = URL.createObjectURL(file)
+    createdUrls.add(previewUrl)
   }
 
   // Base64エンコード
@@ -71,4 +75,23 @@ export const downloadJson = (data: unknown, filename: string): void => {
     const message = err instanceof Error ? err.message : String(err)
     throw new Error(`JSONのダウンロードに失敗しました: ${message}`)
   }
+}
+
+/**
+ * 特定のURLをクリーンアップする
+ * @param url - クリーンアップするURL
+ */
+export const revokeObjectURL = (url: string): void => {
+  if (createdUrls.has(url)) {
+    URL.revokeObjectURL(url)
+    createdUrls.delete(url)
+  }
+}
+
+/**
+ * すべての作成されたURLをクリーンアップする
+ */
+export const revokeAllObjectURLs = (): void => {
+  createdUrls.forEach((url) => URL.revokeObjectURL(url))
+  createdUrls.clear()
 }

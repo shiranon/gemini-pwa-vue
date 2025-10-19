@@ -9,6 +9,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
       - name: Install bun
         uses: oven-sh/setup-bun@v2
         with:
@@ -35,7 +40,10 @@ jobs:
         run: bun run typecheck
 
       - name: Run tests
-        run: TZ=Asia/Tokyo bun test
+        run: TZ=Asia/Tokyo NODE_ENV=test bun test
+        env:
+          NODE_ENV: test
+          CI: true
 
       - name: Run build
         run: bun run build

@@ -242,10 +242,10 @@ export const useOpenAiAgentsApi = () => {
   }
 
   /**
-   * OpenAI Agentを作成（ベストプラクティスに基づく簡潔な実装）
+   * OpenAI Agentを作成
    */
   const createAgent = (settings: OpenAiApiSettings, systemInstruction?: string) => {
-    const instructions = systemInstruction || settings.systemPrompt || 'You are a helpful assistant'
+    const instructions = systemInstruction || settings.systemPrompt || ''
 
     // OpenAI Agents SDKのデフォルトクライアントを設定（ブラウザ環境対応）
     if (settings.apiKey) {

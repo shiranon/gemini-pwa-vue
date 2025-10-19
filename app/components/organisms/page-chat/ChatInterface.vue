@@ -180,7 +180,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { onBeforeRouteLeave } from 'vue-router'
 import { useChatStore } from '~/stores/chat'
@@ -207,7 +207,7 @@ import type { ApiError, ChatMessage, AttachedFile, Message, AssistantMessage } f
 import { toast } from 'vue-sonner'
 import { logger } from '~/utils/logger'
 import { formatFileSize } from '~/lib/format'
-import { convertFileToAttachedFile } from '~/lib/file'
+import { convertFileToAttachedFile, revokeAllObjectURLs } from '~/lib/file'
 
 const chatStore = useChatStore()
 const settingsStore = useSettingsStore()
@@ -496,6 +496,11 @@ const sendMessage = async (options?: { contentOverride?: string; skipAddingUserM
 
   dismissRetryToast()
 
+  // レースコンディションを防ぐため、送信前にattachmentsをクリア
+  if (!options?.attachmentsOverride) {
+    chatStore.clearInput()
+  }
+
   try {
     const success = await currentApiStore.value.sendChatMessage({
       content: rawContent,
@@ -507,7 +512,7 @@ const sendMessage = async (options?: { contentOverride?: string; skipAddingUserM
     })
 
     if (success) {
-      inputText.value = ''
+      // 送信成功時は既にクリア済みなので何もしない
     }
   } catch (error) {
     logger.error('Message sending error:', { component: 'ChatInterface' }, error)
@@ -667,6 +672,11 @@ watch(
 
 onMounted(() => {
   scrollToBottomInternal()
+})
+
+onUnmounted(() => {
+  // URL.createObjectURLで作成されたURLをクリーンアップ
+  revokeAllObjectURLs()
 })
 
 watch(
