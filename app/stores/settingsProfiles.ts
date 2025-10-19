@@ -18,7 +18,7 @@ export const useSettingsProfilesStore = defineStore('settingsProfiles', () => {
   const temporarySettings = ref<Partial<SettingsProfileData>>({})
 
   // Function Callingの管理
-  const { setFunctionEnablement } = useFunctionCalling()
+  const { setFunctionEnablement } = useFunctionCalling() || { setFunctionEnablement: () => {} }
 
   const activeProfile = computed(() => {
     if (!activeProfileId.value) return null

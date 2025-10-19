@@ -71,3 +71,103 @@ Object.defineProperty(global, 'document', {
   },
   writable: true,
 })
+
+// Nuxtプラグインのモック
+Object.defineProperty(global, '$nuxt', {
+  value: {
+    $router: {
+      push: mock(() => {}),
+      replace: mock(() => {}),
+    },
+    $route: {
+      path: '/',
+      query: {},
+      params: {},
+    },
+  },
+  writable: true,
+})
+
+// useFunctionCallingコンポーザブルのモック
+const mockUseFunctionCalling = () => ({
+  functionRegistry: new Map(),
+  executionLogs: [],
+  registerFunction: mock(() => {}),
+  registerFunctionDefinition: mock(() => {}),
+  unregisterFunction: mock(() => {}),
+  toggleFunction: mock(() => {}),
+  setFunctionEnablement: mock(() => {}),
+  getEnabledFunctionDeclarations: mock(() => []),
+  getEnabledFunctionNames: mock(() => []),
+  getFunctionRegistryEntries: mock(() => []),
+  refreshManageBackgroundDeclaration: mock(() => {}),
+  executeFunction: mock(() => Promise.resolve({})),
+  executeFunctions: mock(() => Promise.resolve([])),
+  clearExecutionLogs: mock(() => {}),
+  initializeDefaultFunctions: mock(() => {}),
+  getRegistryStats: mock(() => ({})),
+})
+
+// useFunctionCallingコンポーザブルのモック
+Object.defineProperty(global, 'useFunctionCalling', {
+  value: mockUseFunctionCalling,
+  writable: true,
+})
+
+// その他のNuxtプラグイン関数のモック
+Object.defineProperty(global, 'navigateTo', {
+  value: mock(() => {}),
+  writable: true,
+})
+
+Object.defineProperty(global, 'useRouter', {
+  value: mock(() => ({
+    push: mock(() => {}),
+    replace: mock(() => {}),
+  })),
+  writable: true,
+})
+
+Object.defineProperty(global, 'useRoute', {
+  value: mock(() => ({
+    path: '/',
+    query: {},
+    params: {},
+  })),
+  writable: true,
+})
+
+// IndexedDBのモック
+Object.defineProperty(global, 'indexedDB', {
+  value: {
+    open: mock(() => ({
+      onsuccess: null,
+      onerror: null,
+      result: {
+        transaction: mock(() => ({
+          objectStore: mock(() => ({
+            add: mock(() => {}),
+            get: mock(() => {}),
+            put: mock(() => {}),
+            delete: mock(() => {}),
+            clear: mock(() => {}),
+          })),
+        })),
+      },
+    })),
+  },
+  writable: true,
+})
+
+// Dexieのモック
+Object.defineProperty(global, 'Dexie', {
+  value: mock(() => ({
+    open: mock(() => Promise.resolve()),
+    close: mock(() => Promise.resolve()),
+    delete: mock(() => Promise.resolve()),
+    version: mock(() => ({
+      stores: mock(() => ({})),
+    })),
+  })),
+  writable: true,
+})

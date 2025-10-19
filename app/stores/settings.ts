@@ -52,7 +52,7 @@ export const useSettingsStore = defineStore(
     const lastSavedAt = ref<number | null>(null)
     const isDirty = ref(false)
 
-    const { setFunctionEnablement } = useFunctionCalling()
+    const { setFunctionEnablement } = useFunctionCalling() || { setFunctionEnablement: () => {} }
 
     const apiConfig = computed(() => ({
       apiKey: settings.value.apiKey,

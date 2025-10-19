@@ -3,6 +3,7 @@
  * シンプルなファイル変換機能のみ
  */
 
+import { generateFileId } from '~/lib/ids'
 import type { AttachedFile } from '~/types/chat'
 
 /**
@@ -11,7 +12,7 @@ import type { AttachedFile } from '~/types/chat'
  * @returns AttachedFile形式のPromise
  */
 export const convertFileToAttachedFile = async (file: File): Promise<AttachedFile> => {
-  const id = `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  const id = generateFileId()
 
   // Base64エンコード
   const data = await new Promise<string>((resolve, reject) => {
