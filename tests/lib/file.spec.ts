@@ -1,4 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test'
+
+// ~/lib/ids のモック
+let mockIdCounter = 0
+mock.module('~/lib/ids', () => ({
+  generateFileId: () => `file_${Date.now()}_mock${mockIdCounter++}`,
+  generateChatId: () => `chat_${Date.now()}_mock${mockIdCounter++}`,
+  generateMessageId: () => `msg_${Date.now()}_mock${mockIdCounter++}`,
+}))
+
+// eslint-disable-next-line import/first
 import { convertFileToAttachedFile, downloadJson } from '~/lib/file'
 
 // FileReader のモック

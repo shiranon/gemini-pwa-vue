@@ -42,7 +42,6 @@ jobs:
       - name: Run tests
         run: TZ=Asia/Tokyo NODE_ENV=test bun test
         env:
-          NODE_ENV: test
           CI: true
 
       - name: Run build

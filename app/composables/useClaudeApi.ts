@@ -2,13 +2,13 @@ import Anthropic from '@anthropic-ai/sdk'
 import type { ContentBlockParam, MessageCreateParams, MessageParam, Tool, ToolResultBlockParam } from '@anthropic-ai/sdk/resources/messages.mjs'
 import { Type } from '@google/genai'
 import { useFunctionCalling } from '~/composables/useFunctionCalling'
+import { buildApiErrorMessage, executeFunctionCallsCommon, filterFunctionsByAllowedNames, logFunctionCallCompletion } from '~/lib/apiCommon'
 import { generateMessageId } from '~/lib/ids'
 import { useChatStore } from '~/stores/chat'
 import type { ThoughtExtractionResult } from '~/types/api'
 import type { AttachedFile, ChatMessage, ClaudeApiSettings } from '~/types/chat'
 import type { FunctionCall, FunctionCallResult } from '~/types/function-calling'
 import { logger } from '~/utils/logger'
-import { executeFunctionCallsCommon, filterFunctionsByAllowedNames, buildApiErrorMessage, logFunctionCallCompletion } from '~/lib/apiCommon'
 
 export interface ClaudeStreamingChunk {
   type: 'chunk'
@@ -66,6 +66,24 @@ const buildAttachmentBlocks = (attachments: AttachedFile[]): ContentBlockParam[]
           data: file.data,
         },
       })
+    } else if (mimeType.startsWith('text/')) {
+      // テキストファイルの内容を送信
+      try {
+        // base64デコードしてUTF-8として解釈
+        const binaryString = atob(file.data)
+        const bytes = new Uint8Array(binaryString.length)
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i)
+        }
+        const textContent = new TextDecoder('utf-8').decode(bytes)
+        blocks.push({
+          type: 'text',
+          text: `添付ファイル: ${file.name}\n\n内容:\n${textContent}`,
+        })
+      } catch (error) {
+        console.error('テキストファイルのデコードに失敗:', error)
+        blocks.push({ type: 'text', text: `添付ファイル: ${file.name} (デコードエラー)` })
+      }
     } else {
       blocks.push({ type: 'text', text: `添付ファイル: ${file.name} (${mimeType})` })
     }
