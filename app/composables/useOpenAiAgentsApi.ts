@@ -5,6 +5,7 @@ import { generateMessageId } from '~/lib/ids'
 import { useChatStore } from '~/stores/chat'
 import type { GeminiApiSettings, GeminiMessage } from '~/types/chat'
 import type { FunctionCall, FunctionCallResult } from '~/types/function-calling'
+import type { ThoughtExtractionResult } from '~/types/api'
 import { logger } from '~/utils/logger'
 
 const TEXT_LIKE_MIME_PREFIXES = ['text/', 'application/json', 'application/xml', 'application/javascript', 'application/x-yaml']
@@ -45,14 +46,6 @@ interface StreamEvent {
   item_id?: string
   output_index?: number
   content_index?: number
-}
-
-/**
- * OpenAI APIレスポンスから思考プロセスを抽出する
- */
-interface ThoughtExtractionResult {
-  content: string
-  thoughts?: string
 }
 
 /**

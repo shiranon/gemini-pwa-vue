@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue'
 import { useFolderUpload, type FolderStructure } from '~/composables/useFolderUpload'
-import { useImageUpload } from '~/composables/useImageUpload'
+import { processFileOrAttachedFile, useImageUpload } from '~/composables/useImageUpload'
 import { IMAGE_LIMITS } from '~/constants/constants'
 import {
   dbCreateCharacter,
@@ -320,32 +320,8 @@ export function useCharacterImages() {
   const uploadImage = async (characterId: string, outfitId: string, expression: string, file: File | import('~/types/chat').AttachedFile): Promise<CharacterImageRecord | null> => {
     return handleImageOperation(
       async () => {
-        let base64Data: string
-        let mimeType: string
-        let size: number
-
-        // FileオブジェクトかAttachedFileかで処理を分岐
-        if (file instanceof File) {
-          // useImageUploadでファイルを処理
-          const uploadResult = await imageUpload.uploadImage(file)
-          if (!uploadResult) {
-            throw new Error(imageUpload.error.value || '画像の処理に失敗しました')
-          }
-          base64Data = uploadResult.base64Data
-          mimeType = uploadResult.mimeType
-          size = uploadResult.size
-        } else {
-          // AttachedFileの場合は既にBase64データが含まれている
-          base64Data = file.data
-          mimeType = file.type
-          size = file.size
-        }
-
-        // Base64データから実際のデータ部分を抽出
-        const base64 = base64Data.split(',')[1] || base64Data
-        if (!base64) {
-          throw new Error('画像データの抽出に失敗しました')
-        }
+        // 共通関数を使用してFileまたはAttachedFileを処理
+        const { base64, mimeType, size } = await processFileOrAttachedFile(file, imageUpload.uploadImage)
 
         const result = await dbUploadCharacterImage(characterId, outfitId, expression, base64, mimeType, size)
         if (!result.success) {

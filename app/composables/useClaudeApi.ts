@@ -4,17 +4,10 @@ import { Type } from '@google/genai'
 import { useFunctionCalling } from '~/composables/useFunctionCalling'
 import { generateMessageId } from '~/lib/ids'
 import { useChatStore } from '~/stores/chat'
+import type { ThoughtExtractionResult } from '~/types/api'
 import type { AttachedFile, ChatMessage, ClaudeApiSettings } from '~/types/chat'
 import type { FunctionCall, FunctionCallResult } from '~/types/function-calling'
 import { logger } from '~/utils/logger'
-
-/**
- * Claude APIレスポンスから思考プロセスを抽出する
- */
-interface ThoughtExtractionResult {
-  content: string
-  thoughts?: string
-}
 
 export interface ClaudeStreamingChunk {
   type: 'chunk'

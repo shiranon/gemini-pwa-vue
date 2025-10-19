@@ -18,15 +18,8 @@ import { generateMessageId } from '~/lib/ids'
 import { useChatStore } from '~/stores/chat'
 import type { GeminiApiSettings, GeminiMessage } from '~/types/chat'
 import type { FunctionCall, FunctionCallResult } from '~/types/function-calling'
+import type { ThoughtExtractionResult } from '~/types/api'
 import { logger } from '~/utils/logger'
-
-/**
- * Gemini APIレスポンスから思考プロセスを抽出する
- */
-interface ThoughtExtractionResult {
-  content: string
-  thoughts?: string
-}
 
 type ResponseLike = GenerateContentResponse
 
