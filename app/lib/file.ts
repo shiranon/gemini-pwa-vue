@@ -3,25 +3,40 @@
  * シンプルなファイル変換機能のみ
  */
 
+import { ATTACHMENT_LIMITS } from '~/constants/constants'
+import { formatFileSize } from '~/lib/format'
 import { generateFileId } from '~/lib/ids'
 import type { AttachedFile } from '~/types/chat'
-
-// URL.createObjectURLで作成されたURLを追跡するためのSet
-const createdUrls = new Set<string>()
 
 /**
  * ファイルをAttachedFile形式に変換する
  * @param file - 変換するファイル
+ * @param options - オプション設定
+ * @param options.validateSize - ファイルサイズ検証を行うかどうか（デフォルト: true）
+ * @param options.validateType - ファイル形式検証を行うかどうか（デフォルト: true）
  * @returns AttachedFile形式のPromise
+ * @throws {Error} ファイルサイズまたは形式が制限を超えている場合
+ * @note プレビューURLは呼び出し側で URL.revokeObjectURL() を使って解放する必要があります
  */
-export const convertFileToAttachedFile = async (file: File): Promise<AttachedFile> => {
+export const convertFileToAttachedFile = async (file: File, options: { validateSize?: boolean; validateType?: boolean } = {}): Promise<AttachedFile> => {
+  const { validateSize = true, validateType = true } = options
+
+  // ファイルサイズ検証
+  if (validateSize && file.size > ATTACHMENT_LIMITS.MAX_FILE_SIZE) {
+    throw new Error(`ファイルサイズが上限（${formatFileSize(ATTACHMENT_LIMITS.MAX_FILE_SIZE)}）を超えています`)
+  }
+
+  // ファイル形式検証
+  if (validateType && !ATTACHMENT_LIMITS.SUPPORTED_TYPES.includes(file.type as (typeof ATTACHMENT_LIMITS.SUPPORTED_TYPES)[number])) {
+    throw new Error(`対応していないファイル形式です: ${file.type}`)
+  }
   const id = generateFileId()
 
   // プレビュー用のURLを作成（画像の場合のみ）
+  // Note: このURLは呼び出し側で管理・解放する必要があります
   let previewUrl: string | undefined
   if (file.type.startsWith('image/')) {
     previewUrl = URL.createObjectURL(file)
-    createdUrls.add(previewUrl)
   }
 
   // Base64エンコード
@@ -75,23 +90,4 @@ export const downloadJson = (data: unknown, filename: string): void => {
     const message = err instanceof Error ? err.message : String(err)
     throw new Error(`JSONのダウンロードに失敗しました: ${message}`)
   }
-}
-
-/**
- * 特定のURLをクリーンアップする
- * @param url - クリーンアップするURL
- */
-export const revokeObjectURL = (url: string): void => {
-  if (createdUrls.has(url)) {
-    URL.revokeObjectURL(url)
-    createdUrls.delete(url)
-  }
-}
-
-/**
- * すべての作成されたURLをクリーンアップする
- */
-export const revokeAllObjectURLs = (): void => {
-  createdUrls.forEach((url) => URL.revokeObjectURL(url))
-  createdUrls.clear()
 }

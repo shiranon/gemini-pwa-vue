@@ -85,7 +85,7 @@
                 class="mt-2"
               >
                 <div class="bg-muted/30 max-h-24 overflow-y-auto rounded border p-2 text-xs">
-                  <pre class="whitespace-pre-wrap">{{ getTextContent(file.data).substring(0, 30) }}{{ getTextContent(file.data).length > 200 ? '...' : '' }}</pre>
+                  <pre class="whitespace-pre-wrap">{{ getTextPreview(file.data) }}</pre>
                 </div>
               </div>
             </div>
@@ -207,7 +207,8 @@ import type { ApiError, ChatMessage, AttachedFile, Message, AssistantMessage } f
 import { toast } from 'vue-sonner'
 import { logger } from '~/utils/logger'
 import { formatFileSize } from '~/lib/format'
-import { convertFileToAttachedFile, revokeAllObjectURLs } from '~/lib/file'
+import { convertFileToAttachedFile } from '~/lib/file'
+import { ATTACHMENT_LIMITS } from '~/constants/constants'
 
 const chatStore = useChatStore()
 const settingsStore = useSettingsStore()
@@ -291,24 +292,7 @@ const retryDialogTargetMessage = computed(() => chatStore.retryTargetMessage as 
 const retryDialogResendMessage = computed(() => chatStore.retryResendMessage as Message | null)
 const isSending = computed(() => geminiStore.isSending)
 const hasAttachments = computed(() => attachedFiles.value.length > 0)
-const SUPPORTED_ATTACHMENT_TYPES = [
-  'image/png',
-  'image/jpeg',
-  'image/webp',
-  'text/plain',
-  'text/csv',
-  'text/html',
-  'text/css',
-  'text/javascript',
-  'application/json',
-  'application/xml',
-  'text/xml',
-  'text/markdown',
-] as const
-
-const attachmentAccept = SUPPORTED_ATTACHMENT_TYPES.join(',')
-const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024
-const SUPPORTED_ATTACHMENT_TYPES_SET = new Set(SUPPORTED_ATTACHMENT_TYPES)
+const attachmentAccept = ATTACHMENT_LIMITS.SUPPORTED_TYPES.join(',')
 
 const getAttachmentIcon = (mimeType: string) => {
   if (mimeType.startsWith('image/')) return 'mdi:file-image-outline'
@@ -339,6 +323,11 @@ const getTextContent = (base64Data: string): string => {
   }
 }
 
+const getTextPreview = (base64Data: string): string => {
+  const content = getTextContent(base64Data)
+  return content.length > 30 ? content.substring(0, 30) + '...' : content
+}
+
 const openAttachmentDialog = () => {
   if (isSending.value) return
   attachmentInputRef.value?.click()
@@ -348,22 +337,17 @@ const handleAttachmentSelection = async (files: FileList | null) => {
   if (!files || files.length === 0) return
 
   for (const file of Array.from(files)) {
-    if (file.size > MAX_ATTACHMENT_SIZE) {
-      toast.error(`"${file.name}" は上限サイズ（${formatFileSize(MAX_ATTACHMENT_SIZE)}）を超えています`)
-      continue
-    }
-
-    if (!SUPPORTED_ATTACHMENT_TYPES_SET.has(file.type as (typeof SUPPORTED_ATTACHMENT_TYPES)[number])) {
-      toast.error(`"${file.name}" は対応していない形式です`)
-      continue
-    }
-
     try {
       const attachedFile = await convertFileToAttachedFile(file)
       chatStore.attachFile(attachedFile)
+      // プレビューURLを管理対象に追加
+      if (attachedFile.previewUrl) {
+        previewUrls.value.add(attachedFile.previewUrl)
+      }
     } catch (error) {
       logger.error('ファイル添付に失敗しました', { component: 'ChatInterface', fileName: file.name }, error)
-      toast.error(`"${file.name}" の読み込みに失敗しました`)
+      const errorMessage = error instanceof Error ? error.message : `"${file.name}" の読み込みに失敗しました`
+      toast.error(errorMessage)
     }
   }
 }
@@ -386,6 +370,12 @@ const handleAttachmentChange = async (event: Event) => {
 }
 
 const removeAttachment = (fileId: string) => {
+  // プレビューURLを解放
+  const file = attachedFiles.value.find((f) => f.id === fileId)
+  if (file?.previewUrl) {
+    URL.revokeObjectURL(file.previewUrl)
+    previewUrls.value.delete(file.previewUrl)
+  }
   chatStore.removeAttachment(fileId)
 }
 
@@ -485,6 +475,9 @@ const handleGeminiError = (error: ApiError | null) => {
 }
 
 const sendMessage = async (options?: { contentOverride?: string; skipAddingUserMessage?: boolean; attachmentsOverride?: AttachedFile[] }) => {
+  // 二重送信防止の早期リターン
+  if (isSending.value) return
+
   const rawContent = options?.contentOverride ?? inputText.value
   const content = rawContent.trim()
   const attachmentsToSend = options?.attachmentsOverride ?? attachedFiles.value.map((file) => ({ ...file }))
@@ -493,11 +486,6 @@ const sendMessage = async (options?: { contentOverride?: string; skipAddingUserM
   if (!content && !hasAttachmentsToSend) return
 
   dismissRetryToast()
-
-  // レースコンディションを防ぐため、送信前にattachmentsをクリア
-  if (!options?.attachmentsOverride) {
-    chatStore.clearInput()
-  }
 
   try {
     const success = await currentApiStore.value.sendChatMessage({
@@ -509,8 +497,16 @@ const sendMessage = async (options?: { contentOverride?: string; skipAddingUserM
       onRetryStarted: notifyRetryStarted,
     })
 
-    if (success) {
-      // 送信成功時は既にクリア済みなので何もしない
+    // 成功時のみ入力クリア（レースコンディション対策）
+    if (success && !options?.attachmentsOverride) {
+      // 添付ファイルのプレビューURLを解放
+      attachmentsToSend.forEach((file) => {
+        if (file.previewUrl) {
+          URL.revokeObjectURL(file.previewUrl)
+          previewUrls.value.delete(file.previewUrl)
+        }
+      })
+      chatStore.clearInput()
     }
   } catch (error) {
     logger.error('Message sending error:', { component: 'ChatInterface' }, error)
@@ -668,13 +664,17 @@ watch(
   }
 )
 
+// プレビューURLを管理（メモリリーク防止）
+const previewUrls = ref<Set<string>>(new Set())
+
 onMounted(() => {
   scrollToBottomInternal()
 })
 
 onUnmounted(() => {
-  // URL.createObjectURLで作成されたURLをクリーンアップ
-  revokeAllObjectURLs()
+  // プレビューURLをクリーンアップ
+  previewUrls.value.forEach((url) => URL.revokeObjectURL(url))
+  previewUrls.value.clear()
 })
 
 watch(

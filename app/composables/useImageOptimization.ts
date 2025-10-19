@@ -14,7 +14,7 @@ export interface ImageOptimizationOptions {
   enableWebP?: boolean
   /** WebP品質（0-1、デフォルト: 0.9） */
   webpQuality?: number
-  /** 最大ファイルサイズ（バイト、デフォルト: 5MB） */
+  /** 最大ファイルサイズ（バイト、デフォルト: 10MB） */
   maxSizeMB?: number
 }
 

@@ -30,7 +30,7 @@ const DEFAULT_ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/we
 export async function processFileOrAttachedFile(
   file: File | AttachedFile,
   uploadImage: (file: File) => Promise<ImageUploadResult | null>
-): Promise<{ base64Data: string; mimeType: string; size: number; base64: string }> {
+): Promise<{ mimeType: string; size: number; base64: string }> {
   let base64Data: string
   let mimeType: string
   let size: number
@@ -58,7 +58,7 @@ export async function processFileOrAttachedFile(
     throw new Error('画像データの抽出に失敗しました')
   }
 
-  return { base64Data, mimeType, size, base64 }
+  return { mimeType, size, base64 }
 }
 
 export function useImageUpload(options: ImageUploadOptions = {}) {
@@ -201,12 +201,12 @@ export function useImageUpload(options: ImageUploadOptions = {}) {
   }
 }
 
-// 特定用途向けのプリセット（設定に基づいて最適化を有効化）
+// 特定用途向けのプリセット
 export function useAvatarImageUpload() {
   const settingsStore = useSettingsStore()
   return useImageUpload({
-    maxSize: 5 * 1024 * 1024, // 5MB
-    allowedTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif'],
+    maxSize: DEFAULT_MAX_SIZE,
+    allowedTypes: DEFAULT_ALLOWED_TYPES,
     enableOptimization: settingsStore.settings.enableImageOptimization,
     optimizationOptions: {
       maxWidth: settingsStore.settings.maxImageWidth,
@@ -221,8 +221,8 @@ export function useAvatarImageUpload() {
 export function useBackgroundImageUpload() {
   const settingsStore = useSettingsStore()
   return useImageUpload({
-    maxSize: 5 * 1024 * 1024, // 5MB
-    allowedTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif'],
+    maxSize: DEFAULT_MAX_SIZE,
+    allowedTypes: DEFAULT_ALLOWED_TYPES,
     enableOptimization: settingsStore.settings.enableImageOptimization,
     optimizationOptions: {
       maxWidth: settingsStore.settings.maxImageWidth,
@@ -237,8 +237,8 @@ export function useBackgroundImageUpload() {
 export function useProfileImageUpload() {
   const settingsStore = useSettingsStore()
   return useImageUpload({
-    maxSize: 5 * 1024 * 1024, // 5MB
-    allowedTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif'],
+    maxSize: DEFAULT_MAX_SIZE,
+    allowedTypes: DEFAULT_ALLOWED_TYPES,
     enableOptimization: settingsStore.settings.enableImageOptimization,
     optimizationOptions: {
       maxWidth: settingsStore.settings.maxImageWidth,
