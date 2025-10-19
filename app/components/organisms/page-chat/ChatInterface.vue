@@ -295,7 +295,6 @@ const SUPPORTED_ATTACHMENT_TYPES = [
   'image/png',
   'image/jpeg',
   'image/webp',
-  'application/pdf',
   'text/plain',
   'text/csv',
   'text/html',
@@ -313,7 +312,6 @@ const SUPPORTED_ATTACHMENT_TYPES_SET = new Set(SUPPORTED_ATTACHMENT_TYPES)
 
 const getAttachmentIcon = (mimeType: string) => {
   if (mimeType.startsWith('image/')) return 'mdi:file-image-outline'
-  if (mimeType === 'application/pdf') return 'mdi:file-pdf-box'
   if (mimeType.startsWith('text/') || mimeType === 'application/json' || mimeType === 'application/xml' || mimeType === 'text/xml') return 'mdi:file-document-outline'
   return 'mdi:file-outline'
 }
