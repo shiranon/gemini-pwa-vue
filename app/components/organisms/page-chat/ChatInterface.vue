@@ -184,7 +184,7 @@ import { Button } from '~/components/ui/button'
 import { Icon } from '@iconify/vue'
 import { hexToRgba } from '~/utils/color'
 import { extractBackgroundSelectionFromMessage, getBackgroundImageDataUrl, getLatestAssistantMessage } from '~/utils/backgroundManager'
-import { useBackgroundDirectiveExtractor } from '~/composables/useBackgroundDirectiveExtractor'
+import { backgroundDirectiveExtractor } from '~/lib/backgroundDirectiveExtractor'
 import type { ApiError, ChatMessage, AttachedFile, Message, AssistantMessage } from '~/types/chat'
 import { toast } from 'vue-sonner'
 import { logger } from '~/utils/logger'
@@ -228,7 +228,7 @@ const attachmentInputRef = ref<HTMLInputElement | null>(null)
 const { currentBackgroundUrl, setTemporaryBackground } = useTemporaryBackground()
 
 // 背景ディレクティブ抽出用のcomposable
-const { extractDirectiveFromContent } = useBackgroundDirectiveExtractor({
+const { extractDirectiveFromContent } = backgroundDirectiveExtractor({
   maxDepth: 10,
   enableCaching: true,
 })

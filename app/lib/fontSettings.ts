@@ -20,7 +20,7 @@ export interface FontSettings {
   selectedPreset: string
 }
 
-export const useFontSettings = () => {
+export const fontSettings = () => {
   const fontPresets: FontPreset[] = [
     {
       label: '標準（システムUI）',
@@ -120,7 +120,7 @@ export const useFontSettings = () => {
       try {
         await loadWebFont(preset)
       } catch (error) {
-        logger.warn('Webフォントの読み込みに失敗:', { component: 'useFontSettings' }, error)
+        logger.warn('Webフォントの読み込みに失敗:', { component: 'fontSettings' }, error)
       }
     }
 
@@ -134,7 +134,7 @@ export const useFontSettings = () => {
 
     const exists = checkSystemFont(fontName)
     if (!exists) {
-      logger.warn(`フォント「${fontName}」がシステムに見つかりません`, { component: 'useFontSettings' })
+      logger.warn(`フォント「${fontName}」がシステムに見つかりません`, { component: 'fontSettings' })
     }
 
     const fontStack = `"${fontName}", ${fontPresets[0]?.stack || 'system-ui, sans-serif'}`

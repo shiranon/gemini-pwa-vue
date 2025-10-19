@@ -320,6 +320,7 @@ import { Slider } from '~/components/ui/slider'
 import { RadioGroup, RadioGroupItem } from '~/components/ui/radio-group'
 import type { AppSettings } from '~/types/settings'
 import { clamp } from '~/utils/calc'
+import { fontSettings } from '~/lib/fontSettings'
 
 interface Props {
   localSettings: AppSettings
@@ -327,7 +328,7 @@ interface Props {
 }
 
 const props = defineProps<Props>()
-const { fontPresets, applyPreset, applySystemFont, applyUploadedFont } = useFontSettings()
+const { fontPresets, applyPreset, applySystemFont, applyUploadedFont } = fontSettings()
 
 const imageJustifyOptions = [
   { value: 'start', label: '左寄せ' },

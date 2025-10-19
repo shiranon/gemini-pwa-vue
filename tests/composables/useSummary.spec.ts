@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, mock } from 'bun:test'
-import { summarizeChatHistory, type SummaryOptions } from '~/composables/useSummary'
+import { summarizeChatHistory, type SummaryOptions } from '~/lib/summary'
 
 // モックの定義
 const mockGeminiClient = {

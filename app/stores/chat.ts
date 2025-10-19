@@ -6,7 +6,7 @@
 import { defineStore } from 'pinia'
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { useChatQuery, useDatabase } from '~/composables/useDatabase'
-import { summarizeChatHistory } from '~/composables/useSummary'
+import { summarizeChatHistory } from '~/lib/summary'
 import type { ApiError, AssistantMessage, AttachedFile, ChatInputState, ChatSession, Message, MessageDisplayState, StreamingState, UserMessage } from '~/types/chat'
 import type { FunctionCall, FunctionCallResult } from '~/types/function-calling'
 import { logger } from '~/utils/logger'
