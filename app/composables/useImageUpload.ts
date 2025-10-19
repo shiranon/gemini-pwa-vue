@@ -1,6 +1,6 @@
 import { readonly, ref } from 'vue'
-import type { AttachedFile } from '~/types/chat'
 import { useSettingsStore } from '~/stores/settings'
+import type { AttachedFile } from '~/types/chat'
 import { useImageOptimization, type ImageOptimizationOptions } from './useImageOptimization'
 
 export interface ImageUploadOptions {

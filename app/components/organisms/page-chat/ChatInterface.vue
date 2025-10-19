@@ -63,13 +63,31 @@
           class="bg-background/80 flex items-center justify-between gap-3 rounded-md px-3 py-2"
         >
           <div class="flex min-w-0 flex-1 items-center gap-3">
+            <!-- 画像の場合はプレビュー、それ以外はアイコン -->
+            <img
+              v-if="isImageFile(file.type) && file.previewUrl"
+              :src="file.previewUrl"
+              :alt="file.name"
+              class="h-auto w-20 flex-shrink-0 rounded object-cover"
+            />
             <Icon
+              v-else
               :icon="getAttachmentIcon(file.type)"
               class="text-muted-foreground h-4 w-4 flex-shrink-0"
             />
-            <div class="min-w-0">
+            <div class="min-w-0 flex-1">
               <p class="truncate text-sm font-medium">{{ file.name }}</p>
               <p class="text-muted-foreground text-xs">{{ formatFileSize(file.size) }}</p>
+
+              <!-- テキストファイルプレビュー -->
+              <div
+                v-if="isTextFile(file.type) && file.data"
+                class="mt-2"
+              >
+                <div class="bg-muted/30 max-h-24 overflow-y-auto rounded border p-2 text-xs">
+                  <pre class="whitespace-pre-wrap">{{ getTextContent(file.data).substring(0, 30) }}{{ getTextContent(file.data).length > 200 ? '...' : '' }}</pre>
+                </div>
+              </div>
             </div>
           </div>
           <Button
@@ -188,8 +206,8 @@ import { backgroundDirectiveExtractor } from '~/lib/backgroundDirectiveExtractor
 import type { ApiError, ChatMessage, AttachedFile, Message, AssistantMessage } from '~/types/chat'
 import { toast } from 'vue-sonner'
 import { logger } from '~/utils/logger'
-import { convertFileToAttachedFile } from '~/lib/file'
 import { formatFileSize } from '~/lib/format'
+import { convertFileToAttachedFile } from '~/lib/file'
 
 const chatStore = useChatStore()
 const settingsStore = useSettingsStore()
@@ -265,6 +283,7 @@ const messages = computed(() =>
     translatedThoughts: msg.role === 'assistant' ? (msg as AssistantMessage).translatedThoughts : undefined,
     functionCalls: msg.role === 'assistant' ? (msg as AssistantMessage).functionCalls : undefined,
     functionResults: msg.role === 'assistant' ? (msg as AssistantMessage).functionResults : undefined,
+    attachments: 'attachments' in msg ? msg.attachments : undefined,
     isStreamingComplete: true,
   }))
 )
@@ -272,13 +291,10 @@ const retryDialogTargetMessage = computed(() => chatStore.retryTargetMessage as 
 const retryDialogResendMessage = computed(() => chatStore.retryResendMessage as Message | null)
 const isSending = computed(() => geminiStore.isSending)
 const hasAttachments = computed(() => attachedFiles.value.length > 0)
-const attachmentAccept = 'image/*,application/pdf,text/*,audio/*'
-const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024
-const SUPPORTED_ATTACHMENT_TYPES = new Set([
+const SUPPORTED_ATTACHMENT_TYPES = [
   'image/png',
   'image/jpeg',
   'image/webp',
-  'image/gif',
   'application/pdf',
   'text/plain',
   'text/csv',
@@ -288,21 +304,41 @@ const SUPPORTED_ATTACHMENT_TYPES = new Set([
   'application/json',
   'application/xml',
   'text/xml',
-  'audio/mpeg',
-  'audio/wav',
-  'audio/ogg',
-  'audio/mp4',
-  'audio/webm',
-  'audio/aac',
-  'audio/flac',
-])
+  'text/markdown',
+] as const
+
+const attachmentAccept = SUPPORTED_ATTACHMENT_TYPES.join(',')
+const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024
+const SUPPORTED_ATTACHMENT_TYPES_SET = new Set(SUPPORTED_ATTACHMENT_TYPES)
 
 const getAttachmentIcon = (mimeType: string) => {
   if (mimeType.startsWith('image/')) return 'mdi:file-image-outline'
   if (mimeType === 'application/pdf') return 'mdi:file-pdf-box'
-  if (mimeType.startsWith('audio/')) return 'mdi:file-music-outline'
   if (mimeType.startsWith('text/') || mimeType === 'application/json' || mimeType === 'application/xml' || mimeType === 'text/xml') return 'mdi:file-document-outline'
   return 'mdi:file-outline'
+}
+
+const isImageFile = (mimeType: string) => {
+  return ['image/png', 'image/jpeg', 'image/webp'].includes(mimeType)
+}
+
+const isTextFile = (mimeType: string) => {
+  return ['text/plain', 'text/csv', 'text/html', 'text/css', 'text/javascript', 'application/json', 'application/xml', 'text/xml', 'text/markdown'].includes(mimeType)
+}
+
+const getTextContent = (base64Data: string): string => {
+  try {
+    // Base64データをデコードしてテキストに変換（UTF-8対応）
+    const binaryString = atob(base64Data)
+    const bytes = new Uint8Array(binaryString.length)
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i)
+    }
+    return new TextDecoder('utf-8').decode(bytes)
+  } catch (error) {
+    console.warn('テキストのデコードに失敗しました:', error)
+    return '[テキストの読み込みに失敗しました]'
+  }
 }
 
 const openAttachmentDialog = () => {
@@ -319,7 +355,7 @@ const handleAttachmentSelection = async (files: FileList | null) => {
       continue
     }
 
-    if (!SUPPORTED_ATTACHMENT_TYPES.has(file.type)) {
+    if (!SUPPORTED_ATTACHMENT_TYPES_SET.has(file.type as (typeof SUPPORTED_ATTACHMENT_TYPES)[number])) {
       toast.error(`"${file.name}" は対応していない形式です`)
       continue
     }
@@ -334,10 +370,21 @@ const handleAttachmentSelection = async (files: FileList | null) => {
   }
 }
 
-const handleAttachmentChange = (event: Event) => {
+const handleAttachmentChange = async (event: Event) => {
   const target = event.target as HTMLInputElement
-  void handleAttachmentSelection(target.files)
-  if (target) target.value = ''
+  const files = target.files
+
+  if (files && files.length > 0) {
+    try {
+      await handleAttachmentSelection(files)
+    } catch (error) {
+      logger.error('ファイル添付処理でエラーが発生しました', { component: 'ChatInterface' }, error)
+      toast.error('ファイルの処理中にエラーが発生しました')
+    } finally {
+      // 処理完了後にinputをクリア（同じファイルを再度選択可能にするため）
+      if (target) target.value = ''
+    }
+  }
 }
 
 const removeAttachment = (fileId: string) => {

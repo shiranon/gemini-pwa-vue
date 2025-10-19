@@ -83,8 +83,6 @@ export interface AttachedFileRecord {
   size: number
   /** Base64エンコードされたデータ */
   data: string
-  /** プレビュー用のURL（画像の場合） */
-  previewUrl?: string
   /** 作成日時 */
   createdAt: number
 }

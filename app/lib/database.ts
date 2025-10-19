@@ -405,8 +405,9 @@ export function messageRecordToMessage(record: MessageRecord): Message {
 }
 
 export function fileToRecord(file: AttachedFile, messageId: string, chatId: string): AttachedFileRecord {
+  const { previewUrl, ...fileWithoutPreviewUrl } = file
   return {
-    ...file,
+    ...fileWithoutPreviewUrl,
     messageId,
     chatId,
   }

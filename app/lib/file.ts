@@ -14,6 +14,12 @@ import type { AttachedFile } from '~/types/chat'
 export const convertFileToAttachedFile = async (file: File): Promise<AttachedFile> => {
   const id = generateFileId()
 
+  // プレビュー用のURLを作成（画像の場合のみ）
+  let previewUrl: string | undefined
+  if (file.type.startsWith('image/')) {
+    previewUrl = URL.createObjectURL(file)
+  }
+
   // Base64エンコード
   const data = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader()
@@ -40,6 +46,7 @@ export const convertFileToAttachedFile = async (file: File): Promise<AttachedFil
     type: file.type,
     size: file.size,
     data,
+    previewUrl,
     createdAt: Date.now(),
   }
 }
