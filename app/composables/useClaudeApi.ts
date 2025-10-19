@@ -431,10 +431,12 @@ export const useClaudeApi = () => {
     const result: MessageParam[] = []
     // assistantメッセージのtool_use IDを保存（次のuserメッセージで参照）
     const toolUseIdMap = new Map<number, string[]>()
+    const lastIndex = messages.length - 1
 
     for (let i = 0; i < messages.length; i++) {
       const m = messages[i]
       if (!m) continue
+      const isLatestMessage = i === lastIndex
 
       // assistantメッセージにfunctionCallsがある場合、content blocksに変換
       if (m.role === 'assistant' && m.functionCalls) {
@@ -470,8 +472,13 @@ export const useClaudeApi = () => {
           blocks.push({ type: 'text', text: m.content })
         }
 
+        // 最新メッセージ以外の添付ファイルは除外してトークンを節約
         if (m.attachments?.length) {
-          blocks.push(...buildAttachmentBlocks(m.attachments))
+          if (isLatestMessage) {
+            blocks.push(...buildAttachmentBlocks(m.attachments))
+          } else {
+            blocks.push({ type: 'text', text: '[添付ファイル]' })
+          }
         }
 
         // 直前のassistantメッセージのtool_use IDを取得
@@ -510,8 +517,13 @@ export const useClaudeApi = () => {
           if (m.content) {
             blocks.push({ type: 'text', text: m.content })
           }
+          // 最新メッセージ以外の添付ファイルは除外してトークンを節約
           if (m.attachments?.length) {
-            blocks.push(...buildAttachmentBlocks(m.attachments))
+            if (isLatestMessage) {
+              blocks.push(...buildAttachmentBlocks(m.attachments))
+            } else {
+              blocks.push({ type: 'text', text: '[添付ファイル]' })
+            }
           }
 
           if (blocks.length === 0) {

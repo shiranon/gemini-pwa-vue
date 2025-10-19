@@ -376,7 +376,9 @@ export const useOpenAiAgentsApi = () => {
    * メッセージを OpenAI Agents SDK の AgentInputItem 配列に変換
    */
   const toAgentInputItems = (messages: GeminiMessage[]): AgentInputItem[] => {
-    return messages.map((m) => {
+    const lastIndex = messages.length - 1
+    return messages.map((m, index) => {
+      const isLatestMessage = index === lastIndex
       if (m.role === 'user') {
         const contentItems: UserContentPayload[] = []
         let hasText = false
@@ -389,22 +391,29 @@ export const useOpenAiAgentsApi = () => {
               hasText = true
             }
           } else if ('inlineData' in part) {
-            const mimeType = part.inlineData.mimeType || 'application/octet-stream'
-            const dataUrl = `data:${mimeType};base64,${part.inlineData.data}`
+            // 最新メッセージ以外のinlineDataは除外してトークンを節約
+            if (isLatestMessage) {
+              const mimeType = part.inlineData.mimeType || 'application/octet-stream'
+              const dataUrl = `data:${mimeType};base64,${part.inlineData.data}`
 
-            if (mimeType.startsWith('image/')) {
-              contentItems.push({ type: 'input_image', image: dataUrl })
-            } else {
-              const isTextLike = TEXT_LIKE_MIME_PREFIXES.some((prefix) => (prefix.endsWith('/') ? mimeType.startsWith(prefix) : mimeType === prefix))
-
-              if (isTextLike) {
-                const decoded = decodeBase64ToUtf8(part.inlineData.data)
-                const textForModel = decoded ?? `[Attachment: ${mimeType}] Base64 content (decode manually):\n\n${part.inlineData.data}`
-                contentItems.push({ type: 'input_text', text: textForModel })
-                hasText = true
+              if (mimeType.startsWith('image/')) {
+                contentItems.push({ type: 'input_image', image: dataUrl })
               } else {
-                contentItems.push({ type: 'input_file', file: dataUrl })
+                const isTextLike = TEXT_LIKE_MIME_PREFIXES.some((prefix) => (prefix.endsWith('/') ? mimeType.startsWith(prefix) : mimeType === prefix))
+
+                if (isTextLike) {
+                  const decoded = decodeBase64ToUtf8(part.inlineData.data)
+                  const textForModel = decoded ?? `[Attachment: ${mimeType}] Base64 content (decode manually):\n\n${part.inlineData.data}`
+                  contentItems.push({ type: 'input_text', text: textForModel })
+                  hasText = true
+                } else {
+                  contentItems.push({ type: 'input_file', file: dataUrl })
+                }
               }
+            } else {
+              // 添付ファイルがあったことを示すプレースホルダーテキストに置き換え
+              contentItems.push({ type: 'input_text', text: '[添付ファイル]' })
+              hasText = true
             }
           }
         }

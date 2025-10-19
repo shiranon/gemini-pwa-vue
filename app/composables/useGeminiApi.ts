@@ -14,13 +14,13 @@ import {
   type ToolConfig,
 } from '@google/genai'
 import { useFunctionCalling } from '~/composables/useFunctionCalling'
+import { executeFunctionCallsCommon, filterFunctionsByAllowedNames, logFunctionCallCompletion } from '~/lib/apiCommon'
 import { generateMessageId } from '~/lib/ids'
 import { useChatStore } from '~/stores/chat'
+import type { ThoughtExtractionResult } from '~/types/api'
 import type { GeminiApiSettings, GeminiMessage } from '~/types/chat'
 import type { FunctionCall, FunctionCallResult } from '~/types/function-calling'
-import type { ThoughtExtractionResult } from '~/types/api'
 import { logger } from '~/utils/logger'
-import { executeFunctionCallsCommon, filterFunctionsByAllowedNames, logFunctionCallCompletion } from '~/lib/apiCommon'
 
 type ResponseLike = GenerateContentResponse
 
@@ -206,12 +206,21 @@ export const useGeminiApi = () => {
    * Gemini API を非ストリーミングで呼び出す
    */
   const toContent = (messages: GeminiMessage[]): Content[] => {
-    return messages.map((m) => {
+    const lastIndex = messages.length - 1
+    return messages.map((m, index) => {
+      const isLatestMessage = index === lastIndex
       const parts: Part[] = m.parts.map((p) => {
         if ('text' in p) return { text: p.text }
         if ('functionCall' in p) return createPartFromFunctionCall(p.functionCall.name, (p.functionCall.args ?? {}) as Record<string, unknown>)
         if ('functionResponse' in p) return createPartFromFunctionResponse(generateMessageId(), p.functionResponse.name, (p.functionResponse.response ?? {}) as Record<string, unknown>)
-        if ('inlineData' in p) return { inlineData: { mimeType: p.inlineData.mimeType, data: p.inlineData.data } }
+        // 最新メッセージ以外のinlineDataは除外してトークンを節約
+        if ('inlineData' in p) {
+          if (isLatestMessage) {
+            return { inlineData: { mimeType: p.inlineData.mimeType, data: p.inlineData.data } }
+          }
+          // 添付ファイルがあったことを示すプレースホルダーテキストに置き換え
+          return { text: '[添付ファイル]' }
+        }
         return { text: '' }
       })
       return { role: m.role, parts }
