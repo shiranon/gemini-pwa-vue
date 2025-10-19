@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test'
 import type { LogContext, LogLevel } from '~/types/logger'
 import { Logger } from '~/utils/logger'
 
@@ -6,12 +6,12 @@ describe('Logger', () => {
   let logger: Logger
   let originalEnv: string | undefined
   let consoleSpy: {
-    debug: ReturnType<typeof vi.spyOn>
-    info: ReturnType<typeof vi.spyOn>
-    warn: ReturnType<typeof vi.spyOn>
-    error: ReturnType<typeof vi.spyOn>
-    group: ReturnType<typeof vi.spyOn>
-    groupEnd: ReturnType<typeof vi.spyOn>
+    debug: ReturnType<typeof mock>
+    info: ReturnType<typeof mock>
+    warn: ReturnType<typeof mock>
+    error: ReturnType<typeof mock>
+    group: ReturnType<typeof mock>
+    groupEnd: ReturnType<typeof mock>
   }
 
   beforeEach(() => {
@@ -19,20 +19,26 @@ describe('Logger', () => {
     originalEnv = process.env.NODE_ENV
     process.env.NODE_ENV = 'development'
 
+    // consoleメソッドをモック
+    consoleSpy = {
+      debug: mock(() => {}),
+      info: mock(() => {}),
+      warn: mock(() => {}),
+      error: mock(() => {}),
+      group: mock(() => {}),
+      groupEnd: mock(() => {}),
+    }
+
+    // 実際のconsoleオブジェクトをモックで置き換え
+    Object.defineProperty(global, 'console', {
+      value: consoleSpy,
+      writable: true,
+    })
+
     // 新しいLoggerインスタンスを作成
     logger = new Logger()
 
-    // consoleメソッドをスパイ
-    consoleSpy = {
-      debug: vi.spyOn(console, 'debug').mockImplementation(() => {}),
-      info: vi.spyOn(console, 'info').mockImplementation(() => {}),
-      warn: vi.spyOn(console, 'warn').mockImplementation(() => {}),
-      error: vi.spyOn(console, 'error').mockImplementation(() => {}),
-      group: vi.spyOn(console, 'group').mockImplementation(() => {}),
-      groupEnd: vi.spyOn(console, 'groupEnd').mockImplementation(() => {}),
-    }
-
-    vi.clearAllMocks()
+    mock.clearAllMocks()
   })
 
   afterEach(() => {
@@ -42,6 +48,12 @@ describe('Logger', () => {
     } else {
       delete process.env.NODE_ENV
     }
+
+    // consoleオブジェクトを復元
+    Object.defineProperty(global, 'console', {
+      value: console,
+      writable: true,
+    })
   })
 
   describe('開発環境での動作', () => {
@@ -95,7 +107,7 @@ describe('Logger', () => {
     })
 
     it('groupメソッドが動作する', () => {
-      const callback = vi.fn()
+      const callback = mock()
       logger.group('Test group', callback)
 
       expect(consoleSpy.group).toHaveBeenCalledWith('Test group')
@@ -143,7 +155,7 @@ describe('Logger', () => {
     it('testOnlyメソッドが動作する', () => {
       logger.testOnly('Test only message', { test: 'data' })
 
-      expect(consoleSpy.info).toHaveBeenCalledWith('Test Data:', { test: 'data' })
+      expect(consoleSpy.info).toHaveBeenCalledTimes(1)
       expect(consoleSpy.info).toHaveBeenCalledWith('Test Data:', { test: 'data' })
     })
 
@@ -155,7 +167,7 @@ describe('Logger', () => {
     })
 
     it('groupメソッドは動作しない', () => {
-      const callback = vi.fn()
+      const callback = mock()
       logger.group('Test group', callback)
 
       expect(consoleSpy.group).not.toHaveBeenCalled()
@@ -214,7 +226,7 @@ describe('Logger', () => {
     })
 
     it('groupメソッドは動作しない', () => {
-      const callback = vi.fn()
+      const callback = mock()
       logger.group('Test group', callback)
 
       expect(consoleSpy.group).not.toHaveBeenCalled()
@@ -362,7 +374,7 @@ describe('Logger', () => {
           expect(consoleSpy.error).toHaveBeenCalled()
         }
 
-        vi.clearAllMocks()
+        mock.clearAllMocks()
       })
     })
   })

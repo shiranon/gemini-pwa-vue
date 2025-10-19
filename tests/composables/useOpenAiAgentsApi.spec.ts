@@ -31,7 +31,7 @@ mock.module('~/composables/useFunctionCalling', () => ({
         name: 'test_function',
         description: 'Test function',
         parameters: {
-          type: 'object',
+          type: 'OBJECT',
           properties: {
             param1: { type: 'string' },
           },
@@ -838,21 +838,6 @@ describe('useOpenAiAgentsApi', () => {
   describe('スキーマ変換', () => {
     it('GeminiスキーマをOpenAI形式に正しく変換する', () => {
       const composable = getComposable()
-
-      // 内部関数をテストするため、直接呼び出し
-      const _geminiSchema = {
-        type: 'OBJECT',
-        properties: {
-          param1: {
-            type: 'STRING',
-            description: 'Test parameter',
-          },
-          param2: {
-            type: 'NUMBER',
-            description: 'Number parameter',
-          },
-        },
-      }
 
       // convertGeminiSchemaToOpenAi関数は内部関数なので、
       // 実際の使用例でテストする

@@ -4,6 +4,7 @@ on: push
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -25,6 +26,13 @@ jobs:
             ${{ runner.os }}-bun-
 
       - run: bun install --frozen-lockfile
-      - run: TZ=Asia/Tokyo bun test --silent --no-color
+      - run: bun test --version
+      - run: node --version
+      - run: rm -rf node_modules/.cache
+      - run: |
+          export NODE_ENV=test
+          export TZ=Asia/Tokyo
+          export NODE_OPTIONS="--max-old-space-size=4096"
+          bun test --verbose --serial
       - run: bun typecheck
       - run: NODE_OPTIONS="--no-experimental-fetch" bun run build

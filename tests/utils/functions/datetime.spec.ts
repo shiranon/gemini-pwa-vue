@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { Type } from '@google/genai'
+import { beforeEach, describe, expect, it, mock } from 'bun:test'
 import type { FunctionCallArgs, FunctionExecutionContext } from '~/types/function-calling'
 import { getCurrentDateTime, getCurrentDateTimeDeclaration } from '~/utils/functions/datetime'
 
@@ -10,7 +11,7 @@ describe('getCurrentDateTime', () => {
       persistentMemory: {},
       timestamp: Date.now(),
     }
-    vi.clearAllMocks()
+    mock.clearAllMocks()
   })
 
   describe('正常系', () => {
@@ -268,7 +269,7 @@ describe('getCurrentDateTime', () => {
     it('正しい宣言が定義されている', () => {
       expect(getCurrentDateTimeDeclaration.name).toBe('getCurrentDateTime')
       expect(getCurrentDateTimeDeclaration.description).toContain('現在の日付と時刻')
-      expect(getCurrentDateTimeDeclaration.parameters?.type).toBe('OBJECT')
+      expect(getCurrentDateTimeDeclaration.parameters?.type).toBe(Type.OBJECT)
       expect(getCurrentDateTimeDeclaration.parameters?.properties).toEqual({})
     })
   })

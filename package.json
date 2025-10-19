@@ -10,7 +10,7 @@
     "generate": "nuxt generate",
     "preview": "nuxt preview --port 8880",
     "postinstall": "nuxt prepare",
-    "test": "TZ=Asia/Tokyo vitest",
+    "test": "TZ=Asia/Tokyo bun test",
     "check-all": "bun lint --fix && bun typecheck && bun test",
     "generate-pwa-assets": "pwa-assets-generator --preset minimal-2023 public/icon.png"
   },
@@ -58,7 +58,6 @@
     "@iconify/vue": "5.0.0",
     "@mizchi/lsmcp": "0.10.0",
     "@nuxt/eslint": "1.9.0",
-    "@nuxt/test-utils": "3.19.2",
     "@nuxtjs/tailwindcss": "6.14.0",
     "@types/jszip": "3.4.1",
     "@types/node": "22.9.0",
@@ -73,7 +72,6 @@
     "prettier-plugin-tailwindcss": "0.6.14",
     "typescript": "5.9.2",
     "vite-plugin-pwa": "1.0.3",
-    "vitest": "3.2.4",
     "vue-tsc": "3.0.8"
   },
   "resolutions": {

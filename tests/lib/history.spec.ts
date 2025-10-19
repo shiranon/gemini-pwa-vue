@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, mock } from 'bun:test'
 import { buildChatExportData, buildChatsExportData, parseImportData, parseImportDataWithDuplicateCheck, validateImportData } from '../../app/lib/history'
 import type { ChatSession, Message, PersistentMemory } from '../../app/types/chat'
 
@@ -40,7 +40,7 @@ const mockChatSessions: ChatSession[] = [
 ]
 
 // crypto.randomUUIDのモック
-const mockUUID = vi.fn()
+const mockUUID = mock()
 Object.defineProperty(global, 'crypto', {
   value: {
     randomUUID: mockUUID,
@@ -49,7 +49,7 @@ Object.defineProperty(global, 'crypto', {
 
 describe('history.ts', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
+    mock.clearAllMocks()
     mockUUID.mockReturnValue('mocked-uuid')
   })
 

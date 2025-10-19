@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { isInteger, isPositiveInteger, isIntegerInRange, isNonEmptyString, isNonEmptyArray } from '~/utils/validation'
+import { describe, expect, it } from 'bun:test'
+import { isInteger, isIntegerInRange, isNonEmptyArray, isNonEmptyString, isPositiveInteger } from '~/utils/validation'
 
 describe('validation utilities', () => {
   describe('isInteger', () => {
