@@ -7,6 +7,30 @@ import type { GeminiApiSettings, GeminiMessage } from '~/types/chat'
 import type { FunctionCall, FunctionCallResult } from '~/types/function-calling'
 import { logger } from '~/utils/logger'
 
+const TEXT_LIKE_MIME_PREFIXES = ['text/', 'application/json', 'application/xml', 'application/javascript', 'application/x-yaml']
+
+const decodeBase64ToUtf8 = (base64: string): string | null => {
+  try {
+    if (typeof globalThis.atob === 'function') {
+      const binary = globalThis.atob(base64)
+      const bytes = new Uint8Array(binary.length)
+      for (let i = 0; i < binary.length; i += 1) {
+        bytes[i] = binary.charCodeAt(i)
+      }
+      return new TextDecoder('utf-8', { fatal: false }).decode(bytes)
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const bufferCtor = (globalThis as any).Buffer
+    if (bufferCtor && typeof bufferCtor.from === 'function') {
+      return bufferCtor.from(base64, 'base64').toString('utf-8')
+    }
+  } catch (error) {
+    logger.warn('[OpenAI] Base64 decode failed', { component: 'useOpenAiAgentsApi' }, error)
+  }
+  return null
+}
+
 /**
  * OpenAI Agents SDK のイベント型定義
  */
@@ -393,7 +417,16 @@ export const useOpenAiAgentsApi = () => {
             if (mimeType.startsWith('image/')) {
               contentItems.push({ type: 'input_image', image: dataUrl })
             } else {
-              contentItems.push({ type: 'input_file', file: dataUrl })
+              const isTextLike = TEXT_LIKE_MIME_PREFIXES.some((prefix) => (prefix.endsWith('/') ? mimeType.startsWith(prefix) : mimeType === prefix))
+
+              if (isTextLike) {
+                const decoded = decodeBase64ToUtf8(part.inlineData.data)
+                const textForModel = decoded ?? `[Attachment: ${mimeType}] Base64 content (decode manually):\n\n${part.inlineData.data}`
+                contentItems.push({ type: 'input_text', text: textForModel })
+                hasText = true
+              } else {
+                contentItems.push({ type: 'input_file', file: dataUrl })
+              }
             }
           }
         }

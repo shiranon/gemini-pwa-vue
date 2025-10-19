@@ -37,3 +37,6 @@ CLAUDE.local.md
 
 # bin
 bin/
+
+# lsmcp cache
+.lsmcp
