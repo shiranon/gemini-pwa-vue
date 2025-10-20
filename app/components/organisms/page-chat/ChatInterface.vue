@@ -129,6 +129,8 @@
             placeholder="メッセージを入力..."
             class="border-input focus:border-primary focus:ring-primary min-h-[80px] flex-1 resize-none rounded-lg border p-4 text-lg focus:ring-2 focus:outline-none"
             @keydown="handleKeydown"
+            @compositionstart="handleCompositionStart"
+            @compositionend="handleCompositionEnd"
           />
         </div>
         <div class="flex flex-col gap-2">
@@ -242,6 +244,7 @@ const messageContainer = ref<HTMLElement>()
 const backgroundUrl = ref<string | null>(null)
 const isProfileLoading = ref(false)
 const attachmentInputRef = ref<HTMLInputElement | null>(null)
+const isComposing = ref(false)
 
 // 一時的な背景画像管理
 const { currentBackgroundUrl, setTemporaryBackground } = useTemporaryBackground()
@@ -516,10 +519,18 @@ const sendMessage = async (options?: { contentOverride?: string; skipAddingUserM
 }
 
 const handleKeydown = (e: KeyboardEvent) => {
-  if (e.key === 'Enter' && !e.shiftKey && settingsStore.settings.enterToSend) {
+  if (e.key === 'Enter' && !e.shiftKey && settingsStore.settings.enterToSend && !isComposing.value) {
     e.preventDefault()
     sendMessage()
   }
+}
+
+const handleCompositionStart = () => {
+  isComposing.value = true
+}
+
+const handleCompositionEnd = () => {
+  isComposing.value = false
 }
 
 const clearChat = () => {
