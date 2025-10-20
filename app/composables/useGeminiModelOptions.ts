@@ -1,5 +1,6 @@
 import { onMounted, ref, watch, type ComputedRef, type Ref } from 'vue'
 import { useGeminiApi } from '~/composables/useGeminiApi'
+import { logger } from '~/lib/logger'
 
 export interface ModelOption {
   value: string

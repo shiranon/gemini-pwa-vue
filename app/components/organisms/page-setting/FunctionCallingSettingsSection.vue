@@ -147,7 +147,7 @@ import { useFunctionCalling } from '~/composables/useFunctionCalling'
 import type { AppSettings, SettingsProfileData } from '~/types/settings'
 import SettingSection from '~/components/molecules/page-setting/SettingSection.vue'
 import SettingToggle from '~/components/molecules/page-setting/SettingToggle.vue'
-import { computeNextEnabledFunctionTools } from '~/utils/selection'
+import { computeNextEnabledFunctionTools } from '~/function-calling/selection'
 
 export interface FunctionCallingSettingsSectionProps {
   localSettings: AppSettings

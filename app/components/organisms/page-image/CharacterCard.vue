@@ -70,7 +70,7 @@ import { Icon } from '@iconify/vue'
 import { Button } from '~/components/ui/button'
 import type { CharacterRecord, CharacterImageRecord } from '~/types/database'
 import { useCharacterImages } from '~/composables/useCharacterImages'
-import { logger } from '~/utils/logger'
+import { logger } from '~/lib/logger'
 
 interface Props {
   character: CharacterRecord

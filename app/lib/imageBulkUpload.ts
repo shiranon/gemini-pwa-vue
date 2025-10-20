@@ -1,5 +1,5 @@
 import type { useImageUpload } from '~/composables/useImageUpload'
-import { logger } from '~/utils/logger'
+import { logger } from '~/lib/logger'
 
 /**
  * 画像の一括アップロード処理の共通ロジック

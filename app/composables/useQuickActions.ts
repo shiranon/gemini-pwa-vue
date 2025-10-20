@@ -5,7 +5,7 @@ import { toast } from 'vue-sonner'
 import { useSettingsStore } from '~/stores/settings'
 import { useSettingsProfilesStore } from '~/stores/settingsProfiles'
 import type { SettingsProfileData } from '~/types/settings'
-import { logger } from '~/utils/logger'
+import { logger } from '~/lib/logger'
 
 // アイコンコンポーネントを事前にmarkRawで処理してメモリ効率を向上
 const ICON_MAP = {

@@ -377,7 +377,7 @@ import OutfitEditModal from '~/components/organisms/page-image/OutfitEditModal.v
 import ExpressionUploadModal from '~/components/organisms/page-image/ExpressionUploadModal.vue'
 import { useCharacterImages } from '~/composables/useCharacterImages'
 import { useFolderUpload, type FolderStructure } from '~/composables/useFolderUpload'
-import { logger } from '~/utils/logger'
+import { logger } from '~/lib/logger'
 import type { CharacterRecord, CharacterOutfitRecord, CharacterImageRecord } from '~/types/database'
 
 interface Props {

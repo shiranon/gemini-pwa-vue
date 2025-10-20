@@ -19,7 +19,7 @@ import { generateChatId as genChatId, generateFileId as genFileId, generateMessa
 import type { ChatSession, GetChatsOptions } from '~/types/chat'
 import type { ChatQueryOptions, DatabaseStats, ExportedData, ImportResult } from '~/types/database'
 import type { AppSettings } from '~/types/settings'
-import { logger } from '~/utils/logger'
+import { logger } from '~/lib/logger'
 
 const isInitialized = ref(false)
 const isLoading = ref(false)

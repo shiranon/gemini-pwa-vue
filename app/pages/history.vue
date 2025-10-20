@@ -111,6 +111,7 @@ import ConfirmDialog from '~/components/molecules/dialogs/ConfirmDialog.vue'
 import AlertDialog from '~/components/molecules/dialogs/AlertDialog.vue'
 import ImportDialog from '~/components/molecules/dialogs/ImportDialog.vue'
 import type { ChatSession } from '~/types/chat'
+import { logger } from '~/lib/logger'
 
 const {
   searchQuery,

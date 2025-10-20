@@ -130,7 +130,7 @@ import { Label } from '~/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '~/components/ui/radio-group'
 import { useFunctionCalling } from '~/composables/useFunctionCalling'
 import { useQuickActions } from '~/composables/useQuickActions'
-import { computeNextEnabledFunctionTools } from '~/utils/selection'
+import { computeNextEnabledFunctionTools } from '~/function-calling/selection'
 
 const isOpen = ref(false)
 

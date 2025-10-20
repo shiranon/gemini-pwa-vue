@@ -179,7 +179,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import BackgroundImageUploadModal from '~/components/organisms/page-image/BackgroundImageUploadModal.vue'
 import ConfirmDialog from '~/components/molecules/dialogs/ConfirmDialog.vue'
 import { useBackgroundImages } from '~/composables/useBackgroundImages'
-import { logger } from '~/utils/logger'
+import { logger } from '~/lib/logger'
 import type { BackgroundCategoryRecord, BackgroundImageRecord } from '~/types/database'
 
 interface Props {

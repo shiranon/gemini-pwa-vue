@@ -4,9 +4,9 @@ import { useFunctionCalling } from '~/composables/useFunctionCalling'
 import { loadSettingsProfiles as loadProfilesFromDB, saveSettingsProfiles as saveProfilesToDB } from '~/lib/database'
 import type { AppSettings, SettingsProfile, SettingsProfileData } from '~/types/settings'
 import { DEFAULT_SETTINGS } from '~/types/settings'
-import { logger } from '~/utils/logger'
-import type { ProfileSettingKey } from '~/utils/settingsPartition'
-import { cloneProfileSettings, extractProfileSettings, mergeProfilePartial } from '~/utils/settingsPartition'
+import { logger } from '~/lib/logger'
+import type { ProfileSettingKey } from '~/lib/settingsPartition'
+import { cloneProfileSettings, extractProfileSettings, mergeProfilePartial } from '~/lib/settingsPartition'
 
 export const useSettingsProfilesStore = defineStore('settingsProfiles', () => {
   const profiles = ref<SettingsProfile[]>([])

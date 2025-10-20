@@ -1,10 +1,10 @@
 import { computed, ref, watch } from 'vue'
 import { useSettingsStore } from '~/stores/settings'
 import type { AppSettings } from '~/types/settings'
-import { deepEqual } from '~/utils/comparison'
-import { logger } from '~/utils/logger'
-import type { GlobalSettingKey } from '~/utils/settingsPartition'
-import { extractGlobalSettings } from '~/utils/settingsPartition'
+import { deepEqual } from '~/lib/comparison'
+import { logger } from '~/lib/logger'
+import type { GlobalSettingKey } from '~/lib/settingsPartition'
+import { extractGlobalSettings } from '~/lib/settingsPartition'
 
 // ダイアログ関数の型定義
 interface DialogFunctions {

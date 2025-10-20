@@ -182,7 +182,7 @@ import { useSettingsProfilesStore } from '~/stores/settingsProfiles'
 import { useSettingsStore } from '~/stores/settings'
 import { useSettings } from '~/composables/useSettings'
 import { useProfileSettings } from '~/composables/useProfileSettings'
-import { logger } from '~/utils/logger'
+import { logger } from '~/lib/logger'
 
 // ダイアログの状態管理
 const isAlertDialogOpen = ref(false)

@@ -157,13 +157,13 @@ import { Textarea } from '~/components/ui/textarea'
 import MarkdownRenderer from '~/components/common/MarkdownRenderer.vue'
 import ConfirmDialog from '~/components/molecules/dialogs/ConfirmDialog.vue'
 import { useSettingsStore } from '~/stores/settings'
-import { hexToRgba } from '~/utils/color'
+import { hexToRgba } from '~/lib/color'
 import FunctionCallDisplay from '~/components/molecules/page-chat/FunctionCallDisplay.vue'
 import ThoughtProcessDisplay from '~/components/molecules/page-chat/ThoughtProcessDisplay.vue'
 import MessageAttachments from '~/components/molecules/page-chat/MessageAttachments.vue'
 import { storeToRefs } from 'pinia'
 import { Icon } from '@iconify/vue'
-import { logger } from '~/utils/logger'
+import { logger } from '~/lib/logger'
 
 interface Props {
   message: ChatMessage

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 // セキュリティ検証のテスト
-describe('Security Validation - File Type Validation', () => {
+describe('セキュリティ検証 - ファイルタイプ検証', () => {
   const SUPPORTED_ATTACHMENT_TYPES = new Set([
     'image/png',
     'image/jpeg',
@@ -27,8 +27,8 @@ describe('Security Validation - File Type Validation', () => {
 
   const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024 // 10MB
 
-  describe('Supported File Types', () => {
-    it('should accept all supported image types', () => {
+  describe('サポートされているファイルタイプ', () => {
+    it('サポートされている画像タイプをすべて受け入れること', () => {
       const supportedImageTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif']
 
       supportedImageTypes.forEach((type) => {
@@ -36,7 +36,7 @@ describe('Security Validation - File Type Validation', () => {
       })
     })
 
-    it('should accept all supported document types', () => {
+    it('サポートされている文書タイプをすべて受け入れること', () => {
       const supportedDocumentTypes = ['application/pdf', 'text/plain', 'text/csv', 'text/html', 'text/css', 'text/javascript', 'application/json', 'application/xml', 'text/xml']
 
       supportedDocumentTypes.forEach((type) => {
@@ -44,7 +44,7 @@ describe('Security Validation - File Type Validation', () => {
       })
     })
 
-    it('should accept all supported audio types', () => {
+    it('サポートされている音声タイプをすべて受け入れること', () => {
       const supportedAudioTypes = ['audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp4', 'audio/webm', 'audio/aac', 'audio/flac']
 
       supportedAudioTypes.forEach((type) => {
@@ -53,8 +53,8 @@ describe('Security Validation - File Type Validation', () => {
     })
   })
 
-  describe('Rejected File Types', () => {
-    it('should reject executable files', () => {
+  describe('拒否されるファイルタイプ', () => {
+    it('実行ファイルを拒否すること', () => {
       const executableTypes = ['application/x-executable', 'application/x-msdownload', 'application/x-sh', 'application/x-bat', 'application/x-cmd']
 
       executableTypes.forEach((type) => {
@@ -62,7 +62,7 @@ describe('Security Validation - File Type Validation', () => {
       })
     })
 
-    it('should reject archive files', () => {
+    it('アーカイブファイルを拒否すること', () => {
       const archiveTypes = ['application/zip', 'application/x-rar-compressed', 'application/x-7z-compressed', 'application/x-tar', 'application/gzip']
 
       archiveTypes.forEach((type) => {
@@ -70,7 +70,7 @@ describe('Security Validation - File Type Validation', () => {
       })
     })
 
-    it('should reject video files', () => {
+    it('動画ファイルを拒否すること', () => {
       const videoTypes = ['video/mp4', 'video/avi', 'video/mov', 'video/wmv', 'video/flv']
 
       videoTypes.forEach((type) => {
@@ -78,7 +78,7 @@ describe('Security Validation - File Type Validation', () => {
       })
     })
 
-    it('should reject potentially dangerous file types', () => {
+    it('潜在的に危険なファイルタイプを拒否すること', () => {
       const dangerousTypes = [
         'application/x-msdownload',
         'application/x-msdos-program',
@@ -96,7 +96,7 @@ describe('Security Validation - File Type Validation', () => {
       })
     })
 
-    it('should reject system files', () => {
+    it('システムファイルを拒否すること', () => {
       const systemTypes = ['application/x-dll', 'application/x-exe', 'application/x-elf', 'application/x-mach-o', 'application/x-sharedlib']
 
       systemTypes.forEach((type) => {
@@ -105,8 +105,8 @@ describe('Security Validation - File Type Validation', () => {
     })
   })
 
-  describe('File Size Validation', () => {
-    it('should accept files within size limit', () => {
+  describe('ファイルサイズ検証', () => {
+    it('サイズ制限内のファイルを受け入れること', () => {
       const validSizes = [
         1024, // 1KB
         1024 * 1024, // 1MB
@@ -119,7 +119,7 @@ describe('Security Validation - File Type Validation', () => {
       })
     })
 
-    it('should reject files exceeding size limit', () => {
+    it('サイズ制限を超えるファイルを拒否すること', () => {
       const invalidSizes = [
         11 * 1024 * 1024, // 11MB
         50 * 1024 * 1024, // 50MB
@@ -132,8 +132,8 @@ describe('Security Validation - File Type Validation', () => {
     })
   })
 
-  describe('MIME Type Validation Logic', () => {
-    it('should validate file type correctly', () => {
+  describe('MIMEタイプ検証ロジック', () => {
+    it('ファイルタイプを正しく検証すること', () => {
       const validateFileType = (mimeType: string) => {
         return SUPPORTED_ATTACHMENT_TYPES.has(mimeType)
       }
@@ -150,7 +150,7 @@ describe('Security Validation - File Type Validation', () => {
       expect(validateFileType('application/x-executable')).toBe(false)
     })
 
-    it('should handle case sensitivity', () => {
+    it('大文字小文字の区別を正しく処理すること', () => {
       const validateFileType = (mimeType: string) => {
         return SUPPORTED_ATTACHMENT_TYPES.has(mimeType)
       }
@@ -162,7 +162,7 @@ describe('Security Validation - File Type Validation', () => {
       expect(validateFileType('image/png')).toBe(true)
     })
 
-    it('should handle empty or invalid MIME types', () => {
+    it('空または無効なMIMEタイプを正しく処理すること', () => {
       const validateFileType = (mimeType: string) => {
         return SUPPORTED_ATTACHMENT_TYPES.has(mimeType)
       }
@@ -173,8 +173,8 @@ describe('Security Validation - File Type Validation', () => {
     })
   })
 
-  describe('File Extension Validation', () => {
-    it('should validate file extensions against MIME types', () => {
+  describe('ファイル拡張子検証', () => {
+    it('MIMEタイプに対してファイル拡張子を正しく検証すること', () => {
       const mimeTypeToExtensions: Record<string, string[]> = {
         'image/png': ['.png'],
         'image/jpeg': ['.jpg', '.jpeg'],
@@ -207,8 +207,8 @@ describe('Security Validation - File Type Validation', () => {
     })
   })
 
-  describe('Security Edge Cases', () => {
-    it('should handle malicious file names', () => {
+  describe('セキュリティエッジケース', () => {
+    it('悪意のあるファイル名を正しく処理すること', () => {
       const maliciousNames = ['../../../etc/passwd', '..\\..\\windows\\system32\\config\\sam', 'file.exe.txt', 'document.pdf.exe', 'script.js.exe', 'image.png.bat']
 
       maliciousNames.forEach((name) => {
@@ -230,7 +230,7 @@ describe('Security Validation - File Type Validation', () => {
       })
     })
 
-    it('should handle double extensions', () => {
+    it('二重拡張子を正しく処理すること', () => {
       const doubleExtensions = ['document.pdf.exe', 'image.png.bat', 'script.js.cmd', 'data.txt.sh']
 
       doubleExtensions.forEach((name) => {
@@ -239,7 +239,7 @@ describe('Security Validation - File Type Validation', () => {
       })
     })
 
-    it('should handle null bytes in file names', () => {
+    it('ファイル名のnullバイトを正しく処理すること', () => {
       const namesWithNullBytes = ['file\x00.txt', 'document\x00.pdf', 'image\x00.png']
 
       namesWithNullBytes.forEach((name) => {
@@ -249,8 +249,8 @@ describe('Security Validation - File Type Validation', () => {
     })
   })
 
-  describe('Content Type Validation', () => {
-    it('should validate content type consistency', () => {
+  describe('コンテンツタイプ検証', () => {
+    it('コンテンツタイプの一貫性を正しく検証すること', () => {
       const validateContentType = (mimeType: string, fileName: string) => {
         const extension = fileName.split('.').pop()?.toLowerCase()
         const expectedExtensions: Record<string, string[]> = {

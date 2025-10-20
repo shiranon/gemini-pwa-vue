@@ -21,7 +21,7 @@ import {
 } from '~/lib/database'
 import { useSettingsStore } from '~/stores/settings'
 import type { CharacterImageRecord, CharacterOutfitRecord, CharacterRecord, DatabaseOperationResult } from '~/types/database'
-import { logger } from '~/utils/logger'
+import { logger } from '~/lib/logger'
 
 /**
  * キャラクター画像管理Composable

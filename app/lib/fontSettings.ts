@@ -1,3 +1,4 @@
+import { logger } from '~/lib/logger'
 export interface FontPreset {
   label: string
   value: string

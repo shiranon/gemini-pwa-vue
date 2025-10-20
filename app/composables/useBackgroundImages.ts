@@ -14,7 +14,7 @@ import {
 } from '~/lib/database'
 import { useSettingsStore } from '~/stores/settings'
 import type { BackgroundCategoryRecord, BackgroundImageRecord, DatabaseOperationResult } from '~/types/database'
-import { logger } from '~/utils/logger'
+import { logger } from '~/lib/logger'
 
 /** エラーメッセージの判定用定数 */
 const ERROR_PATTERNS = {

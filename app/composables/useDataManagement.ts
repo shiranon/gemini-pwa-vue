@@ -3,7 +3,7 @@ import { useDatabase } from '~/composables/useDatabase'
 import { downloadBackup, importFullData, loadBackupFromFile, type ImportResult } from '~/lib/backup'
 import { downloadJson } from '~/lib/file'
 import { buildChatsExportData } from '~/lib/history'
-import { logger } from '~/utils/logger'
+import { logger } from '~/lib/logger'
 
 // ダイアログ関数の型定義
 interface DialogFunctions {

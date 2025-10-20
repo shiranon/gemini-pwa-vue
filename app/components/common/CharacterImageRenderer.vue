@@ -46,7 +46,7 @@ import { ref, onMounted } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { CharacterImageRecord } from '~/types/database'
 import { useCharacterImages } from '~/composables/useCharacterImages'
-import { logger } from '~/utils/logger'
+import { logger } from '~/lib/logger'
 
 interface Props {
   characterName: string

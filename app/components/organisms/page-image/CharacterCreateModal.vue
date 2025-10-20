@@ -120,7 +120,7 @@ import { Input } from '~/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '~/components/ui/dialog'
 import { useCharacterImages } from '~/composables/useCharacterImages'
 import { useFolderUpload, type FolderStructure } from '~/composables/useFolderUpload'
-import { logger } from '~/utils/logger'
+import { logger } from '~/lib/logger'
 import type { CharacterRecord } from '~/types/database'
 
 interface Props {

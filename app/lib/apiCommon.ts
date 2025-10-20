@@ -1,5 +1,5 @@
 import type { FunctionCall, FunctionCallResult, FunctionDeclaration } from '~/types/function-calling'
-import { logger } from '~/utils/logger'
+import { logger } from '~/lib/logger'
 
 /**
  * API共通ユーティリティ関数

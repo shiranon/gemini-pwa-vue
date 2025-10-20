@@ -49,7 +49,6 @@ Object.defineProperty(global, 'crypto', {
 
 describe('history.ts', () => {
   beforeEach(() => {
-    mock.clearAllMocks()
     mockUUID.mockReturnValue('mocked-uuid')
   })
 

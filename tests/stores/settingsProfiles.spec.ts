@@ -4,7 +4,7 @@ import { useSettingsProfilesStore } from '~/stores/settingsProfiles'
 import type { SettingsProfile } from '~/types/settings'
 
 // loggerをモック（Bunの場合は直接置き換え）
-import { logger } from '~/utils/logger'
+import { logger } from '~/lib/logger'
 
 // loggerのモック
 const mockLogger = {

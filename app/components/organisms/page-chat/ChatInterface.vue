@@ -129,6 +129,8 @@
             placeholder="メッセージを入力..."
             class="border-input focus:border-primary focus:ring-primary min-h-[80px] flex-1 resize-none rounded-lg border p-4 text-lg focus:ring-2 focus:outline-none"
             @keydown="handleKeydown"
+            @compositionstart="handleCompositionStart"
+            @compositionend="handleCompositionEnd"
           />
         </div>
         <div class="flex flex-col gap-2">
@@ -200,12 +202,12 @@ import QuickActionsModal from '~/components/molecules/page-chat/QuickActionsModa
 import ProfileSelect from '~/components/molecules/page-setting/ProfileSelect.vue'
 import { Button } from '~/components/ui/button'
 import { Icon } from '@iconify/vue'
-import { hexToRgba } from '~/utils/color'
-import { extractBackgroundSelectionFromMessage, getBackgroundImageDataUrl, getLatestAssistantMessage } from '~/utils/backgroundManager'
+import { hexToRgba } from '~/lib/color'
+import { extractBackgroundSelectionFromMessage, getBackgroundImageDataUrl, getLatestAssistantMessage } from '~/lib/backgroundManager'
 import { backgroundDirectiveExtractor } from '~/lib/backgroundDirectiveExtractor'
 import type { ApiError, ChatMessage, AttachedFile, Message, AssistantMessage } from '~/types/chat'
 import { toast } from 'vue-sonner'
-import { logger } from '~/utils/logger'
+import { logger } from '~/lib/logger'
 import { formatFileSize } from '~/lib/format'
 import { convertFileToAttachedFile } from '~/lib/file'
 import { ATTACHMENT_LIMITS } from '~/constants/constants'
@@ -242,6 +244,8 @@ const messageContainer = ref<HTMLElement>()
 const backgroundUrl = ref<string | null>(null)
 const isProfileLoading = ref(false)
 const attachmentInputRef = ref<HTMLInputElement | null>(null)
+// IME入力中のEnter送信を防ぐ（日本語入力など）
+const isComposing = ref(false)
 
 // 一時的な背景画像管理
 const { currentBackgroundUrl, setTemporaryBackground } = useTemporaryBackground()
@@ -516,10 +520,18 @@ const sendMessage = async (options?: { contentOverride?: string; skipAddingUserM
 }
 
 const handleKeydown = (e: KeyboardEvent) => {
-  if (e.key === 'Enter' && !e.shiftKey && settingsStore.settings.enterToSend) {
+  if (e.key === 'Enter' && !e.shiftKey && settingsStore.settings.enterToSend && !isComposing.value) {
     e.preventDefault()
     sendMessage()
   }
+}
+
+const handleCompositionStart = () => {
+  isComposing.value = true
+}
+
+const handleCompositionEnd = () => {
+  isComposing.value = false
 }
 
 const clearChat = () => {

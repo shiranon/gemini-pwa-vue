@@ -199,7 +199,7 @@ import BackgroundCategoryEditModal from '~/components/organisms/page-image/Backg
 import BackgroundImageListModal from '~/components/organisms/page-image/BackgroundImageListModal.vue'
 import { useCharacterImages } from '~/composables/useCharacterImages'
 import { useBackgroundImages } from '~/composables/useBackgroundImages'
-import { logger } from '~/utils/logger'
+import { logger } from '~/lib/logger'
 import type { CharacterRecord, CharacterOutfitRecord, BackgroundCategoryRecord } from '~/types/database'
 
 // ページメタデータ

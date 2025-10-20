@@ -5,14 +5,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Overview
 A Nuxt 3 Progressive Web App for AI chat interactions, specifically designed for TRPG (tabletop role-playing game) scenarios. This is a complete Vue.js rewrite of the original [Gemini PWA Client Mk-II](https://github.com/kinkan04/Gemini-PWA-Mk-II), featuring modern TypeScript architecture and enhanced PWA capabilities.
 
-Supports both **Gemini AI** and **OpenAI** APIs with streaming, function calling, and thought process extraction.
+Supports **Gemini AI**, **OpenAI**, and **Claude** APIs with streaming, function calling, and thought process extraction.
 
 **Live Demo**: [gemini-pwa-vue.vercel.app](https://gemini-pwa-vue.vercel.app)
 
 ### Key Features
-- **Dual AI Provider Support** - Gemini AI and OpenAI with unified interface
+- **Multi AI Provider Support** - Gemini AI, OpenAI, and Claude with unified interface
 - **TRPG Function Calling** - 15+ game mechanics tools (dice, inventory, status, etc.)
 - **Character Image System** - Inline character images with outfit/expression management
+- **Background Image System** - Dynamic background images with AI-controlled scene management
 - **Settings Profiles** - Multiple configuration profiles with quick switching
 - **Thought Process Translation** - DeepL/Gemini translation for AI thinking
 - **Chat Summarization** - Reduce token usage by summarizing chat history
@@ -26,11 +27,10 @@ Supports both **Gemini AI** and **OpenAI** APIs with streaming, function calling
 - `bun run dev` - Start development server on http://localhost:8888
 - `bun run build` - Build for production
 - `bun run typecheck` - Run TypeScript type checking
-- `bun run lint` - Run ESLint
-- `bun lint --fix` - Auto-fix ESLint issues
+- `bun run lint` - Run ESLint (auto-fixes with Prettier formatting)
 - `bun run test` - Run all Vitest tests with TZ=Asia/Tokyo
 - `bun test [file]` - Run specific test file (e.g., `bun test rollDice.spec.ts`)
-- `bun run check-all` - Run lint --fix, typecheck, and test in sequence
+- `bun run check-all` - Run lint, typecheck, and test in sequence
 - `bun run generate` - Generate static site
 - `bun run preview` - Preview production build on http://localhost:8880
 - `bun run generate-pwa-assets` - Generate PWA assets from public/icon.png
@@ -73,22 +73,23 @@ app/                     # Nuxt 3 app directory (main source)
 │   └── ui/             # shadcn-vue UI components (atoms)
 ├── composables/        # Vue composables
 ├── constants/          # Application constants
+├── function-calling/   # Function calling system
+│   └── functions/      # TRPG function implementations
 ├── layouts/            # Vue layouts
 ├── lib/                # Core utilities and database
 ├── pages/              # Vue pages/routes
 ├── service-worker/     # PWA service worker
 ├── stores/             # Pinia stores
 ├── types/              # TypeScript type definitions
-├── utils/              # Utility functions
-│   └── functions/      # Function calling utilities
 └── app.vue             # Root Vue component
 
 tests/                  # Test files
 ├── components/         # Component tests
+├── composables/        # Composables tests
+├── function-calling/   # Function calling tests
 ├── lib/                # Library tests
 ├── stores/             # Pinia store tests
-├── plugins/            # Plugin tests
-└── utils/functions/    # Function utilities tests
+└── plugins/            # Plugin tests
 
 public/                 # Static assets
 server/                 # Server-side code
@@ -110,8 +111,10 @@ server/                 # Server-side code
    - Chat history persistence
    - Message and file attachment storage
    - Character image data (characters, outfits, images)
+   - Background image management
    - Settings and profiles backup
    - Uses Dexie.js for type-safe access
+   - See [Database Schema](#database-schema) for detailed table structure
 
 3. **Composables** (`app/composables/`)
    - Bridge between stores and components
@@ -163,7 +166,7 @@ server/                 # Server-side code
 - **`useMobileMenu`** - Mobile menu state
 - **`useClickOutside`** - Click outside detection
 
-### Function Calling Tools (`app/utils/functions/`)
+### Function Calling Tools (`app/function-calling/functions/`)
 TRPG-specific utilities for game mechanics that can be called by AI:
 - `rollDice` - Dice rolling mechanics with multiple dice types (d4, d6, d8, d10, d12, d20, d100)
 - `manageInventory` - Inventory management (add, remove, update items)
@@ -171,6 +174,7 @@ TRPG-specific utilities for game mechanics that can be called by AI:
 - `manageRelationship` - Relationship tracking between characters
 - `manageGameDate` - Game timeline management
 - `manageScene` - Scene management (location, time, weather)
+- `manageBackground` - Dynamic background image control based on scene/atmosphere
 - `managePersistentMemory` - Memory persistence across sessions
 - `manageFlags` - Game flags and triggers
 - `manageStyleProfile` - Writing style profiles
@@ -226,6 +230,24 @@ A comprehensive system for managing character images in TRPG scenarios:
 - Search and filtering capabilities
 - Storage quota monitoring
 
+### Background Image System
+Dynamic background image management for TRPG scene atmosphere:
+
+**Database Structure**:
+- `backgroundImages` table - Background image metadata with base64-encoded image data
+- `backgroundCategories` table - Category organization for background images
+
+**Function Calling Integration**:
+- `manageBackground` function for AI-controlled background changes
+- Automatic scene-based background selection
+- Supports atmosphere and mood-based switching
+
+**Management Features**:
+- Pre-register background images in the data management page
+- AI can dynamically change backgrounds during chat
+- Seamless integration with scene management
+- Storage quota monitoring
+
 ### Settings Profile System
 Multi-profile configuration management:
 
@@ -241,6 +263,104 @@ Multi-profile configuration management:
 - `extractGlobalSettings()` - Extract global settings
 - `mergeSettingsFromSlices()` - Merge profile and global settings
 - Supports temporary settings overlay
+
+## Database Schema
+
+### IndexedDB Structure (`app/lib/database.ts`)
+Database: `GeminiPWADatabase` (using Dexie.js)
+
+**Core Tables**:
+
+1. **chats** - Chat session management
+   - Primary Key: `id`
+   - Indexes: `title`, `createdAt`, `updatedAt`, `isArchived`, `isFavorite`, `[isArchived+updatedAt]`, `messageCount`
+   - Related: `messages`, `attachedFiles`
+
+2. **messages** - Chat messages
+   - Primary Key: `id`
+   - Indexes: `chatId`, `role`, `createdAt`, `updatedAt`, `[chatId+order]`, `order`
+   - Foreign Key: `chatId` → `chats.id`
+   - Related: `attachedFiles`
+   - Supports: `isSummary` flag for summarized messages
+
+3. **attachedFiles** - File attachments
+   - Primary Key: `id`
+   - Indexes: `messageId`, `chatId`, `type`, `createdAt`, `size`
+   - Foreign Keys: `messageId` → `messages.id`, `chatId` → `chats.id`
+   - Stores: Base64-encoded file data
+
+**Settings Tables**:
+
+4. **settings** - Global application settings
+   - Primary Key: `id`
+   - Indexes: `updatedAt`, `version`
+   - Single record with ID: `default`
+
+5. **settingsProfiles** - Settings profiles
+   - Primary Key: `id`
+   - Indexes: `name`, `createdAt`, `updatedAt`, `isDefault`
+   - Contains: Profile-specific settings (model, temperature, etc.)
+
+6. **appMeta** - Application metadata
+   - Primary Key: `key`
+   - Indexes: `updatedAt`
+   - Stores: System defaults, profile metadata
+
+**Character Image Tables**:
+
+7. **characters** - Character definitions
+   - Primary Key: `id`
+   - Indexes: `name`, `description`, `createdAt`, `updatedAt`
+   - Related: `characterOutfits`, `characterImages`
+
+8. **characterOutfits** - Character outfit variations
+   - Primary Key: `id`
+   - Indexes: `characterId`, `name`, `description`, `createdAt`, `updatedAt`, `[characterId+name]`
+   - Foreign Key: `characterId` → `characters.id`
+   - Related: `characterImages`
+
+9. **characterImages** - Character expression images
+   - Primary Key: `id`
+   - Indexes: `characterId`, `outfitId`, `expression`, `mimeType`, `createdAt`, `updatedAt`, `[characterId+outfitId]`, `[characterId+outfitId+expression]`
+   - Foreign Keys: `characterId` → `characters.id`, `outfitId` → `characterOutfits.id`
+   - Stores: Base64-encoded image data
+
+**Background Image Tables**:
+
+10. **backgroundCategories** - Background image categories
+    - Primary Key: `id`
+    - Indexes: `name`, `createdAt`, `updatedAt`
+    - Related: `backgroundImages`
+
+11. **backgroundImages** - Background images
+    - Primary Key: `id`
+    - Indexes: `categoryId`, `name`, `mimeType`, `size`, `createdAt`, `updatedAt`, `[categoryId+name]`
+    - Foreign Key: `categoryId` → `backgroundCategories.id`
+    - Stores: Base64-encoded image data
+
+### Database Versioning
+- **v1**: Initial schema (chats, messages, attachedFiles, settings, appMeta)
+- **v2**: Reserved for future use
+- **v3**: Added `settingsProfiles` table
+- **v4**: Added `isSummary` flag to messages
+- **v5**: Added character image tables (characters, characterOutfits, characterImages)
+- **v6**: Added background image tables (backgroundCategories, backgroundImages)
+
+### Change Notification System
+Database implements a change listener system that notifies components of:
+- Create operations
+- Update operations
+- Delete operations
+
+Components can subscribe to changes via `db.onChange()` and unsubscribe via `db.offChange()`.
+
+### Type Definitions
+All database record types are defined in `app/types/database.ts`:
+- `ChatRecord`, `MessageRecord`, `AttachedFileRecord`
+- `SettingsRecord`, `SettingsProfileRecord`, `AppMetaRecord`
+- `CharacterRecord`, `CharacterOutfitRecord`, `CharacterImageRecord`
+- `BackgroundCategoryRecord`, `BackgroundImageRecord`
+- Helper types: `DatabaseOperationResult<T>`, `ExportedData`, `ImportResult`, `DatabaseStats`
 
 ## PWA Configuration
 
@@ -271,20 +391,21 @@ tests/
 ├── components/        # Component tests
 │   ├── MarkdownImage.spec.ts
 │   └── MarkdownRenderer.spec.ts
+├── composables/       # Composables tests
+├── function-calling/  # Function calling tests
+│   ├── rollDice.spec.ts
+│   ├── manageInventory.spec.ts
+│   ├── datetime.spec.ts
+│   ├── timer.spec.ts
+│   └── [other function tests]
 ├── lib/               # Library tests
 │   ├── history.spec.ts
 │   └── markdown.spec.ts
 ├── stores/            # Pinia store tests
 │   ├── settings.spec.ts
 │   └── settings-image-percentage.spec.ts
-├── plugins/           # Plugin tests
-│   └── prism.spec.ts
-└── utils/functions/   # Function utilities tests
-    ├── rollDice.spec.ts
-    ├── manageInventory.spec.ts
-    ├── datetime.spec.ts
-    ├── timer.spec.ts
-    └── [other function tests]
+└── plugins/           # Plugin tests
+    └── prism.spec.ts
 ```
 
 ### Running Tests
@@ -306,6 +427,7 @@ tests/
 - Type definitions in `app/types/`
 - All composables and stores fully typed
 - Service worker excluded from main tsconfig
+- **NO barrel exports** (index.ts files) - Import directly from specific files
 
 ### Styling
 - **TailwindCSS v4** utilities only
@@ -315,10 +437,12 @@ tests/
 - Prettier formatting with Tailwind CSS plugin
 
 ### Git Hooks (Lefthook)
-Pre-commit hooks run in parallel:
-1. TypeScript type checking (`bun typecheck`)
-2. ESLint linting (`bun lint`)
+Pre-commit hooks run in parallel on `*.{vue,ts}` files:
+1. ESLint linting (`bun lint`)
+2. TypeScript type checking (`bun typecheck`)
 3. Unit tests (`TZ=Asia/Tokyo bun test`)
+
+All three checks must pass before commits are allowed.
 
 ## Icon Management
 
@@ -349,6 +473,13 @@ Pre-commit hooks run in parallel:
 - Thread-based conversations
 - Function calling integration
 - Compatible with assistant configurations
+
+### Claude (`@anthropic-ai/sdk`)
+- Claude API integration
+- Streaming support
+- Function calling support
+- Compatible with TRPG function calling tools
+- Extended thinking support
 
 ### DeepL Translation (Optional)
 - Thought process translation
@@ -385,12 +516,14 @@ Pre-commit hooks run in parallel:
 ## Quality Gates (MANDATORY)
 After code changes, always run:
 ```bash
-bun lint --fix    # Auto-fix linting issues (includes Prettier formatting)
+bun lint          # Auto-fix linting issues (includes Prettier formatting)
 bun typecheck     # Verify TypeScript types
 bun run build     # Confirm production build
 ```
 
 **IMPORTANT: DO NOT run `bun test` during normal development. Tests should only be run manually by the user when needed.**
+
+Note: Pre-commit hooks (via Lefthook) automatically run `bun lint`, `bun typecheck`, and `bun test` in parallel on staged files.
 
 ## Component Migration Pattern
 When replacing components with shadcn-vue:

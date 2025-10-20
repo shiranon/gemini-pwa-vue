@@ -1,28 +1,22 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-Core Nuxt code lives in `app/`. Define routes in `app/pages/`, keep shared UI in PascalCase components under `app/components/`, and colocate business logic in `app/composables/` and `app/stores/` (e.g., `app/stores/thing.ts` exporting `useThingStore`). App-wide helpers belong in `app/utils/`, PWA tuning in `app/pwa-assets.config.ts`, and service worker code under `app/service-worker/`. Server middleware and API endpoints reside in `server/`, while static assets go in `public/`. Mirror each significant module with a partner spec under `tests/` (for example, `tests/composables/useFeature.spec.ts`).
+Nuxt 3 application code lives in `app/`. Define routes in `app/pages/`, keep reusable UI in PascalCase components under `app/components/`, and colocate domain logic in `app/composables/` and `app/stores/` (for example, `app/stores/session.ts` exporting `useSessionStore`). Shared helpers belong in `app/utils/`, service worker code in `app/service-worker/`, and PWA tuning in `app/pwa-assets.config.ts`. API endpoints and middleware reside in `server/`, while public assets sit in `public/`. Mirror every significant feature with specs under `tests/**`, following the same directory structure for fast discovery.
 
 ## Build, Test, and Development Commands
-Run `bun install` once to lock dependencies. Use `bun dev` to launch Nuxt at http://localhost:8888. `bun run build` outputs the production bundle to `.output/`; preview it with `bun run preview`. Generate a static bundle through `bun run generate`. Enforce quality gates with `bun run lint`, `bun run typecheck`, and execute the Vitest suite via `bun test` before handoff (you may skip `bun test` during active development iterations).
+`bun install` locks dependencies before the first run. Use `bun dev` to launch the local server on http://localhost:8888 with hot reload. Package production builds with `bun run build` and inspect them via `bun run preview`. Generate a static bundle for hosting by running `bun run generate`. Quality gates rely on `bun run lint`, `bun run typecheck`, and the Bun-native test command `bun test`; `bun run check-all` chains linting, types, and tests for a complete sweep.
 
 ## Coding Style & Naming Conventions
-Write TypeScript with 2-space indentation. Vue SFCs should use `<script setup lang="ts">`. Components follow PascalCase (`AppHeader.vue`), composables use `useThing.ts`, Pinia stores expose `useThingStore`, and utilities export lowerCamelCase helpers. Tailwind CSS v4 classes stay atomic and descriptive. Respect ESLint 9 and Prettier defaults; disable rules only with explicit justification.
+Write TypeScript with 2-space indentation. Vue SFCs should adopt `<script setup lang="ts">` and keep script blocks lean. Components follow PascalCase (`AppShell.vue`), composables use the `useThing.ts` pattern, Pinia stores expose `useThingStore`, and utility helpers ship lower camel case exports. Tailwind CSS v4 classes stay atomic, descriptive, and ordered by layout → typography → state. Respect ESLint 9 and Prettier defaults; only disable rules with an inline justification.
 
 ## Testing Guidelines
-Use Vitest with `@nuxt/test-utils`. Keep specs under `tests/**` with matching names, e.g., `tests/components/AppHeader.spec.ts`. Cover critical composables, stores, and utilities; add component snapshots once stabilized. Run `bun test` locally, and pair it with linting and type checks before submitting changes.
+Tests run on Bun’s built-in `bun:test` runner; do not introduce Vitest. Store fixtures and helpers beside specs in `tests/`, and reuse the shared setup in `tests/setup.ts` when mocking browser APIs. Target critical composables, stores, and rendering logic, and add snapshots once component contracts settle. Execute `bun test` (optionally with `--watch`) before submitting changes and include results in handoff notes.
 
 ## Commit & Pull Request Guidelines
-Adopt Conventional Commits (`feat:`, `fix:`, `refactor:`). Titles should describe intent; body text links issues and outlines scope. Pull requests need a concise summary, verification steps, and screenshots for UI updates. Update `README.md` or `.env-sample` whenever commands, configuration, or environment variables change.
+Adopt Conventional Commits (`feat:`, `fix:`, `chore:`, etc.) with concise, action-oriented subjects. Document scope, linked issues, and verification evidence inside the message body. Pull requests need a summary, test checklist, and UI screenshots or clips for visual updates. Update `README.md`, `docs/`, or configuration samples whenever commands, environment variables, or operational steps change.
 
 ## Security & Configuration Tips
-Keep secrets in `.env` and expose client-safe values through `NUXT_PUBLIC_*`, mirroring them in `runtimeConfig`. When touching the service worker or PWA assets, update `app/pwa-assets.config.ts` alongside any bundle changes and review caching impacts.
+Keep secrets in `.env`; expose browser-safe values through `NUXT_PUBLIC_*` and surface them via `runtimeConfig`. When touching service workers or PWA assets, update `app/pwa-assets.config.ts` and validate caching strategy changes. Review any new dependencies added to `bun.lock`, note the reason in the PR, and scan licenses when integrating third-party code.
 
 ## Agent-Specific Instructions
-Keep diffs minimal, favor additive updates, and leave unrelated user changes untouched. Always run `bun run lint --fix`, `bun run typecheck`, and relevant tests before handoff; `bun test` can be deferred until handoff if it slows down development loops. Stop and confirm with the user if unexpected modifications appear outside your changes.
-
-**IMPORTANT: DO NOT COMMIT CHANGES AUTOMATICALLY**
-- Never run `git commit` or `git add` commands without explicit user permission
-- Only make file changes, never commit them
-- Let the user handle all git operations including staging and committing
-- If changes are made, inform the user that they need to commit manually
+Limit diffs to the requested scope, avoid reformatting untouched files, and favor additive edits. Always run `bun run lint --fix` and `bun run typecheck` before handoff. Skip executing `bun test` unless the user explicitly requests it, but remind human contributors to run the suite locally. Never stage or commit on behalf of the user, and pause to confirm if unexpected file changes appear.

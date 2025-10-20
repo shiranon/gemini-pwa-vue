@@ -123,7 +123,7 @@ import SettingToggle from '~/components/molecules/page-setting/SettingToggle.vue
 import { Input } from '~/components/ui/input'
 import { Slider } from '~/components/ui/slider'
 import type { AppSettings } from '~/types/settings'
-import { clamp } from '~/utils/calc'
+import { clamp } from '~/lib/calc'
 
 interface Props {
   localSettings: AppSettings

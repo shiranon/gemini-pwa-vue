@@ -6,10 +6,10 @@ import { useSettingsProfilesStore } from '~/stores/settingsProfiles'
 import type { ClaudeApiSettings, GeminiApiSettings } from '~/types/chat'
 import type { AppSettings } from '~/types/settings'
 import { DEFAULT_SETTINGS } from '~/types/settings'
-import { clamp } from '~/utils/calc'
-import { logger } from '~/utils/logger'
-import { extractProfileSettings } from '~/utils/settingsPartition'
-import { applyTheme, getThemePreset } from '~/utils/theme'
+import { clamp } from '~/lib/calc'
+import { logger } from '~/lib/logger'
+import { extractProfileSettings } from '~/lib/settingsPartition'
+import { applyTheme, getThemePreset } from '~/lib/theme'
 
 const cloneEnabledFunctionTools = (toolNames?: string[]) => {
   const source = Array.isArray(toolNames) ? toolNames : DEFAULT_SETTINGS.enabledFunctionTools

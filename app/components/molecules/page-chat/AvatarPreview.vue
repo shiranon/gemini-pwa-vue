@@ -67,7 +67,7 @@ import { computed } from 'vue'
 import { Avatar, AvatarImage, AvatarFallback } from '~/components/ui/avatar'
 import type { AvatarSettings } from '~/types/settings'
 import { useSettingsStore } from '~/stores/settings'
-import { hexToRgba } from '~/utils/color'
+import { hexToRgba } from '~/lib/color'
 import { storeToRefs } from 'pinia'
 
 interface Props {

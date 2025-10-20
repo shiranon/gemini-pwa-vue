@@ -2,7 +2,7 @@ import JSZip from 'jszip'
 import { readonly, ref } from 'vue'
 import { dbGetAllCharacterImages, dbGetAllCharacters, dbGetCharacterImageStats, dbGetAllOutfits } from '~/lib/database'
 import type { CharacterImageRecord, CharacterOutfitRecord, CharacterRecord } from '~/types/database'
-import { logger } from '~/utils/logger'
+import { logger } from '~/lib/logger'
 
 /**
  * 画像エクスポート用Composable

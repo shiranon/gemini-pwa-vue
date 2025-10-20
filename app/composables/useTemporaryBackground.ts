@@ -5,7 +5,7 @@
 
 import { computed, onUnmounted, ref, shallowRef } from 'vue'
 import { useSettingsStore } from '~/stores/settings'
-import { logger } from '~/utils/logger'
+import { logger } from '~/lib/logger'
 
 /**
  * LRUキャッシュの実装

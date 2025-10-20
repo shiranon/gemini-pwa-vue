@@ -123,7 +123,7 @@ import { Input } from '~/components/ui/input'
 import { useBackgroundImages } from '~/composables/useBackgroundImages'
 import { useFolderUpload } from '~/composables/useFolderUpload'
 import { useFunctionCalling } from '~/composables/useFunctionCalling'
-import { logger } from '~/utils/logger'
+import { logger } from '~/lib/logger'
 import type { BackgroundCategoryRecord } from '~/types/database'
 
 interface Props {
