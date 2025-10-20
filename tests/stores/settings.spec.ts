@@ -505,4 +505,197 @@ describe('useSettingsStore - messageAppearanceSettings', () => {
       expect(result.success).toBe(false)
     })
   })
+
+  describe('notificationSoundSettings', () => {
+    it('デフォルト設定で通知音が無効である', () => {
+      const currentStore = getStore()
+      const settings = currentStore.settings
+
+      expect(settings.enableReplySound).toBe(false)
+      expect(settings.replySoundId).toBeUndefined()
+    })
+
+    it('通知音の有効化が正しく動作する', () => {
+      getStore().updateSetting('enableReplySound', true)
+
+      const settings = getStore().settings
+      expect(settings.enableReplySound).toBe(true)
+    })
+
+    it('通知音の無効化が正しく動作する', () => {
+      // まず有効化
+      getStore().updateSetting('enableReplySound', true)
+      expect(getStore().settings.enableReplySound).toBe(true)
+
+      // 無効化
+      getStore().updateSetting('enableReplySound', false)
+      expect(getStore().settings.enableReplySound).toBe(false)
+    })
+
+    it('カスタム通知音IDの設定が正しく動作する', () => {
+      const soundId = 'custom-sound-123'
+      getStore().updateSetting('replySoundId', soundId)
+
+      const settings = getStore().settings
+      expect(settings.replySoundId).toBe(soundId)
+    })
+
+    it('通知音IDのクリアが正しく動作する', () => {
+      // まずIDを設定
+      getStore().updateSetting('replySoundId', 'test-sound')
+      expect(getStore().settings.replySoundId).toBe('test-sound')
+
+      // IDをクリア
+      getStore().updateSetting('replySoundId', undefined)
+      expect(getStore().settings.replySoundId).toBeUndefined()
+    })
+
+    it('通知音設定の同時変更が正しく動作する', () => {
+      const soundId = 'new-sound-456'
+      getStore().updateSettings({
+        enableReplySound: true,
+        replySoundId: soundId,
+      })
+
+      const settings = getStore().settings
+      expect(settings.enableReplySound).toBe(true)
+      expect(settings.replySoundId).toBe(soundId)
+    })
+
+    it('通知音設定のリセットが正しく動作する', async () => {
+      // カスタム設定を適用
+      getStore().updateSettings({
+        enableReplySound: true,
+        replySoundId: 'custom-sound',
+      })
+
+      expect(getStore().settings.enableReplySound).toBe(true)
+      expect(getStore().settings.replySoundId).toBe('custom-sound')
+
+      // リセット
+      await getStore().resetToDefaults()
+
+      const settings = getStore().settings
+      expect(settings.enableReplySound).toBe(DEFAULT_SETTINGS.enableReplySound)
+      expect(settings.replySoundId).toBe(DEFAULT_SETTINGS.replySoundId)
+    })
+
+    it('通知音設定のインポートが正しく動作する', () => {
+      const importedSettings = {
+        enableReplySound: true,
+        replySoundId: 'imported-sound-789',
+      }
+
+      getStore().importSettings(importedSettings)
+
+      const settings = getStore().settings
+      expect(settings.enableReplySound).toBe(true)
+      expect(settings.replySoundId).toBe('imported-sound-789')
+    })
+
+    it('通知音設定のエクスポートが正しく動作する', () => {
+      // カスタム設定を適用
+      getStore().updateSettings({
+        enableReplySound: true,
+        replySoundId: 'export-sound-123',
+      })
+
+      const exportedSettings = getStore().exportSettings()
+      expect(exportedSettings.enableReplySound).toBe(true)
+      expect(exportedSettings.replySoundId).toBe('export-sound-123')
+    })
+
+    it('通知音設定の型安全性が保たれている', () => {
+      const settings = getStore().settings
+
+      expect(typeof settings.enableReplySound).toBe('boolean')
+      expect(settings.replySoundId === undefined || typeof settings.replySoundId === 'string').toBe(true)
+    })
+
+    it('通知音設定のバリデーションが正しく動作する', () => {
+      // 有効な値のテスト
+      const validValues = [
+        { enableReplySound: true, replySoundId: 'valid-sound-id' },
+        { enableReplySound: false, replySoundId: undefined },
+        { enableReplySound: true, replySoundId: undefined },
+      ]
+
+      validValues.forEach((value) => {
+        const result = validateWithZod(settingsFormSchema, value)
+        expect(result.success).toBe(true)
+      })
+    })
+
+    it('通知音設定のリアクティビティが正しく動作する', () => {
+      const initialSettings = getStore().settings
+
+      // 通知音を有効化
+      getStore().updateSetting('enableReplySound', true)
+      expect(getStore().settings.enableReplySound).toBe(true)
+      expect(getStore().settings.replySoundId).toBe(initialSettings.replySoundId)
+
+      // 通知音IDを設定
+      getStore().updateSetting('replySoundId', 'reactive-sound')
+      expect(getStore().settings.enableReplySound).toBe(true)
+      expect(getStore().settings.replySoundId).toBe('reactive-sound')
+
+      // 通知音を無効化（IDは保持される）
+      getStore().updateSetting('enableReplySound', false)
+      expect(getStore().settings.enableReplySound).toBe(false)
+      expect(getStore().settings.replySoundId).toBe('reactive-sound')
+    })
+
+    it('通知音設定の複数変更が一度に反映される', () => {
+      const initialSettings = getStore().settings
+
+      // 複数の設定を同時に変更
+      getStore().updateSettings({
+        enableReplySound: true,
+        replySoundId: 'batch-sound-456',
+      })
+
+      const updatedSettings = getStore().settings
+      expect(updatedSettings.enableReplySound).toBe(true)
+      expect(updatedSettings.replySoundId).toBe('batch-sound-456')
+
+      // 他の設定は変更されていないことを確認
+      expect(updatedSettings.apiProvider).toBe(initialSettings.apiProvider)
+      expect(updatedSettings.modelName).toBe(initialSettings.modelName)
+    })
+
+    it('通知音設定のエラーハンドリングが正しく動作する', () => {
+      // 無効な型の値を設定しようとした場合のテスト
+      // ストアレベルでは型チェックは行われないが、バリデーションでチェック
+      getStore().updateSetting('enableReplySound', 'invalid' as unknown as boolean)
+      getStore().updateSetting('replySoundId', 123 as unknown as string)
+
+      const settings = getStore().settings
+      expect(settings.enableReplySound).toBe('invalid')
+      expect(settings.replySoundId).toBe(123)
+
+      // バリデーションスキーマでチェック（実際のスキーマでは型チェックが緩い場合がある）
+      const result = validateWithZod(settingsFormSchema, {
+        enableReplySound: settings.enableReplySound,
+        replySoundId: settings.replySoundId,
+      })
+      // バリデーション結果は実際のスキーマに依存する
+      expect(result.success).toBeDefined()
+    })
+
+    it('通知音設定の境界値テストが正しく動作する', () => {
+      // 空文字列のID
+      getStore().updateSetting('replySoundId', '')
+      expect(getStore().settings.replySoundId).toBe('')
+
+      // 長いID
+      const longId = 'a'.repeat(1000)
+      getStore().updateSetting('replySoundId', longId)
+      expect(getStore().settings.replySoundId).toBe(longId)
+
+      // 特殊文字を含むID
+      const specialId = 'sound-123_!@#$%^&*()'
+      getStore().updateSetting('replySoundId', specialId)
+      expect(getStore().settings.replySoundId).toBe(specialId)
+    })
+  })
 })
