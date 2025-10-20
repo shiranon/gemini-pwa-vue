@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { NotificationSoundRecord } from '~/types/database'
 import SettingToggle from '~/components/molecules/page-setting/SettingToggle.vue'
+import { logger } from '~/lib/logger'
 
 const props = defineProps<{
   modelValue: {
@@ -61,7 +62,7 @@ const handleFileSelect = async (event: Event) => {
     await addNotificationSound(file)
     await loadSounds()
   } catch (error) {
-    console.error('Failed to upload sound:', error)
+    logger.error('通知音のアップロードに失敗しました', { component: 'NotificationSoundSection', error })
     props.showAlert('音声ファイルのアップロードに失敗しました')
   } finally {
     isUploading.value = false
@@ -79,7 +80,7 @@ const handleDelete = async (id: string) => {
     await deleteNotificationSound(id)
     await loadSounds()
   } catch (error) {
-    console.error('Failed to delete sound:', error)
+    logger.error('通知音の削除に失敗しました', { component: 'NotificationSoundSection', error })
     props.showAlert('通知音の削除に失敗しました')
   }
 }

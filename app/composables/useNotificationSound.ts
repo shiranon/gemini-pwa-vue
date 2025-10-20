@@ -3,20 +3,62 @@
  * IndexedDBに保存された通知音の管理と再生機能を提供
  */
 
-import type { NotificationSoundRecord } from '~/types/database'
-import { logger } from '~/lib/logger'
+import { ref } from 'vue'
 import { db } from '~/lib/database'
+import { logger } from '~/lib/logger'
+import type { NotificationSoundRecord } from '~/types/database'
 
 export function useNotificationSound() {
   const settingsStore = useSettingsStore()
+
+  // 同時再生制御用
+  let currentAudio: HTMLAudioElement | null = null
+  const isPlaying = ref(false)
+
+  /**
+   * Audio オブジェクトのメモリ解放
+   */
+  const cleanupAudio = (audio: HTMLAudioElement) => {
+    audio.pause()
+    audio.src = ''
+    audio.load()
+  }
+
+  /**
+   * 音声を再生（共通処理）
+   */
+  const playAudio = async (src: string): Promise<void> => {
+    // 既に再生中の場合は停止
+    if (currentAudio) {
+      cleanupAudio(currentAudio)
+      currentAudio = null
+    }
+
+    const audio = new Audio(src)
+    currentAudio = audio
+    isPlaying.value = true
+
+    // 再生完了時のクリーンアップ
+    const cleanup = () => {
+      isPlaying.value = false
+      cleanupAudio(audio)
+      if (currentAudio === audio) {
+        currentAudio = null
+      }
+    }
+
+    audio.addEventListener('ended', cleanup, { once: true })
+    audio.addEventListener('error', cleanup, { once: true })
+
+    await audio.play()
+  }
 
   /**
    * デフォルト音声を再生
    */
   const playDefaultSound = async () => {
     try {
-      const audio = new Audio('/sound.mp3')
-      await audio.play()
+      await playAudio('/sound.mp3')
     } catch (error) {
       logger.error('デフォルト通知音の再生に失敗しました', { component: 'NotificationSound', error })
     }
@@ -42,8 +84,7 @@ export function useNotificationSound() {
       // IndexedDBから音声データを取得
       const sound = await db.notificationSounds.get(soundId)
       if (sound) {
-        const audio = new Audio(sound.base64Data)
-        await audio.play()
+        await playAudio(sound.base64Data)
       } else {
         logger.warn('指定された通知音が見つかりません。デフォルト音声を再生します', {
           component: 'NotificationSound',
@@ -130,8 +171,7 @@ export function useNotificationSound() {
     try {
       const sound = await db.notificationSounds.get(id)
       if (sound) {
-        const audio = new Audio(sound.base64Data)
-        await audio.play()
+        await playAudio(sound.base64Data)
       }
     } catch (error) {
       logger.error('通知音のプレビュー再生に失敗しました', { component: 'NotificationSound', error })
