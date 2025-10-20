@@ -31,6 +31,12 @@
       @update:model-value="(value: boolean) => updateSetting('enableAutoRetry', value)"
     />
     <SettingToggle
+      :model-value="localSettings.enableReplySound"
+      label="通知音"
+      description="アシスタントの新規返信時に通知音を再生"
+      @update:model-value="(value: boolean) => updateSetting('enableReplySound', value)"
+    />
+    <SettingToggle
       :model-value="localSettings.enableSwipeNavigation"
       label="スワイプナビゲーション"
       description="スワイプジェスチャーでのナビゲーションを有効化(未実装)"
