@@ -7,6 +7,7 @@ import { ref } from 'vue'
 import { db } from '~/lib/database'
 import { logger } from '~/lib/logger'
 import type { NotificationSoundRecord } from '~/types/database'
+import { generateSoundId } from '~/lib/ids'
 
 export function useNotificationSound() {
   const settingsStore = useSettingsStore()
@@ -120,7 +121,7 @@ export function useNotificationSound() {
 
       const now = Date.now()
       const record: NotificationSoundRecord = {
-        id: `sound-${now}`,
+        id: generateSoundId(),
         name: file.name.replace(/\.[^/.]+$/, ''), // 拡張子を除去
         mimeType: file.type,
         base64Data,

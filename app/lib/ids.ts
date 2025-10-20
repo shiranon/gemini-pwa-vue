@@ -22,4 +22,8 @@ const generateFileId = (): string => {
   return generateId('file')
 }
 
-export { generateChatId, generateMessageId, generateFileId }
+const generateSoundId = (): string => {
+  return generateId('sound')
+}
+
+export { generateChatId, generateMessageId, generateFileId, generateSoundId }
