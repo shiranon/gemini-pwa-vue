@@ -223,6 +223,26 @@ export interface BackgroundImageRecord {
   updatedAt: number
 }
 
+/** 通知音テーブルのレコード */
+export interface NotificationSoundRecord {
+  /** 音声ID（プライマリキー） */
+  id: string
+  /** 音声名 */
+  name: string
+  /** MIMEタイプ */
+  mimeType: string
+  /** Base64エンコードされた音声データ */
+  base64Data: string
+  /** ファイルサイズ（バイト） */
+  size: number
+  /** デフォルト音声フラグ */
+  isDefault: boolean
+  /** 作成日時 */
+  createdAt: number
+  /** 更新日時 */
+  updatedAt: number
+}
+
 // ============================================================================
 // インデックス定義型
 // ============================================================================
@@ -329,6 +349,19 @@ export interface DatabaseIndexes {
     name: string
     /** 複合インデックス: カテゴリー + 画像名 */
     '[categoryId+name]': [string, string]
+    /** MIMEタイプでの絞り込み用 */
+    mimeType: string
+    /** 作成日時でのソート用 */
+    createdAt: number
+    /** 更新日時でのソート用 */
+    updatedAt: number
+  }
+
+  notificationSounds: {
+    /** 音声名での絞り込み用 */
+    name: string
+    /** デフォルトフラグでの絞り込み用 */
+    isDefault: boolean
     /** MIMEタイプでの絞り込み用 */
     mimeType: string
     /** 作成日時でのソート用 */

@@ -21,6 +21,7 @@ import type {
   ExportedData,
   ImportResult,
   MessageRecord,
+  NotificationSoundRecord,
   SettingsProfileRecord,
   SettingsRecord,
 } from '~/types/database'
@@ -44,6 +45,7 @@ export const TABLES = {
   characterImages: 'characterImages',
   backgroundCategories: 'backgroundCategories',
   backgroundImages: 'backgroundImages',
+  notificationSounds: 'notificationSounds',
 } as const
 
 const APP_META_KEYS = {
@@ -76,6 +78,7 @@ export class GeminiDatabase extends Dexie {
   characterImages!: Table<CharacterImageRecord>
   backgroundCategories!: Table<BackgroundCategoryRecord>
   backgroundImages!: Table<BackgroundImageRecord>
+  notificationSounds!: Table<NotificationSoundRecord>
 
   // Change listeners
   private changeListeners = new Set<(changeType: string, table: string, key: string | number | null) => void>()
@@ -127,6 +130,13 @@ export class GeminiDatabase extends Dexie {
       })
       .upgrade(() => {
         logger.info('背景画像管理機能のためにバージョン6へアップグレード中...', { component: 'Database' })
+      })
+    this.version(7)
+      .stores({
+        notificationSounds: 'id, name, isDefault, mimeType, createdAt, updatedAt',
+      })
+      .upgrade(() => {
+        logger.info('通知音管理機能のためにバージョン7へアップグレード中...', { component: 'Database' })
       })
 
     this.setupHooks()

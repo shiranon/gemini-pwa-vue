@@ -739,6 +739,18 @@ export const useChatStore = defineStore('chat', () => {
     }
   )
 
+  // アシスタントメッセージ追加時に通知音を再生
+  watch(
+    () => assistantMessageCount.value,
+    (newCount, oldCount) => {
+      // メッセージが増えた場合のみ通知音を再生（初回ロード時は再生しない）
+      if (newCount > oldCount && oldCount > 0) {
+        const { playReplySound } = useNotificationSound()
+        playReplySound()
+      }
+    }
+  )
+
   onUnmounted(() => {
     stopAutoSave()
   })

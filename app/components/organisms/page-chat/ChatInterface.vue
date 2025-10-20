@@ -708,27 +708,6 @@ const latestAssistantMessageTimestamp = computed(() => latestAssistantMessage.va
 const lastProcessedTimestamp = ref<number | null>(null)
 const isProcessingBackground = ref(false)
 
-// 通知音：新規アシスタント返信到着時の再生
-const lastNotifiedTimestamp = ref<number | null>(null)
-watch(latestAssistantMessageTimestamp, (timestamp) => {
-  if (!import.meta.client) return
-  if (!timestamp || timestamp === lastNotifiedTimestamp.value) return
-  if (!settingsStore.settings.enableReplySound) {
-    lastNotifiedTimestamp.value = timestamp
-    return
-  }
-
-  // リトライ抑制は行わない（アシスタント返信は常に鳴らす）
-
-  lastNotifiedTimestamp.value = timestamp
-  try {
-    const audio = new Audio('/sound.mp3')
-    void audio.play().catch(() => {})
-  } catch {
-    // 再生失敗は無視
-  }
-})
-
 // Function Callingの結果とDirectiveを監視して一時的な背景画像を設定
 watch(latestAssistantMessageTimestamp, async (timestamp) => {
   if (!timestamp || timestamp === lastProcessedTimestamp.value || isProcessingBackground.value) return
