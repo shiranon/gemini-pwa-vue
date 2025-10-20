@@ -13,6 +13,7 @@ import { useSettingsStore } from '~/stores/settings'
 import { useSettingsProfilesStore } from '~/stores/settingsProfiles'
 import type { ApiError, AssistantMessage, AttachedFile, ChatMessage, ClaudeApiSettings } from '~/types/chat'
 import type { FunctionCall, FunctionCallResult } from '~/types/function-calling'
+import { logger } from '~/lib/logger'
 
 export const useClaudeStore = defineStore('claude', () => {
   // API実行状態

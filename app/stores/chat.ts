@@ -9,7 +9,7 @@ import { useChatQuery, useDatabase } from '~/composables/useDatabase'
 import { summarizeChatHistory } from '~/lib/summary'
 import type { ApiError, AssistantMessage, AttachedFile, ChatInputState, ChatSession, Message, MessageDisplayState, StreamingState, UserMessage } from '~/types/chat'
 import type { FunctionCall, FunctionCallResult } from '~/types/function-calling'
-import { logger } from '~/utils/logger'
+import { logger } from '~/lib/logger'
 import { useSettingsStore } from './settings'
 
 export const useChatStore = defineStore('chat', () => {

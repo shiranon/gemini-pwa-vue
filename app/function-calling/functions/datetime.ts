@@ -1,6 +1,6 @@
 import { Type } from '@google/genai'
 import type { FunctionCallArgs, FunctionDeclaration, FunctionExecutionContext } from '~/types/function-calling'
-import { logger } from '~/utils/logger'
+import { logger } from '~/lib/logger'
 
 /**
  * 現在の日付と時刻をJST（日本標準時）で取得する関数

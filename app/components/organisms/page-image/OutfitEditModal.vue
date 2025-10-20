@@ -70,7 +70,7 @@ import { Input } from '~/components/ui/input'
 import { Textarea } from '~/components/ui/textarea'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '~/components/ui/dialog'
 import { useCharacterImages } from '~/composables/useCharacterImages'
-import { logger } from '~/utils/logger'
+import { logger } from '~/lib/logger'
 import type { CharacterOutfitRecord } from '~/types/database'
 
 interface Props {

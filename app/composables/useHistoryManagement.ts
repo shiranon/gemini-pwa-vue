@@ -5,6 +5,7 @@ import { downloadJson } from '~/lib/file'
 import { buildChatExportData, buildChatsExportData, parseImportData } from '~/lib/history'
 import { useChatStore } from '~/stores/chat'
 import type { ChatSession, GetChatsOptions } from '~/types/chat'
+import { logger } from '~/lib/logger'
 
 /**
  * 履歴管理ページ用のコンポーザブル

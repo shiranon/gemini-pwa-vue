@@ -1,7 +1,7 @@
 import { Type } from '@google/genai'
-import { beforeEach, describe, expect, it, mock } from 'bun:test'
+import { beforeEach, describe, expect, it } from 'bun:test'
 import type { FunctionCallArgs, FunctionExecutionContext } from '~/types/function-calling'
-import { managePersistentMemory, managePersistentMemoryDeclaration } from '~/utils/functions/managePersistentMemory'
+import { managePersistentMemory, managePersistentMemoryDeclaration } from '~/function-calling/functions/managePersistentMemory'
 
 describe('managePersistentMemory', () => {
   let mockContext: FunctionExecutionContext
@@ -11,7 +11,6 @@ describe('managePersistentMemory', () => {
       persistentMemory: {},
       timestamp: Date.now(),
     }
-    mock.clearAllMocks()
   })
 
   describe('正常系', () => {

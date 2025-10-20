@@ -131,7 +131,7 @@ import { computed } from 'vue'
 import type { AcceptableValue } from 'reka-ui'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '~/components/ui/select'
 import type { SettingsProfile } from '~/types/settings'
-import { findProfileById, isValidProfileId } from '~/utils/profileUtils'
+import { findProfileById, isValidProfileId } from '~/lib/profileUtils'
 
 export interface ProfileSelectProps {
   /** プロファイル一覧 */

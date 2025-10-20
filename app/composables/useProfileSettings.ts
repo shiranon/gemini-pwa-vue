@@ -1,7 +1,7 @@
 import { computed, onUnmounted, readonly, ref, watch } from 'vue'
 import { useSettingsProfilesStore } from '~/stores/settingsProfiles'
 import type { SettingsProfileData } from '~/types/settings'
-import { logger } from '~/utils/logger'
+import { logger } from '~/lib/logger'
 
 /**
  * プロファイル設定専用のコンポーザブル

@@ -158,7 +158,7 @@ import type { SettingsProfile } from '~/types/settings'
 import { truncateText } from '~/lib/format'
 import { useProfileImageUpload } from '~/composables/useImageUpload'
 import { PROFILE_NAME_MAX_LENGTH } from '~/constants/constants'
-import { findProfileById, getValidProfileId, hasValidProfiles } from '~/utils/profileUtils'
+import { findProfileById, getValidProfileId, hasValidProfiles } from '~/lib/profileUtils'
 
 const props = defineProps<{
   profiles: SettingsProfile[]

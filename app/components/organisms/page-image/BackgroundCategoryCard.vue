@@ -70,7 +70,7 @@ import { Icon } from '@iconify/vue'
 import { Button } from '~/components/ui/button'
 import type { BackgroundCategoryRecord, BackgroundImageRecord } from '~/types/database'
 import { useBackgroundImages } from '~/composables/useBackgroundImages'
-import { logger } from '~/utils/logger'
+import { logger } from '~/lib/logger'
 
 interface Props {
   category: BackgroundCategoryRecord

@@ -1,5 +1,5 @@
 import { onMounted, ref } from 'vue'
-import { logger } from '~/utils/logger'
+import { logger } from '~/lib/logger'
 
 // File System Access API の型定義
 interface FileSystemDirectoryHandle {

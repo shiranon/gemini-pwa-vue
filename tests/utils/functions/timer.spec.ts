@@ -1,7 +1,7 @@
 import { Type } from '@google/genai'
-import { beforeEach, describe, expect, it, mock } from 'bun:test'
+import { beforeEach, describe, expect, it } from 'bun:test'
 import type { FunctionCallArgs, FunctionExecutionContext } from '~/types/function-calling'
-import { manageTimer, manageTimerDeclaration } from '~/utils/functions/timer'
+import { manageTimer, manageTimerDeclaration } from '~/function-calling/functions/timer'
 
 describe('manageTimer', () => {
   let mockContext: FunctionExecutionContext
@@ -11,7 +11,6 @@ describe('manageTimer', () => {
       persistentMemory: {},
       timestamp: Date.now(),
     }
-    mock.clearAllMocks()
   })
 
   describe('正常系', () => {

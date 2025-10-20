@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { deepEqual, deepEqualExcluding, deepEqualKeys } from '~/utils/comparison'
+import { deepEqual, deepEqualExcluding, deepEqualKeys } from '~/lib/comparison'
 
 describe('comparison utilities', () => {
   describe('deepEqual', () => {

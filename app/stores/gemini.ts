@@ -13,6 +13,7 @@ import { useChatStore } from '~/stores/chat'
 import { useSettingsStore } from '~/stores/settings'
 import type { ApiError, AssistantMessage, AttachedFile, ChatMessage, GeminiApiSettings, GeminiMessage, GeminiPart } from '~/types/chat'
 import type { FunctionCall, FunctionCallResult } from '~/types/function-calling'
+import { logger } from '~/lib/logger'
 
 export const useGeminiStore = defineStore('gemini', () => {
   // API実行状態

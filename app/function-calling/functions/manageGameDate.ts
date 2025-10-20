@@ -1,6 +1,6 @@
 import { Type } from '@google/genai'
 import type { FunctionCallArgs, FunctionDeclaration, FunctionExecutionContext } from '~/types/function-calling'
-import { logger } from '~/utils/logger'
+import { logger } from '~/lib/logger'
 
 /**
  * ゲーム内の経過日数を管理する関数

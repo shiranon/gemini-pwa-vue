@@ -132,7 +132,7 @@ import { Button } from '~/components/ui/button'
 import { Input } from '~/components/ui/input'
 import { Slider } from '~/components/ui/slider'
 import type { AppSettings } from '~/types/settings'
-import { clamp } from '~/utils/calc'
+import { clamp } from '~/lib/calc'
 import { useAvatarImageUpload } from '~/composables/useImageUpload'
 
 interface Props {

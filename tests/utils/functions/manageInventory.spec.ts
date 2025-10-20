@@ -1,7 +1,7 @@
 import { Type } from '@google/genai'
-import { beforeEach, describe, expect, it, mock } from 'bun:test'
+import { beforeEach, describe, expect, it } from 'bun:test'
 import type { FunctionCallArgs, FunctionExecutionContext } from '~/types/function-calling'
-import { manageInventory, manageInventoryDeclaration } from '~/utils/functions/manageInventory'
+import { manageInventory, manageInventoryDeclaration } from '~/function-calling/functions/manageInventory'
 
 describe('manageInventory', () => {
   let mockContext: FunctionExecutionContext
@@ -11,7 +11,6 @@ describe('manageInventory', () => {
       persistentMemory: {},
       timestamp: Date.now(),
     }
-    mock.clearAllMocks()
   })
 
   describe('正常系', () => {

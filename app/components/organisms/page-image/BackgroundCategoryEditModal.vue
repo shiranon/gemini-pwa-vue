@@ -71,7 +71,7 @@ import { Button } from '~/components/ui/button'
 import { Input } from '~/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '~/components/ui/dialog'
 import { useBackgroundImages } from '~/composables/useBackgroundImages'
-import { logger } from '~/utils/logger'
+import { logger } from '~/lib/logger'
 import type { BackgroundCategoryRecord } from '~/types/database'
 
 interface Props {

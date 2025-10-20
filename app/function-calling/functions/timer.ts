@@ -4,7 +4,7 @@
 
 import { Type } from '@google/genai'
 import type { FunctionCallArgs, FunctionDeclaration, FunctionExecutionContext } from '~/types/function-calling'
-import { logger } from '~/utils/logger'
+import { logger } from '~/lib/logger'
 
 // タイマー管理用のシンプルな実装
 const timers = new Map<string, { endTime: number; duration: number }>()

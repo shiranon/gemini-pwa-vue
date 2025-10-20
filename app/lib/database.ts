@@ -26,9 +26,9 @@ import type {
 } from '~/types/database'
 import type { AppSettings, SettingsProfileData } from '~/types/settings'
 import { DEFAULT_SETTINGS } from '~/types/settings'
-import { logger } from '~/utils/logger'
-import type { GlobalSettingsSnapshot, ProfileSettingKey } from '~/utils/settingsPartition'
-import { cloneProfileSettings, extractGlobalSettings, extractProfileSettings, mergeProfilePartial, mergeSettingsFromSlices } from '~/utils/settingsPartition'
+import { logger } from '~/lib/logger'
+import type { GlobalSettingsSnapshot, ProfileSettingKey } from '~/lib/settingsPartition'
+import { cloneProfileSettings, extractGlobalSettings, extractProfileSettings, mergeProfilePartial, mergeSettingsFromSlices } from '~/lib/settingsPartition'
 
 export const DB_NAME = 'GeminiPWADatabase'
 

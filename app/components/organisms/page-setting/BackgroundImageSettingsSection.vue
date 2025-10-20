@@ -147,8 +147,8 @@ import { Input } from '~/components/ui/input'
 import { Button } from '~/components/ui/button'
 import { Slider } from '~/components/ui/slider'
 import type { AppSettings } from '~/types/settings'
-import { clamp, toPercent } from '~/utils/calc'
-import { normalizeHex, hexToRgba } from '~/utils/color'
+import { clamp, toPercent } from '~/lib/calc'
+import { normalizeHex, hexToRgba } from '~/lib/color'
 import { useBackgroundImageUpload } from '~/composables/useImageUpload'
 
 interface Props {

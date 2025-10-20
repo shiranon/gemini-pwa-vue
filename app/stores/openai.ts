@@ -13,6 +13,7 @@ import { useSettingsStore } from '~/stores/settings'
 import { useSettingsProfilesStore } from '~/stores/settingsProfiles'
 import type { ApiError, AssistantMessage, AttachedFile, ChatMessage, GeminiMessage, GeminiPart } from '~/types/chat'
 import type { FunctionCall, FunctionCallResult } from '~/types/function-calling'
+import { logger } from '~/lib/logger'
 
 export const useOpenAiStore = defineStore('openai', () => {
   // API実行状態

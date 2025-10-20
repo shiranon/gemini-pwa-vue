@@ -1,7 +1,7 @@
 import { Type } from '@google/genai'
-import { beforeEach, describe, expect, it, mock } from 'bun:test'
+import { beforeEach, describe, expect, it } from 'bun:test'
 import type { FunctionCallArgs, FunctionExecutionContext } from '~/types/function-calling'
-import { manageCharacterStatus, manageCharacterStatusDeclaration } from '~/utils/functions/manageCharacterStatus'
+import { manageCharacterStatus, manageCharacterStatusDeclaration } from '~/function-calling/functions/manageCharacterStatus'
 
 describe('manageCharacterStatus', () => {
   let mockContext: FunctionExecutionContext
@@ -11,7 +11,6 @@ describe('manageCharacterStatus', () => {
       persistentMemory: {},
       timestamp: Date.now(),
     }
-    mock.clearAllMocks()
   })
 
   describe('正常系', () => {

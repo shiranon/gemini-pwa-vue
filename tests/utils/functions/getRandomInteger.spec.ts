@@ -1,7 +1,7 @@
 import { Type } from '@google/genai'
-import { beforeEach, describe, expect, it, mock } from 'bun:test'
+import { beforeEach, describe, expect, it } from 'bun:test'
 import type { FunctionCallArgs, FunctionExecutionContext } from '~/types/function-calling'
-import { getRandomInteger, getRandomIntegerDeclaration } from '~/utils/functions/getRandomInteger'
+import { getRandomInteger, getRandomIntegerDeclaration } from '~/function-calling/functions/getRandomInteger'
 
 describe('getRandomInteger', () => {
   let mockContext: FunctionExecutionContext
@@ -11,7 +11,6 @@ describe('getRandomInteger', () => {
       persistentMemory: {},
       timestamp: Date.now(),
     }
-    mock.clearAllMocks()
   })
 
   describe('正常系', () => {

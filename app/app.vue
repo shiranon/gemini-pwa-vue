@@ -2,7 +2,7 @@
 import { onMounted } from 'vue'
 import { Toaster } from '~/components/ui/sonner'
 import 'vue-sonner/style.css'
-import { logger } from '~/utils/logger'
+import { logger } from '~/lib/logger'
 
 const settingsStore = useSettingsStore()
 const profilesStore = useSettingsProfilesStore()

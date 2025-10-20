@@ -3,7 +3,7 @@
  */
 import { Type } from '@google/genai'
 import type { FunctionCallArgs, FunctionDeclaration, FunctionExecutionContext } from '~/types/function-calling'
-import { logger } from '~/utils/logger'
+import { logger } from '~/lib/logger'
 
 /**
  * 物語のフラグやカウンターを管理する関数

@@ -1,7 +1,7 @@
 import { Type } from '@google/genai'
-import { beforeEach, describe, expect, it, mock } from 'bun:test'
+import { beforeEach, describe, expect, it } from 'bun:test'
 import type { FunctionCallArgs, FunctionExecutionContext } from '~/types/function-calling'
-import { manageStyleProfile, manageStyleProfileDeclaration } from '~/utils/functions/manageStyleProfile'
+import { manageStyleProfile, manageStyleProfileDeclaration } from '~/function-calling/functions/manageStyleProfile'
 
 describe('manageStyleProfile', () => {
   let mockContext: FunctionExecutionContext
@@ -11,7 +11,6 @@ describe('manageStyleProfile', () => {
       persistentMemory: {},
       timestamp: Date.now(),
     }
-    mock.clearAllMocks()
   })
 
   describe('正常系', () => {

@@ -72,7 +72,7 @@
 import { Icon } from '@iconify/vue'
 import { computed } from 'vue'
 import { formatMessageTimestamp } from '~/lib/format'
-import { hexToRgba } from '~/utils/color'
+import { hexToRgba } from '~/lib/color'
 
 interface MessageBubblePreviewAppearance {
   fontFamily: string

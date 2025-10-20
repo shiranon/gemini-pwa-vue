@@ -1,7 +1,7 @@
 import imageCompression from 'browser-image-compression'
 import { ref } from 'vue'
 import { IMAGE_LIMITS } from '~/constants/constants'
-import { logger } from '~/utils/logger'
+import { logger } from '~/lib/logger'
 
 export interface ImageOptimizationOptions {
   /** 最大幅（デフォルト: 1920px） */

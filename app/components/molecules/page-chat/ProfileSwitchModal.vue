@@ -47,7 +47,7 @@ import { Button } from '~/components/ui/button'
 import { Label } from '~/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '~/components/ui/radio-group'
 import { useSettingsStore } from '~/stores/settings'
-import { logger } from '~/utils/logger'
+import { logger } from '~/lib/logger'
 
 const isOpen = ref(false)
 const settingsStore = useSettingsStore()

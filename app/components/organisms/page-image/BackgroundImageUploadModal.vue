@@ -136,7 +136,7 @@ import { Input } from '~/components/ui/input'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '~/components/ui/dialog'
 import { useBackgroundImages } from '~/composables/useBackgroundImages'
 import { useFunctionCalling } from '~/composables/useFunctionCalling'
-import { logger } from '~/utils/logger'
+import { logger } from '~/lib/logger'
 import type { BackgroundCategoryRecord } from '~/types/database'
 
 interface Props {

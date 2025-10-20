@@ -1,5 +1,5 @@
 import { parseMarkdown, type MarkdownBlockNode, type MarkdownInlineNode } from '~/lib/markdown'
-import { logger } from '~/utils/logger'
+import { logger } from '~/lib/logger'
 
 export interface BackgroundDirective {
   categoryName: string

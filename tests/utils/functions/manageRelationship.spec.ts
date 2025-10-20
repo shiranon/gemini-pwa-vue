@@ -1,7 +1,7 @@
 import { Type } from '@google/genai'
-import { beforeEach, describe, expect, it, mock } from 'bun:test'
+import { beforeEach, describe, expect, it } from 'bun:test'
 import type { FunctionCallArgs, FunctionExecutionContext } from '~/types/function-calling'
-import { manageRelationship, manageRelationshipDeclaration } from '~/utils/functions/manageRelationship'
+import { manageRelationship, manageRelationshipDeclaration } from '~/function-calling/functions/manageRelationship'
 
 describe('manageRelationship', () => {
   let mockContext: FunctionExecutionContext
@@ -13,7 +13,6 @@ describe('manageRelationship', () => {
       },
       timestamp: Date.now(),
     }
-    mock.clearAllMocks()
   })
 
   describe('正常系', () => {

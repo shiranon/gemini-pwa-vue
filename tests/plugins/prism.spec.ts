@@ -1,8 +1,8 @@
-import { beforeEach, describe, expect, it, mock } from 'bun:test'
+import { beforeEach, describe, expect, it } from 'bun:test'
 
 describe('Prism Plugin Integration', () => {
   beforeEach(() => {
-    mock.clearAllMocks()
+    // Setup for each test
   })
 
   it('正しいPrismコンポーネントプロパティインターフェースを持つ', () => {

@@ -54,7 +54,7 @@ import SettingSection from '~/components/molecules/page-setting/SettingSection.v
 import SettingItem from '~/components/molecules/page-setting/SettingItem.vue'
 import { RadioGroup, RadioGroupItem } from '~/components/ui/radio-group'
 import type { AppSettings, ThemePresetId } from '~/types/settings'
-import { applyTheme, getThemeBubbleColors, getThemePresetOptions } from '~/utils/theme'
+import { applyTheme, getThemeBubbleColors, getThemePresetOptions } from '~/lib/theme'
 
 interface Props {
   localSettings: AppSettings

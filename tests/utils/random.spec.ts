@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { getRandomElement, getRandomElements, getRandomIndex, getRandomInt, getRandomString } from '~/utils/random'
+import { getRandomElement, getRandomElements, getRandomIndex, getRandomInt, getRandomString } from '~/function-calling/random'
 
 describe('random utilities', () => {
   describe('getRandomInt', () => {

@@ -1,7 +1,7 @@
 import { Type } from '@google/genai'
-import { beforeEach, describe, expect, it, mock } from 'bun:test'
+import { beforeEach, describe, expect, it } from 'bun:test'
 import type { FunctionCallArgs, FunctionExecutionContext } from '~/types/function-calling'
-import { manageFlags, manageFlagsDeclaration } from '~/utils/functions/manageFlags'
+import { manageFlags, manageFlagsDeclaration } from '~/function-calling/functions/manageFlags'
 
 describe('manageFlags', () => {
   let mockContext: FunctionExecutionContext
@@ -11,7 +11,6 @@ describe('manageFlags', () => {
       persistentMemory: {},
       timestamp: Date.now(),
     }
-    mock.clearAllMocks()
   })
 
   describe('正常系', () => {

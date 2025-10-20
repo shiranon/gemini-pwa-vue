@@ -1,8 +1,8 @@
 import { Type } from '@google/genai'
 import type { FunctionCallArgs, FunctionDeclaration, FunctionExecutionContext } from '~/types/function-calling'
-import { logger } from '~/utils/logger'
-import { getRandomString } from '~/utils/random'
-import { isPositiveInteger, isIntegerInRange } from '~/utils/validation'
+import { logger } from '~/lib/logger'
+import { getRandomString } from '~/function-calling/random'
+import { isPositiveInteger, isIntegerInRange } from '~/function-calling/validation'
 import { LIMITS, CHARSETS } from '~/constants/constants'
 
 /**

@@ -1,5 +1,5 @@
 import { useGeminiApi } from '~/composables/useGeminiApi'
-import { logger } from '~/utils/logger'
+import { logger } from '~/lib/logger'
 
 export interface SummaryOptions {
   apiKey: string

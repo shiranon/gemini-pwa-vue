@@ -19,8 +19,8 @@ import type {
   FunctionToolMeta,
 } from '~/types/function-calling'
 
-import { logger } from '~/utils/logger'
-import { createManageBackgroundDefinition, functionToolDefinitions } from '~/utils/registry'
+import { logger } from '~/lib/logger'
+import { createManageBackgroundDefinition, functionToolDefinitions } from '~/function-calling/registry'
 
 const functionRegistry = reactive<Map<string, FunctionRegistryEntry>>(new Map())
 
