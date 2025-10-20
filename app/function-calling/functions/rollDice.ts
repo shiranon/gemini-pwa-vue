@@ -105,11 +105,11 @@ export async function rollDice(
     }
 
     const result = {
-      expression: expression,
-      rolls: rolls,
-      sum: sum,
+      expression,
+      rolls,
+      sum,
       modifier: modifierOp ? `${modifierOp}${numModifier}` : 'なし',
-      total: total,
+      total,
     }
 
     logger.info(`[Function Calling] rollDice: 実行結果:`, result)
