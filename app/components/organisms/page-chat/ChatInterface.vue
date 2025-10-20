@@ -244,6 +244,7 @@ const messageContainer = ref<HTMLElement>()
 const backgroundUrl = ref<string | null>(null)
 const isProfileLoading = ref(false)
 const attachmentInputRef = ref<HTMLInputElement | null>(null)
+// IME入力中のEnter送信を防ぐ（日本語入力など）
 const isComposing = ref(false)
 
 // 一時的な背景画像管理

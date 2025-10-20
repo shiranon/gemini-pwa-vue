@@ -427,6 +427,7 @@ tests/
 - Type definitions in `app/types/`
 - All composables and stores fully typed
 - Service worker excluded from main tsconfig
+- **NO barrel exports** (index.ts files) - Import directly from specific files
 
 ### Styling
 - **TailwindCSS v4** utilities only

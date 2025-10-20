@@ -19,7 +19,7 @@ import { manageTimer, manageTimerDeclaration } from './functions/timer'
 /**
  * Function Callingで利用可能なツール定義一覧
  */
-export const functionToolDefinitions: FunctionToolDefinition[] = [
+export const functionToolDefinitions = [
   {
     declaration: getCurrentDateTimeDeclaration,
     handler: getCurrentDateTime,
@@ -216,7 +216,7 @@ export const functionToolDefinitions: FunctionToolDefinition[] = [
       contextHint: 'persistentMemory.styleProfiles にキャラクターの口調プロファイルを保存します。',
     },
   },
-]
+] as const satisfies readonly FunctionToolDefinition[]
 
 /**
  * manageBackground関数の定義を動的に生成

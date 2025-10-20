@@ -279,7 +279,7 @@ export const useFunctionCalling = () => {
   /**
    * デフォルト関数を初期化する
    */
-  const initializeDefaultFunctions = async (definitions: FunctionToolDefinition[] = functionToolDefinitions) => {
+  const initializeDefaultFunctions = async (definitions: readonly FunctionToolDefinition[] = functionToolDefinitions) => {
     // 通常の関数を登録
     definitions.forEach((definition) => {
       const name = definition.declaration.name
