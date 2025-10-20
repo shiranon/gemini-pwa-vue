@@ -50,7 +50,13 @@ export function useNotificationSound() {
     audio.addEventListener('ended', cleanup, { once: true })
     audio.addEventListener('error', cleanup, { once: true })
 
-    await audio.play()
+    try {
+      await audio.play()
+    } catch (error) {
+      // Autoplay blocked or other playback error
+      cleanup()
+      throw error
+    }
   }
 
   /**

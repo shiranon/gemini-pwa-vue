@@ -11,10 +11,12 @@ import type { ApiError, AssistantMessage, AttachedFile, ChatInputState, ChatSess
 import type { FunctionCall, FunctionCallResult } from '~/types/function-calling'
 import { logger } from '~/lib/logger'
 import { useSettingsStore } from './settings'
+import { useNotificationSound } from '~/composables/useNotificationSound'
 
 export const useChatStore = defineStore('chat', () => {
   const database = useDatabase()
   const settingsStore = useSettingsStore()
+  const { playReplySound } = useNotificationSound()
 
   let autoSaveTimer: NodeJS.Timeout | null = null
   const isSaving = ref(false)
@@ -761,7 +763,6 @@ export const useChatStore = defineStore('chat', () => {
 
       // メッセージが増えた場合のみ通知音を再生
       if (newCount > oldCount) {
-        const { playReplySound } = useNotificationSound()
         playReplySound()
       }
     }
