@@ -3,18 +3,32 @@
  * IndexedDBに保存された通知音の管理と再生機能を提供
  */
 
-import { ref } from 'vue'
+import { ref, type Ref } from 'vue'
 import { db } from '~/lib/database'
+import { generateSoundId } from '~/lib/ids'
 import { logger } from '~/lib/logger'
 import type { NotificationSoundRecord } from '~/types/database'
-import { generateSoundId } from '~/lib/ids'
+
+// シングルトンパターンでモジュールレベル変数を安全に管理
+interface AudioInstance {
+  current: HTMLAudioElement | null
+  isPlaying: Ref<boolean>
+}
+
+let audioInstance: AudioInstance | null = null
 
 export function useNotificationSound() {
   const settingsStore = useSettingsStore()
 
-  // 同時再生制御用
-  let currentAudio: HTMLAudioElement | null = null
-  const isPlaying = ref(false)
+  // シングルトンインスタンスの初期化
+  if (!audioInstance) {
+    audioInstance = {
+      current: null,
+      isPlaying: ref(false),
+    }
+  }
+
+  const { isPlaying } = audioInstance
 
   /**
    * Audio オブジェクトのメモリ解放
@@ -30,21 +44,21 @@ export function useNotificationSound() {
    */
   const playAudio = async (src: string): Promise<void> => {
     // 既に再生中の場合は停止
-    if (currentAudio) {
-      cleanupAudio(currentAudio)
-      currentAudio = null
+    if (audioInstance!.current) {
+      cleanupAudio(audioInstance!.current)
+      audioInstance!.current = null
     }
 
     const audio = new Audio(src)
-    currentAudio = audio
+    audioInstance!.current = audio
     isPlaying.value = true
 
     // 再生完了時のクリーンアップ
     const cleanup = () => {
       isPlaying.value = false
       cleanupAudio(audio)
-      if (currentAudio === audio) {
-        currentAudio = null
+      if (audioInstance!.current === audio) {
+        audioInstance!.current = null
       }
     }
 

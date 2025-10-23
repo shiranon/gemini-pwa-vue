@@ -23,7 +23,7 @@ const { addNotificationSound, deleteNotificationSound, getNotificationSounds, pr
 const sounds = ref<NotificationSoundRecord[]>([])
 const isUploading = ref(false)
 const fileInputRef = ref<HTMLInputElement>()
-const loadingSoundsController = ref<AbortController | null>(null)
+const loadingVersion = ref(0)
 
 const localSettings = computed({
   get: () => props.modelValue,
@@ -37,20 +37,18 @@ onMounted(async () => {
 })
 
 const loadSounds = async () => {
-  // 既存のリクエストをキャンセル
-  loadingSoundsController.value?.abort()
-  const controller = new AbortController()
-  loadingSoundsController.value = controller
+  // 新しいバージョンを設定（既存のリクエストを無効化）
+  const currentVersion = ++loadingVersion.value
 
   try {
     const result = await getNotificationSounds()
-    // キャンセルされていなければ更新
-    if (!controller.signal.aborted) {
+    // 最新のリクエストの場合のみ更新
+    if (currentVersion === loadingVersion.value) {
       sounds.value = result
     }
   } catch (error) {
-    // AbortErrorはログに記録しない
-    if (!controller.signal.aborted) {
+    // 最新のリクエストの場合のみエラーログを記録
+    if (currentVersion === loadingVersion.value) {
       logger.error('通知音の読み込みに失敗しました', { component: 'NotificationSoundSection', error })
       throw error
     }

@@ -742,29 +742,31 @@ export const useChatStore = defineStore('chat', () => {
   )
 
   // アシスタントメッセージ追加時に通知音を再生
-  const isInitialLoad = ref(true)
+  const lastKnownCount = ref<number | null>(null)
 
-  // セッションが切り替わった時に初回ロードフラグをリセット
+  // セッションが切り替わった時に前回のカウントをリセット
   watch(
     () => sessionId.value,
     () => {
-      isInitialLoad.value = true
+      lastKnownCount.value = null
     }
   )
 
   watch(
     () => assistantMessageCount.value,
-    (newCount, oldCount) => {
-      // 初回ロード時（チャット読み込み直後）は再生しない
-      if (isInitialLoad.value) {
-        isInitialLoad.value = false
+    (newCount) => {
+      // 初回ロード時は現在の値を記録するのみ
+      if (lastKnownCount.value === null) {
+        lastKnownCount.value = newCount
         return
       }
 
-      // メッセージが増えた場合のみ通知音を再生
-      if (newCount > oldCount) {
+      // 前回の値から増加した場合のみ通知音を再生
+      if (newCount > lastKnownCount.value) {
         playReplySound()
       }
+
+      lastKnownCount.value = newCount
     }
   )
 
