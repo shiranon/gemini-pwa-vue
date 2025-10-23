@@ -742,13 +742,13 @@ export const useChatStore = defineStore('chat', () => {
   )
 
   // アシスタントメッセージ追加時に通知音を再生
-  let isInitialLoad = true
+  const isInitialLoad = ref(true)
 
   // セッションが切り替わった時に初回ロードフラグをリセット
   watch(
     () => sessionId.value,
     () => {
-      isInitialLoad = true
+      isInitialLoad.value = true
     }
   )
 
@@ -756,8 +756,8 @@ export const useChatStore = defineStore('chat', () => {
     () => assistantMessageCount.value,
     (newCount, oldCount) => {
       // 初回ロード時（チャット読み込み直後）は再生しない
-      if (isInitialLoad) {
-        isInitialLoad = false
+      if (isInitialLoad.value) {
+        isInitialLoad.value = false
         return
       }
 
