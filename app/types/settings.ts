@@ -116,6 +116,10 @@ export interface NavigationSettings {
   enterToSend: boolean
   enableSwipeNavigation: boolean
   hideSystemPromptInChat: boolean
+  /** アシスタント返信時の通知音 */
+  enableReplySound: boolean
+  /** 選択された通知音ID */
+  replySoundId?: string
 }
 
 /** アバター個別設定 */
@@ -360,6 +364,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   enterToSend: true,
   enableSwipeNavigation: false,
   hideSystemPromptInChat: false,
+  enableReplySound: false,
+  replySoundId: undefined,
 
   // ダミープロンプト（送信時のみ適用）
   enableDummyUserPrompt: false,

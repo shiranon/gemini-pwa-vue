@@ -11,10 +11,12 @@ import type { ApiError, AssistantMessage, AttachedFile, ChatInputState, ChatSess
 import type { FunctionCall, FunctionCallResult } from '~/types/function-calling'
 import { logger } from '~/lib/logger'
 import { useSettingsStore } from './settings'
+import { useNotificationSound } from '~/composables/useNotificationSound'
 
 export const useChatStore = defineStore('chat', () => {
   const database = useDatabase()
   const settingsStore = useSettingsStore()
+  const { playReplySound } = useNotificationSound()
 
   let autoSaveTimer: NodeJS.Timeout | null = null
   const isSaving = ref(false)
@@ -736,6 +738,35 @@ export const useChatStore = defineStore('chat', () => {
       if (currentSession.value && !isEditingSystemPrompt.value) {
         currentSession.value.systemPrompt = newPrompt
       }
+    }
+  )
+
+  // アシスタントメッセージ追加時に通知音を再生
+  const lastKnownCount = ref<number | null>(null)
+
+  // セッションが切り替わった時に前回のカウントをリセット
+  watch(
+    () => sessionId.value,
+    () => {
+      lastKnownCount.value = null
+    }
+  )
+
+  watch(
+    () => assistantMessageCount.value,
+    (newCount) => {
+      // 初回ロード時は現在の値を記録するのみ
+      if (lastKnownCount.value === null) {
+        lastKnownCount.value = newCount
+        return
+      }
+
+      // 前回の値から増加した場合のみ通知音を再生
+      if (newCount > lastKnownCount.value) {
+        playReplySound()
+      }
+
+      lastKnownCount.value = newCount
     }
   )
 

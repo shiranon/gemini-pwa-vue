@@ -47,6 +47,8 @@
         <FeatureSettingsSection
           :local-settings="localSettings as AppSettings"
           :local-profile-settings="localProfileSettings as SettingsProfileData"
+          :show-confirm="showConfirm"
+          :show-alert="showAlert"
           @update-setting="handleUpdateSetting"
           @update-profile-setting="handleUpdateProfileSetting"
         />

@@ -30,6 +30,17 @@
       description="エラー時の自動リトライを有効化"
       @update:model-value="(value: boolean) => updateSetting('enableAutoRetry', value)"
     />
+    <NotificationSoundSection
+      :model-value="{ enableReplySound: localSettings.enableReplySound, replySoundId: localSettings.replySoundId }"
+      :show-confirm="props.showConfirm"
+      :show-alert="props.showAlert"
+      @update:model-value="
+        (value: { enableReplySound: boolean; replySoundId?: string }) => {
+          updateSetting('enableReplySound', value.enableReplySound)
+          updateSetting('replySoundId', value.replySoundId)
+        }
+      "
+    />
     <SettingToggle
       :model-value="localSettings.enableSwipeNavigation"
       label="スワイプナビゲーション"
@@ -44,13 +55,16 @@
 import type { AppSettings, SettingsProfileData } from '~/types/settings'
 import SettingSection from '~/components/molecules/page-setting/SettingSection.vue'
 import SettingToggle from '~/components/molecules/page-setting/SettingToggle.vue'
+import NotificationSoundSection from '~/components/organisms/page-setting/NotificationSoundSection.vue'
 
 export interface FeatureSettingsSectionProps {
   localSettings: AppSettings
   localProfileSettings: SettingsProfileData
+  showConfirm: (message: string, title?: string, description?: string) => Promise<boolean>
+  showAlert: (message: string, description?: string) => void
 }
 
-defineProps<FeatureSettingsSectionProps>()
+const props = defineProps<FeatureSettingsSectionProps>()
 
 const emit = defineEmits<{
   'update-setting': [key: keyof AppSettings, value: AppSettings[keyof AppSettings]]
