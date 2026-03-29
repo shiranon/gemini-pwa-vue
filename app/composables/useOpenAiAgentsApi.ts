@@ -8,6 +8,7 @@ import type { FunctionCall, FunctionCallResult } from '~/types/function-calling'
 import type { ThoughtExtractionResult } from '~/types/api'
 import { logger } from '~/lib/logger'
 import { filterFunctionsByAllowedNames, buildApiErrorMessage } from '~/lib/apiCommon'
+import { safeJsonParse } from '~/lib/apiStoreCommon'
 
 const TEXT_LIKE_MIME_PREFIXES = ['text/', 'application/json', 'application/xml', 'application/javascript', 'application/x-yaml']
 
@@ -179,6 +180,7 @@ const convertGeminiTypeToOpenAiType = (type: unknown): string => {
  * Gemini API のパラメータスキーマを OpenAI 形式に変換
  * メモ化により同じschemaの変換を繰り返さない
  */
+const MAX_CACHE_SIZE = 100
 const schemaConversionCache = new Map<string, unknown>()
 
 const convertGeminiSchemaToOpenAi = (schema: unknown): unknown => {
@@ -213,7 +215,13 @@ const convertGeminiSchemaToOpenAi = (schema: unknown): unknown => {
     }
   }
 
-  // キャッシュに保存
+  // キャッシュに保存 (FIFO削除で上限管理)
+  if (schemaConversionCache.size >= MAX_CACHE_SIZE) {
+    const firstKey = schemaConversionCache.keys().next().value
+    if (firstKey !== undefined) {
+      schemaConversionCache.delete(firstKey)
+    }
+  }
   schemaConversionCache.set(cacheKey, result)
 
   return result
@@ -280,7 +288,7 @@ export const useOpenAiAgentsApi = () => {
             // Function Callingの実行は既存のロジックを使用
             const functionCall: FunctionCall = {
               name: func.name || 'unknown',
-              args: typeof input === 'string' ? JSON.parse(input) : (input as Record<string, unknown>),
+              args: typeof input === 'string' ? safeJsonParse(input) : (input as Record<string, unknown>),
             }
 
             // Function Callを記録
@@ -612,22 +620,22 @@ export const useOpenAiAgentsApi = () => {
    */
   const getAvailableModels = async (_apiKey: string): Promise<string[]> => {
     return [
-      // GPT-5 models (最新・推奨)
-      'gpt-5',
-      'gpt‑5‑chat‑latest',
+      // GPT-5 Series (最新)
+      'gpt-5.4',
+      'gpt-5.4-pro',
       'gpt-5-mini',
       'gpt-5-nano',
-      // GPT-4o models (高性能)
+      'gpt-5',
+      // Reasoning Models
+      'o3',
+      'o3-pro',
+      'o4-mini',
+      // GPT-4 Series
+      'gpt-4.1',
+      'gpt-4.1-mini',
+      'gpt-4.1-nano',
       'gpt-4o',
       'gpt-4o-mini',
-      // GPT-4 models
-      'gpt-4-turbo',
-      'gpt-4',
-      // GPT-3.5 models (コスト効率)
-      'gpt-3.5-turbo',
-      // Reasoning models
-      'o1',
-      'o1-mini',
     ]
   }
 

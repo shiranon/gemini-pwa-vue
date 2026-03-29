@@ -8,6 +8,7 @@ import type { ChatCompletionMessageParam, ChatCompletionTool } from 'openai/reso
 import { Type } from '@google/genai'
 import { useFunctionCalling } from '~/composables/useFunctionCalling'
 import { buildApiErrorMessage, executeFunctionCallsCommon, filterFunctionsByAllowedNames, logFunctionCallCompletion } from '~/lib/apiCommon'
+import { safeJsonParse } from '~/lib/apiStoreCommon'
 import { generateMessageId } from '~/lib/ids'
 import { useChatStore } from '~/stores/chat'
 import type { ChatMessage, OllamaApiSettings } from '~/types/chat'
@@ -61,6 +62,7 @@ const convertGeminiTypeToOpenAiType = (type: unknown): string => {
 /**
  * Gemini API のパラメータスキーマを OpenAI 形式に変換
  */
+const MAX_CACHE_SIZE = 100
 const schemaConversionCache = new Map<string, unknown>()
 
 const convertGeminiSchemaToOpenAi = (schema: unknown): unknown => {
@@ -94,6 +96,12 @@ const convertGeminiSchemaToOpenAi = (schema: unknown): unknown => {
     }
   }
 
+  if (schemaConversionCache.size >= MAX_CACHE_SIZE) {
+    const firstKey = schemaConversionCache.keys().next().value
+    if (firstKey !== undefined) {
+      schemaConversionCache.delete(firstKey)
+    }
+  }
   schemaConversionCache.set(cacheKey, result)
   return result
 }
@@ -238,7 +246,7 @@ export const useOllamaApi = () => {
       if (functionToolCalls && functionToolCalls.length > 0 && settings.functionCalling?.enabled) {
         toolCalls = functionToolCalls.map((tc) => ({
           name: tc.function.name,
-          args: JSON.parse(tc.function.arguments || '{}'),
+          args: safeJsonParse(tc.function.arguments || '{}'),
         }))
 
         toolResults = await executeFunctionCallsCommon(toolCalls, {
@@ -377,7 +385,7 @@ export const useOllamaApi = () => {
       if (accumulatedToolCalls.length > 0 && settings.functionCalling?.enabled) {
         const toolCalls: FunctionCall[] = accumulatedToolCalls.map((tc) => ({
           name: tc.name,
-          args: JSON.parse(tc.arguments || '{}'),
+          args: safeJsonParse(tc.arguments || '{}'),
         }))
 
         const toolResults = await executeFunctionCallsCommon(toolCalls, {
