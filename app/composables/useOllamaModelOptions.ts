@@ -1,6 +1,7 @@
 import { onMounted, ref, watch, type ComputedRef, type Ref } from 'vue'
 import { useOllamaApi } from '~/composables/useOllamaApi'
 import { logger } from '~/lib/logger'
+import { protocolRestrictedUrlSchema } from '~/lib/validation'
 import type { ModelOption } from '~/composables/useGeminiModelOptions'
 
 export interface UseOllamaModelOptionsReturn {
@@ -29,6 +30,15 @@ export function useOllamaModelOptions(baseUrl: ComputedRef<string> | Ref<string>
       connectionError.value = 'ベースURLが設定されていません'
       return
     }
+
+    // URLバリデーション
+    const urlValidation = protocolRestrictedUrlSchema().safeParse(url)
+    if (!urlValidation.success) {
+      modelOptions.value = []
+      connectionError.value = '無効なURLです。http:// または https:// で始まるURLを入力してください。'
+      return
+    }
+
     try {
       loadingModels.value = true
       connectionError.value = null

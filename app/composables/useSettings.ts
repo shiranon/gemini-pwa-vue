@@ -6,6 +6,8 @@ import { logger } from '~/lib/logger'
 import type { GlobalSettingKey } from '~/lib/settingsPartition'
 import { extractGlobalSettings } from '~/lib/settingsPartition'
 
+const SENSITIVE_SETTINGS_KEYS = new Set(['apiKey', 'claudeApiKey', 'ollamaApiKey', 'deeplApiKey', 'openaiApiKey'])
+
 // ダイアログ関数の型定義
 interface DialogFunctions {
   showAlert: (message: string, title?: string, description?: string) => void
@@ -61,7 +63,7 @@ export function useSettings(dialogs: DialogFunctions) {
    */
   const updateLocalSetting = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
     localSettings.value = { ...localSettings.value, [key]: value }
-    logger.debug(`グローバル設定を更新: ${key}`, { value })
+    logger.debug(`グローバル設定を更新: ${key}`, { value: SENSITIVE_SETTINGS_KEYS.has(key as string) ? '[REDACTED]' : value })
   }
 
   /**

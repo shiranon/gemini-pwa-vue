@@ -8,6 +8,8 @@ import { logger } from '~/lib/logger'
 import type { ProfileSettingKey } from '~/lib/settingsPartition'
 import { cloneProfileSettings, extractProfileSettings, mergeProfilePartial } from '~/lib/settingsPartition'
 
+const SENSITIVE_SETTINGS_KEYS = new Set(['apiKey', 'claudeApiKey', 'ollamaApiKey', 'deeplApiKey', 'openaiApiKey'])
+
 export const useSettingsProfilesStore = defineStore('settingsProfiles', () => {
   const profiles = ref<SettingsProfile[]>([])
   const activeProfileId = ref<string | null>(null)
@@ -321,7 +323,7 @@ export const useSettingsProfilesStore = defineStore('settingsProfiles', () => {
       ...temporarySettings.value,
       [key]: value,
     }
-    logger.info(`[Profile Store] 一時的な設定を更新: ${key}`, { value })
+    logger.info(`[Profile Store] 一時的な設定を更新: ${key}`, { value: SENSITIVE_SETTINGS_KEYS.has(key as string) ? '[REDACTED]' : value })
 
     // Function Calling と Google Search の排他制御
     if (key === 'geminiEnableFunctionCalling' && value === true) {

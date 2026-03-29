@@ -3,6 +3,8 @@ import { useSettingsProfilesStore } from '~/stores/settingsProfiles'
 import type { SettingsProfileData } from '~/types/settings'
 import { logger } from '~/lib/logger'
 
+const SENSITIVE_SETTINGS_KEYS = new Set(['apiKey', 'claudeApiKey', 'ollamaApiKey', 'deeplApiKey', 'openaiApiKey'])
+
 /**
  * プロファイル設定専用のコンポーザブル
  * プロファイル固有の設定のみを扱う
@@ -114,7 +116,7 @@ export function useProfileSettings() {
     }
 
     if (typeof logger.debug === 'function') {
-      logger.debug(`プロファイル設定を更新: ${key}`, { value })
+      logger.debug(`プロファイル設定を更新: ${key}`, { value: SENSITIVE_SETTINGS_KEYS.has(key as string) ? '[REDACTED]' : value })
     }
   }
 

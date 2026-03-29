@@ -14,6 +14,7 @@ import { useChatStore } from '~/stores/chat'
 import type { ChatMessage, OllamaApiSettings } from '~/types/chat'
 import type { FunctionCall, FunctionCallResult } from '~/types/function-calling'
 import { logger } from '~/lib/logger'
+import { protocolRestrictedUrlSchema } from '~/lib/validation'
 
 export interface OllamaStreamingChunk {
   type: 'chunk'
@@ -469,6 +470,12 @@ export const useOllamaApi = () => {
    * 利用可能なモデル一覧をOllama APIから取得
    */
   const getAvailableModels = async (baseUrl: string): Promise<string[]> => {
+    // URLバリデーション
+    const urlValidation = protocolRestrictedUrlSchema().safeParse(baseUrl)
+    if (!urlValidation.success) {
+      throw new Error('無効なURLです。http:// または https:// で始まるURLを入力してください。')
+    }
+
     try {
       const response = await fetch(`${baseUrl}/api/tags`)
       if (!response.ok) {
@@ -494,3 +501,11 @@ export const useOllamaApi = () => {
 }
 
 export type UseOllamaApiReturn = ReturnType<typeof useOllamaApi>
+
+// テスト用エクスポート
+export const _testing = {
+  convertGeminiSchemaToOpenAi,
+  convertGeminiTypeToOpenAiType,
+  schemaConversionCache,
+  MAX_CACHE_SIZE,
+}
