@@ -518,7 +518,8 @@ export const useOpenAiAgentsApi = () => {
     messages: GeminiMessage[],
     _generationConfig: Record<string, unknown>,
     systemInstruction: { role: string; parts: Array<{ text: string }> } | null,
-    settings: OpenAiApiSettings
+    settings: OpenAiApiSettings,
+    options?: { signal?: AbortSignal }
   ) {
     try {
       // Function Calls記録をクリア
@@ -552,6 +553,7 @@ export const useOpenAiAgentsApi = () => {
       // ベストプラクティス: 型安全なストリーミング実行
       const streamOptions: StreamRunOptions = {
         stream: true,
+        ...(options?.signal && { signal: options.signal }),
       }
 
       const stream = await run(agent, agentInput, streamOptions)
