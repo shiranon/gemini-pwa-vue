@@ -264,6 +264,32 @@ export interface BaseClaudeApiSettings {
 export type ClaudeApiSettings = BaseClaudeApiSettings & ThoughtTranslationConfig & Partial<ProofreadingConfig>
 
 // ============================================================================
+// Ollama API関連型
+// ============================================================================
+
+export interface OllamaApiSettings {
+  baseUrl: string
+  apiKey: string
+  model: string
+  temperature?: number
+  maxTokens?: number | null
+  topK?: number
+  topP?: number
+  systemPrompt: string
+  streamingOutput: boolean
+  functionCalling?: {
+    enabled: boolean
+    mode: 'auto' | 'any' | 'none'
+    allowedFunctionNames?: string[]
+  }
+  enableDummyUserPrompt?: boolean
+  dummyUserPrompt?: string
+  enableDummyModelPrompt?: boolean
+  dummyModelPrompt?: string
+  prependDummyModelToResponse?: boolean
+}
+
+// ============================================================================
 // UI状態関連型
 // ============================================================================
 
