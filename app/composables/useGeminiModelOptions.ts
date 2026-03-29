@@ -22,16 +22,17 @@ export function useGeminiModelOptions(apiKey: ComputedRef<string> | Ref<string>)
   const geminiApi = useGeminiApi()
 
   const defaultModelOptions: ModelOption[] = [
-    { value: 'gemini-2.0-flash-lite', label: 'gemini-2.0-flash-lite' },
-    { value: 'gemini-2.0-flash', label: 'gemini-2.0-flash' },
-    { value: 'gemini-2.5-flash-preview-04-17', label: 'gemini-2.5-flash-preview-04-17' },
-    { value: 'gemini-2.5-flash-preview-05-20', label: 'gemini-2.5-flash-preview-05-20' },
-    { value: 'gemini-2.5-flash-lite-preview-06-17', label: 'gemini-2.5-flash-lite-preview-06-17' },
+    // Gemini 3 Series (最新)
+    { value: 'gemini-3.1-pro-preview', label: 'gemini-3.1-pro-preview' },
+    { value: 'gemini-3-flash-preview', label: 'gemini-3-flash-preview' },
+    { value: 'gemini-3.1-flash-lite-preview', label: 'gemini-3.1-flash-lite-preview' },
+    // Gemini 2.5 Series
     { value: 'gemini-2.5-flash', label: 'gemini-2.5-flash' },
-    { value: 'gemini-2.5-pro-preview-03-25', label: 'gemini-2.5-pro-preview-03-25' },
-    { value: 'gemini-2.5-pro-preview-05-06', label: 'gemini-2.5-pro-preview-05-06' },
-    { value: 'gemini-2.5-pro-preview-06-05', label: 'gemini-2.5-pro-preview-06-05' },
+    { value: 'gemini-2.5-flash-lite', label: 'gemini-2.5-flash-lite' },
     { value: 'gemini-2.5-pro', label: 'gemini-2.5-pro' },
+    // Gemini 2.0 Series
+    { value: 'gemini-2.0-flash', label: 'gemini-2.0-flash' },
+    { value: 'gemini-2.0-flash-lite', label: 'gemini-2.0-flash-lite' },
   ]
 
   const modelOptions = ref<ModelOption[]>(defaultModelOptions)

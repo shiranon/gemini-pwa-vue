@@ -34,8 +34,15 @@ export interface ImportResult {
 
 function sanitizeSettingsForImport(settings: AppSettings, warnings: string[]): AppSettings {
   const safe = { ...settings }
-  if (safe.apiKey) {
-    safe.apiKey = ''
+  const credentialKeys = ['apiKey', 'claudeApiKey', 'ollamaApiKey', 'deeplApiKey', 'openaiApiKey'] as const
+  let hasCredentials = false
+  for (const key of credentialKeys) {
+    if (key in safe && safe[key as keyof AppSettings]) {
+      ;(safe as Record<string, unknown>)[key] = ''
+      hasCredentials = true
+    }
+  }
+  if (hasCredentials) {
     warnings.push('セキュリティのためAPIキーはインポートされませんでした')
   }
   return safe
@@ -83,13 +90,21 @@ export const exportFullData = async (): Promise<FullBackupData> => {
   await database.refreshStats()
   const stats = database.stats.value
 
+  const exportedSettings = { ...settingsStore.exportSettings() }
+  const credentialKeys = ['apiKey', 'claudeApiKey', 'ollamaApiKey', 'deeplApiKey', 'openaiApiKey'] as const
+  for (const key of credentialKeys) {
+    if (key in exportedSettings) {
+      ;(exportedSettings as Record<string, unknown>)[key] = ''
+    }
+  }
+
   const backupData: FullBackupData = {
     version: '1.0.1',
     exportedAt: Date.now(),
     application: 'Gemini Pwa Assistant',
     data: {
       chats,
-      settings: settingsStore.exportSettings(),
+      settings: exportedSettings,
       stats: stats || { totalChats: 0, totalMessages: 0 },
     },
   }

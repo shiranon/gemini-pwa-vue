@@ -81,7 +81,7 @@ const buildAttachmentBlocks = (attachments: AttachedFile[]): ContentBlockParam[]
           text: `添付ファイル: ${file.name}\n\n内容:\n${textContent}`,
         })
       } catch (error) {
-        console.error('テキストファイルのデコードに失敗:', error)
+        logger.error('テキストファイルのデコードに失敗', { component: 'useClaudeApi' }, error)
         blocks.push({ type: 'text', text: `添付ファイル: ${file.name} (デコードエラー)` })
       }
     } else {
@@ -91,6 +91,9 @@ const buildAttachmentBlocks = (attachments: AttachedFile[]): ContentBlockParam[]
 
   return blocks
 }
+
+const MAX_CACHE_SIZE = 100
+const schemaConversionCache = new Map<string, Tool.InputSchema>()
 
 export const useClaudeApi = () => {
   const { getEnabledFunctionDeclarations, executeFunction } = useFunctionCalling()
@@ -248,8 +251,6 @@ export const useClaudeApi = () => {
    * メモ化により同じschemaの変換を繰り返さない
    * キャッシュサイズ制限によりメモリリークを防止
    */
-  const MAX_CACHE_SIZE = 100
-  const schemaConversionCache = new Map<string, Tool.InputSchema>()
 
   // 型ガード関数: 有効なプロパティオブジェクトかどうかを検証
   const isValidPropertiesObject = (val: unknown): val is Record<string, unknown> => {
@@ -851,21 +852,33 @@ export const useClaudeApi = () => {
     }
   }
 
+  /** フォールバック用の固定モデルリスト */
+  const FALLBACK_MODELS = [
+    'claude-opus-4-6',
+    'claude-sonnet-4-6',
+    'claude-haiku-4-5-20251001',
+    'claude-sonnet-4-5-20250929',
+    'claude-opus-4-5-20251101',
+    'claude-opus-4-1-20250805',
+    'claude-sonnet-4-20250514',
+    'claude-opus-4-20250514',
+  ]
+
   /**
-   * 利用可能なモデル一覧を取得する（Claude固定リスト）
+   * 利用可能なモデル一覧を取得する
+   * Anthropic Models APIで動的取得し、失敗時は固定リストにフォールバック
    */
-  const getAvailableModels = async (_apiKey: string): Promise<string[]> => {
-    // Claude APIにはモデル一覧取得APIがないため、固定リストを返す
-    return [
-      // Claude 4 Models
-      'claude-opus-4-1-20250805',
-      'claude-opus-4-20250514',
-      'claude-sonnet-4-5-20250929',
-      'claude-sonnet-4-20250514',
-      // Claude 3.7 Models
-      'claude-3-7-sonnet-20250219',
-      'claude-3-5-haiku-20241022',
-    ]
+  const getAvailableModels = async (apiKey: string): Promise<string[]> => {
+    if (!apiKey) return FALLBACK_MODELS
+    try {
+      const client = createClaudeClient(apiKey)
+      const page = await client.models.list({ limit: 100 })
+      const models = page.data.map((m) => m.id).filter((id) => id.startsWith('claude-'))
+      return models.length > 0 ? models : FALLBACK_MODELS
+    } catch (error) {
+      logger.warn('Claudeモデル一覧の動的取得に失敗、固定リストを使用:', { component: 'useClaudeApi' }, error)
+      return FALLBACK_MODELS
+    }
   }
 
   /**

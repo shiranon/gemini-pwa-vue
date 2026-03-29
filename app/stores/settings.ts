@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { useFunctionCalling } from '~/composables/useFunctionCalling'
 import { loadSettings as loadSettingsFromDB, saveSettings as saveSettingsToDB } from '~/lib/database'
 import { useSettingsProfilesStore } from '~/stores/settingsProfiles'
-import type { ClaudeApiSettings, GeminiApiSettings } from '~/types/chat'
+import type { ClaudeApiSettings, GeminiApiSettings, OllamaApiSettings } from '~/types/chat'
 import type { AppSettings } from '~/types/settings'
 import { DEFAULT_SETTINGS } from '~/types/settings'
 import { clamp } from '~/lib/calc'
@@ -131,6 +131,30 @@ export const useSettingsStore = defineStore(
           }
         : undefined,
       // ダミープロンプト設定（送信時のみ適用）
+      enableDummyUserPrompt: settings.value.enableDummyUserPrompt,
+      dummyUserPrompt: settings.value.dummyUserPrompt,
+      enableDummyModelPrompt: settings.value.enableDummyModelPrompt,
+      dummyModelPrompt: settings.value.dummyModelPrompt,
+      prependDummyModelToResponse: settings.value.prependDummyModelToResponse,
+    }))
+
+    const ollamaApiSettings = computed<OllamaApiSettings>(() => ({
+      baseUrl: settings.value.ollamaBaseUrl,
+      apiKey: settings.value.ollamaApiKey,
+      model: settings.value.modelName,
+      temperature: settings.value.temperature ?? 0.7,
+      maxTokens: settings.value.maxTokens,
+      topK: settings.value.topK ?? undefined,
+      topP: settings.value.topP ?? 0.95,
+      systemPrompt: settings.value.systemPrompt,
+      streamingOutput: settings.value.streamingOutput,
+      functionCalling: settings.value.geminiEnableFunctionCalling
+        ? {
+            enabled: true,
+            mode: settings.value.functionCallingMode,
+            ...(settings.value.functionCallingMode === 'any' && settings.value.enabledFunctionTools.length > 0 ? { allowedFunctionNames: [...settings.value.enabledFunctionTools] } : {}),
+          }
+        : undefined,
       enableDummyUserPrompt: settings.value.enableDummyUserPrompt,
       dummyUserPrompt: settings.value.dummyUserPrompt,
       enableDummyModelPrompt: settings.value.enableDummyModelPrompt,
@@ -497,6 +521,7 @@ export const useSettingsStore = defineStore(
       apiConfig,
       apiSettings,
       claudeApiSettings,
+      ollamaApiSettings,
       geminiParameters,
       advancedSettings,
       thoughtTranslationSettings,

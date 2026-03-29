@@ -5,37 +5,19 @@
 
 import type { Content } from '@google/genai'
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { createApiStoreState, createChatCallbacks, sleep, toApiError, type ChatCallbackHooks, type SendChatMessageOptions } from '~/lib/apiStoreCommon'
 import { useGeminiApi, type CombinedResponse } from '~/composables/useGeminiApi'
 import { proofreadText } from '~/lib/proofreader'
 import { translateThoughts } from '~/lib/translator'
 import { useChatStore } from '~/stores/chat'
 import { useSettingsStore } from '~/stores/settings'
-import type { ApiError, AssistantMessage, AttachedFile, ChatMessage, GeminiApiSettings, GeminiMessage, GeminiPart } from '~/types/chat'
+import { useSettingsProfilesStore } from '~/stores/settingsProfiles'
+import type { ApiError, AssistantMessage, ChatMessage, GeminiApiSettings, GeminiMessage, GeminiPart } from '~/types/chat'
 import type { FunctionCall, FunctionCallResult } from '~/types/function-calling'
 import { logger } from '~/lib/logger'
 
 export const useGeminiStore = defineStore('gemini', () => {
-  // API実行状態
-  const isSending = ref(false)
-  const isStreaming = ref(false)
-  const streamingMessageId = ref<string | null>(null)
-  const streamingContent = ref('')
-
-  // エラー状態
-  const currentError = ref<string | null>(null)
-  const lastErrorTime = ref<number | null>(null)
-
-  // API統計
-  const totalApiCalls = ref(0)
-  const successfulCalls = ref(0)
-  const failedCalls = ref(0)
-
-  const isIdle = computed(() => !isSending.value && !isStreaming.value)
-  const hasError = computed(() => currentError.value !== null)
-  const successRate = computed(() => {
-    return totalApiCalls.value > 0 ? (successfulCalls.value / totalApiCalls.value) * 100 : 0
-  })
+  const state = createApiStoreState()
 
   const geminiApi = useGeminiApi()
 
@@ -117,78 +99,9 @@ export const useGeminiStore = defineStore('gemini', () => {
     return profilesStore.activeProfileSettingsWithTemporary
   }
 
-  type SendChatMessageOptions = {
-    content?: string
-    attachments?: AttachedFile[]
-    skipAddingUserMessage?: boolean
-    onError?: (error: ApiError | null) => void
-    onRetryScheduled?: (info: { attempt: number; delayMs: number }) => void
-    onRetryStarted?: (info: { attempt: number }) => void
-  }
-
-  type ChatCallbackHooks = {
-    onError?: (error: ApiError | null) => void
-    onRetryScheduled?: (info: { attempt: number; delayMs: number }) => void
-    onRetryStarted?: (info: { attempt: number }) => void
-  }
-
-  const sleep = (ms: number) =>
-    new Promise<void>((resolve) => {
-      setTimeout(resolve, ms)
-    })
-
-  const toApiError = (error: unknown): ApiError => {
-    if (error && typeof error === 'object' && 'apiError' in error && (error as { apiError?: ApiError }).apiError) {
-      return (error as { apiError: ApiError }).apiError
-    }
-
-    let message = '不明なエラーが発生しました'
-    let code = 'UNKNOWN'
-    let details: string | object | undefined
-
-    if (error instanceof Error) {
-      message = error.message || message
-      if ('code' in error && typeof (error as { code?: string }).code === 'string') {
-        code = (error as { code: string }).code
-      }
-      if ('cause' in error && (error as { cause?: unknown }).cause) {
-        details = (error as { cause?: unknown }).cause as string | object
-      }
-    } else if (typeof error === 'string') {
-      message = error
-    } else if (typeof error === 'object' && error) {
-      if ('message' in error && typeof (error as { message?: unknown }).message === 'string') {
-        message = (error as { message: string }).message
-      }
-      if ('code' in error && typeof (error as { code?: unknown }).code === 'string') {
-        code = (error as { code: string }).code
-      }
-      if ('status' in error && typeof (error as { status?: unknown }).status === 'number') {
-        code = `HTTP_${(error as { status: number }).status}`
-      }
-      details = error as object
-    }
-
-    const lowerMessage = message.toLowerCase()
-    const nonRetriableKeywords = ['invalid argument', 'invalid api key', 'permission', 'unauthorized', 'format', 'quota']
-    const nonRetriablePatterns = [/api\s*キーが不正/, /不正な\s*api\s*キー/]
-    let retirable = !nonRetriableKeywords.some((keyword) => lowerMessage.includes(keyword))
-
-    if (retirable) {
-      retirable = !nonRetriablePatterns.some((pattern) => pattern.test(lowerMessage))
-    }
-
-    const apiError: ApiError = {
-      code,
-      message,
-      retirable,
-    }
-
-    if (details) {
-      apiError.details = details
-    }
-
-    return apiError
+  const geminiToApiErrorOptions = {
+    extraNonRetriableKeywords: ['quota'],
+    extraNonRetriablePatterns: [/api\s*キーが不正/, /不正な\s*api\s*キー/],
   }
 
   /**
@@ -209,9 +122,9 @@ export const useGeminiStore = defineStore('gemini', () => {
     let completed = false
 
     // ストリーミング状態を開始
-    isStreaming.value = true
-    streamingContent.value = ''
-    streamingMessageId.value = null
+    state.isStreaming.value = true
+    state.streamingContent.value = ''
+    state.streamingMessageId.value = null
 
     let accumulatedThoughts: string | undefined
     let translated: string | undefined
@@ -231,7 +144,7 @@ export const useGeminiStore = defineStore('gemini', () => {
             // ストリーミング開始時にダミーModel（プレフィル）を先頭に適用（必要な場合）
             if (settings.prependDummyModelToResponse && settings.enableDummyModelPrompt && settings.dummyModelPrompt?.trim()) {
               assistantMessage.content = `${settings.dummyModelPrompt}\n`
-              streamingContent.value = assistantMessage.content
+              state.streamingContent.value = assistantMessage.content
             }
             const chatStore = useChatStore()
             const reuseIndex = callbacks.onMessageStart(assistantMessage)
@@ -241,8 +154,8 @@ export const useGeminiStore = defineStore('gemini', () => {
               const baseTimestamp = existingMessage?.createdAt ?? Date.now()
               assistantMessage.timestamp = baseTimestamp
               messageIndex = reuseIndex
-              streamingMessageId.value = baseTimestamp.toString()
-              streamingContent.value = assistantMessage.content
+              state.streamingMessageId.value = baseTimestamp.toString()
+              state.streamingContent.value = assistantMessage.content
 
               callbacks.onMessageUpdate(messageIndex, {
                 content: assistantMessage.content,
@@ -256,7 +169,7 @@ export const useGeminiStore = defineStore('gemini', () => {
               // ChatInterface.vueが-1を返すので、こちらでメッセージを直接追加
               chatStore.addMessage(assistantMessage)
               messageIndex = chatStore.currentMessages.length - 1
-              streamingMessageId.value = assistantMessage.timestamp?.toString() || null
+              state.streamingMessageId.value = assistantMessage.timestamp?.toString() || null
               logger.info('[Geminiストア] アシスタントメッセージを作成（インデックス）:', { component: 'useGeminiStore' }, messageIndex)
             }
           }
@@ -264,7 +177,7 @@ export const useGeminiStore = defineStore('gemini', () => {
           // コンテンツの更新
           if (chunk.contentText && assistantMessage) {
             assistantMessage.content += chunk.contentText
-            streamingContent.value = assistantMessage.content
+            state.streamingContent.value = assistantMessage.content
           }
 
           // 思考プロセスが含まれている場合は蓄積
@@ -338,7 +251,7 @@ export const useGeminiStore = defineStore('gemini', () => {
         }
       }
 
-      successfulCalls.value++
+      state.successfulCalls.value++
       completed = true
     } catch (error) {
       if (messageIndex !== -1 && assistantMessage) {
@@ -351,9 +264,9 @@ export const useGeminiStore = defineStore('gemini', () => {
       throw error
     } finally {
       // ストリーミング状態を終了
-      isStreaming.value = false
-      streamingContent.value = ''
-      streamingMessageId.value = null
+      state.isStreaming.value = false
+      state.streamingContent.value = ''
+      state.streamingMessageId.value = null
 
       // ストリーミング完了時の最終アップデートを送信
       // これによりChatInterfaceで!geminiStore.isStreamingの条件でcompleteStreamingが呼ばれる
@@ -455,7 +368,7 @@ export const useGeminiStore = defineStore('gemini', () => {
       logger.info('[Geminiストア] アシスタントメッセージを作成:', { component: 'useGeminiStore' }, assistantMessage)
 
       callbacks.onMessageAdd(assistantMessage)
-      successfulCalls.value++
+      state.successfulCalls.value++
     } else {
       throw new Error('API応答の形式が不正です')
     }
@@ -476,7 +389,7 @@ export const useGeminiStore = defineStore('gemini', () => {
       onRetryStarted?: (info: { attempt: number }) => void
     }
   ) => {
-    if (isSending.value || isStreaming.value) {
+    if (state.isSending.value || state.isStreaming.value) {
       throw new Error('別のメッセージが処理中です')
     }
 
@@ -486,8 +399,8 @@ export const useGeminiStore = defineStore('gemini', () => {
     })
 
     try {
-      isSending.value = true
-      clearError()
+      state.isSending.value = true
+      state.clearError()
       callbacks.onError?.(null)
 
       const messagesForApi: GeminiMessage[] = prepareMessagesForApi(messages)
@@ -500,7 +413,7 @@ export const useGeminiStore = defineStore('gemini', () => {
 
       while (true) {
         attempt++
-        totalApiCalls.value++
+        state.totalApiCalls.value++
 
         logger.info('[自動リトライ] リクエスト試行を開始します', { attempt })
 
@@ -529,9 +442,9 @@ export const useGeminiStore = defineStore('gemini', () => {
           }
           break
         } catch (error) {
-          const apiError = toApiError(error)
-          failedCalls.value++
-          setError(apiError.message)
+          const apiError = toApiError(error, geminiToApiErrorOptions)
+          state.failedCalls.value++
+          state.setError(apiError.message)
 
           const retriesUsed = attempt - 1
           const shouldRetry = retrySettings.enableAutoRetry && apiError.retirable !== false && retriesUsed < maxRetries
@@ -580,71 +493,7 @@ export const useGeminiStore = defineStore('gemini', () => {
       }
       throw error
     } finally {
-      isSending.value = false
-    }
-  }
-
-  const createChatCallbacks = (hooks?: ChatCallbackHooks) => {
-    const chatStore = useChatStore()
-
-    return {
-      onAssistantMessageStart: (_message: ChatMessage) => {
-        chatStore.startStreaming()
-
-        const lastIndex = chatStore.visibleMessages.length - 1
-        if (lastIndex >= 0) {
-          const lastMessage = chatStore.visibleMessages[lastIndex] as AssistantMessage | undefined
-          if (lastMessage?.role === 'assistant' && lastMessage.error) {
-            return lastIndex
-          }
-        }
-
-        return -1
-      },
-      onAssistantMessageAdd: (message: ChatMessage) => {
-        chatStore.addMessage({
-          role: message.role,
-          content: message.content,
-          timestamp: message.timestamp || Date.now(),
-          thoughts: message.thoughts,
-          translatedThoughts: message.translatedThoughts,
-          error: message.error,
-          functionCalls: message.functionCalls,
-          functionResults: message.functionResults,
-        })
-        chatStore.completeStreaming({
-          functionCalls: message.functionCalls,
-          functionResults: message.functionResults,
-        })
-      },
-      onMessageUpdate: (index: number, updates: Partial<ChatMessage>) => {
-        chatStore.updateMessage(index, {
-          content: updates.content,
-          error: updates.error,
-          thoughts: updates.thoughts,
-          translatedThoughts: updates.translatedThoughts,
-          functionCalls: updates.functionCalls,
-          functionResults: updates.functionResults,
-        })
-
-        if (updates.isStreamingComplete) {
-          chatStore.completeStreaming({
-            functionCalls: updates.functionCalls,
-            functionResults: updates.functionResults,
-          })
-        }
-      },
-      onError: (error: ApiError | null) => {
-        if (error) {
-          chatStore.setError(error)
-        } else {
-          chatStore.clearError()
-        }
-
-        hooks?.onError?.(error)
-      },
-      onRetryScheduled: hooks?.onRetryScheduled,
-      onRetryStarted: hooks?.onRetryStarted,
+      state.isSending.value = false
     }
   }
 
@@ -702,7 +551,7 @@ export const useGeminiStore = defineStore('gemini', () => {
         message: 'APIキーを設定してください',
         retirable: false,
       }
-      setError(apiError.message)
+      state.setError(apiError.message)
       chatStore.setError(apiError)
       options.onError?.(apiError)
       return false
@@ -713,19 +562,21 @@ export const useGeminiStore = defineStore('gemini', () => {
       return false
     }
 
-    await executeGeminiRequest(
-      chatStore.currentMessages,
-      settings,
-      createChatCallbacks({
-        onError: options.onError,
-        onRetryScheduled: options.onRetryScheduled,
-        onRetryStarted: options.onRetryStarted,
-      })
-    )
-
-    logger.info('[自動リトライ] sendChatMessageが正常終了しました', { component: 'useGeminiStore' })
-
-    return true
+    try {
+      await executeGeminiRequest(
+        chatStore.currentMessages,
+        settings,
+        createChatCallbacks({
+          onError: options.onError,
+          onRetryScheduled: options.onRetryScheduled,
+          onRetryStarted: options.onRetryStarted,
+        })
+      )
+      logger.info('[自動リトライ] sendChatMessageが正常終了しました', { component: 'useGeminiStore' })
+      return true
+    } catch {
+      return false
+    }
   }
 
   const retryLastUserMessage = async (hooks?: ChatCallbackHooks): Promise<boolean> => {
@@ -746,89 +597,10 @@ export const useGeminiStore = defineStore('gemini', () => {
     })
   }
 
-  /**
-   * エラーを設定
-   */
-  const setError = (errorMessage: string) => {
-    currentError.value = errorMessage
-    lastErrorTime.value = Date.now()
-  }
-
-  /**
-   * エラーをクリア
-   */
-  const clearError = () => {
-    currentError.value = null
-    lastErrorTime.value = null
-  }
-
-  /**
-   * ストリーミングを停止
-   */
-  const stopStreaming = () => {
-    if (isStreaming.value) {
-      isStreaming.value = false
-      streamingContent.value = ''
-      streamingMessageId.value = null
-    }
-  }
-
-  /**
-   * 送信を中止
-   */
-  const cancelSending = () => {
-    if (isSending.value) {
-      isSending.value = false
-    }
-    stopStreaming()
-  }
-
-  /**
-   * 統計をリセット
-   */
-  const resetStats = () => {
-    totalApiCalls.value = 0
-    successfulCalls.value = 0
-    failedCalls.value = 0
-  }
-
-  /**
-   * ストア全体をリセット
-   */
-  const reset = () => {
-    isSending.value = false
-    isStreaming.value = false
-    streamingMessageId.value = null
-    streamingContent.value = ''
-    clearError()
-    resetStats()
-  }
-
   return {
-    isSending,
-    isStreaming,
-    streamingMessageId,
-    streamingContent,
-    currentError,
-    lastErrorTime,
-    totalApiCalls,
-    successfulCalls,
-    failedCalls,
-
-    isIdle,
-    hasError,
-    successRate,
+    ...state,
 
     sendChatMessage,
     retryLastUserMessage,
-
-    setError,
-    clearError,
-
-    stopStreaming,
-    cancelSending,
-
-    reset,
-    resetStats,
   }
 })

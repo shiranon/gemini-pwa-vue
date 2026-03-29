@@ -1,5 +1,32 @@
 ## 更新履歴
 
+### Version 0.3.0 (2026-03-29)
+- 機能追加
+  - Ollama (ローカルLLM) プロバイダー対応
+    - OpenAI互換APIを使用したOllama統合
+    - 動的モデル一覧取得 (接続テスト機能付き)
+    - Function Calling対応 (Geminiスキーマ自動変換)
+    - ストリーミング/非ストリーミング出力対応
+  - Claude APIモデル一覧の動的取得
+    - Anthropic Models API (`client.models.list()`) による自動取得
+    - API失敗時は固定リストにフォールバック
+  - キャラクター画像の一括操作機能
+    - 複数キャラクター一括登録 (親フォルダ選択)
+    - キャラクター一括選択・削除UI
+    - 画像プレビューダイアログ
+    - アップロード進捗バー表示
+- リファクタリング
+  - APIストア共通モジュール (`apiStoreCommon.ts`) を作成
+    - `toApiError`, `createChatCallbacks`, `createApiStoreState` を4ストアで共有
+    - 約1,100行のコード重複を削減
+  - Ollamaストアから翻訳・校正・思考プロセスのデッドコードを削除
+- 修正
+  - JSON.parseの未ガード箇所をsafeJsonParseで安全化 (Ollama/OpenAI)
+  - スキーマ変換キャッシュに上限 (MAX_CACHE_SIZE=100) を追加
+  - Ollama選択時に非対応の設定UI (思考機能, Grounding) を非表示に
+- その他
+  - Gemini/OpenAI/Claudeのデフォルトモデルリストを更新
+
 ### Version 0.2.4 (2025-10-28)
 - 機能追加
   - キャラクター画像からプロンプトをコピーする機能を追加

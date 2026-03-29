@@ -162,7 +162,7 @@ export interface ChatAvatarSettings {
 // ============================================================================
 
 /** APIプロバイダー */
-export type ApiProvider = 'gemini' | 'openai' | 'claude'
+export type ApiProvider = 'gemini' | 'openai' | 'claude' | 'ollama'
 
 /** GPT-5 モデルの reasoning 設定 */
 export interface OpenAiReasoningSettings {
@@ -259,6 +259,9 @@ export interface AppSettings
   openaiApiKey: string
   /** Claude API基本設定 */
   claudeApiKey: string
+  /** Ollama設定 */
+  ollamaBaseUrl: string
+  ollamaApiKey: string
   modelName: string
   streamingSpeed: number
   systemPrompt: string
@@ -290,6 +293,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   apiKey: '',
   openaiApiKey: '',
   claudeApiKey: '',
+  ollamaBaseUrl: 'http://localhost:11434',
+  ollamaApiKey: '',
   modelName: 'gemini-2.5-flash',
   streamingSpeed: 30,
   systemPrompt: '',

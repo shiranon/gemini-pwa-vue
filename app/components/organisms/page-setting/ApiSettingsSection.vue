@@ -19,6 +19,7 @@
           <SelectItem value="gemini"> Google Gemini </SelectItem>
           <SelectItem value="openai"> OpenAI </SelectItem>
           <SelectItem value="claude"> Anthropic Claude </SelectItem>
+          <SelectItem value="ollama"> Ollama (Local) </SelectItem>
         </SelectContent>
       </Select>
     </SettingItem>
@@ -87,6 +88,57 @@
     </SettingItem>
 
     <SettingItem
+      v-if="apiProvider === 'ollama'"
+      name="ollamaBaseUrl"
+      label="Ollama ベースURL"
+      description="OllamaサーバーのURL"
+    >
+      <div class="flex gap-2">
+        <Input
+          :model-value="localSettings.ollamaBaseUrl || 'http://localhost:11434'"
+          type="text"
+          placeholder="http://localhost:11434"
+          class="flex-1"
+          @update:model-value="(value: string | number) => emit('update-setting', 'ollamaBaseUrl', String(value || 'http://localhost:11434'))"
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          :disabled="ollamaLoadingModels"
+          @click="fetchOllamaModels"
+        >
+          {{ ollamaLoadingModels ? '接続中...' : '接続テスト' }}
+        </Button>
+      </div>
+      <p
+        v-if="ollamaConnectionError"
+        class="text-destructive mt-1 text-xs"
+      >
+        {{ ollamaConnectionError }}
+      </p>
+      <p
+        v-else-if="ollamaModelOptions.length > 0"
+        class="text-muted-foreground mt-1 text-xs"
+      >
+        {{ ollamaModelOptions.length }}個のモデルが見つかりました
+      </p>
+    </SettingItem>
+
+    <SettingItem
+      v-if="apiProvider === 'ollama'"
+      name="ollamaApiKey"
+      label="APIキー (任意)"
+      description="認証が必要な場合のみ"
+    >
+      <Input
+        :model-value="localSettings.ollamaApiKey"
+        type="password"
+        placeholder="不要な場合は空欄"
+        @update:model-value="(value: string | number) => emit('update-setting', 'ollamaApiKey', String(value))"
+      />
+    </SettingItem>
+
+    <SettingItem
       name="modelName"
       label="モデル名"
     >
@@ -134,8 +186,11 @@ import SettingSection from '~/components/molecules/page-setting/SettingSection.v
 import SettingItem from '~/components/molecules/page-setting/SettingItem.vue'
 import { Input } from '~/components/ui/input'
 import { Textarea } from '~/components/ui/textarea'
+import { Button } from '~/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select'
 import { useGeminiModelOptions } from '~/composables/useGeminiModelOptions'
+import { useOllamaModelOptions } from '~/composables/useOllamaModelOptions'
+import { useClaudeModelOptions } from '~/composables/useClaudeModelOptions'
 
 export interface ApiSettingsSectionProps {
   localSettings: AppSettings
@@ -163,6 +218,8 @@ const apiDescription = computed(() => {
       return 'Claude APIの接続設定'
     case 'openai':
       return 'OpenAI APIの接続設定'
+    case 'ollama':
+      return 'Ollama (ローカルLLM) の接続設定'
     default:
       return 'API接続設定'
   }
@@ -185,35 +242,41 @@ const isValidClaudeApiKey = computed(() => {
 
 const { modelOptions: geminiModelOptions } = useGeminiModelOptions(computed(() => props.localSettings.apiKey))
 
+// Ollamaモデルのオプション
+const {
+  modelOptions: ollamaModelOptions,
+  loadingModels: ollamaLoadingModels,
+  connectionError: ollamaConnectionError,
+  fetchModels: fetchOllamaModels,
+} = useOllamaModelOptions(computed(() => props.localSettings.ollamaBaseUrl))
+
 // OpenAIモデルのオプション
 const openaiModelOptions = computed(() => [
-  { value: 'gpt-5', label: 'GPT-5' },
+  // GPT-5 Series (最新)
+  { value: 'gpt-5.4', label: 'GPT-5.4' },
+  { value: 'gpt-5.4-pro', label: 'GPT-5.4 Pro' },
   { value: 'gpt-5-mini', label: 'GPT-5 Mini' },
   { value: 'gpt-5-nano', label: 'GPT-5 Nano' },
+  { value: 'gpt-5', label: 'GPT-5' },
+  // Reasoning Models
+  { value: 'o3', label: 'o3' },
+  { value: 'o3-pro', label: 'o3 Pro' },
+  { value: 'o4-mini', label: 'o4 Mini' },
+  // GPT-4 Series
+  { value: 'gpt-4.1', label: 'GPT-4.1' },
+  { value: 'gpt-4.1-mini', label: 'GPT-4.1 Mini' },
+  { value: 'gpt-4.1-nano', label: 'GPT-4.1 Nano' },
   { value: 'gpt-4o', label: 'GPT-4o' },
   { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
-  { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' },
-  { value: 'gpt-4', label: 'GPT-4' },
-  { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' },
-  { value: 'o1', label: 'o1' },
-  { value: 'o1-mini', label: 'o1 Mini' },
 ])
 
-// Claudeモデルのオプション
-const claudeModelOptions = computed(() => [
-  // Claude 4 Models
-  { value: 'claude-opus-4-1-20250805', label: 'Claude Opus 4.1 (2025-08-05)' },
-  { value: 'claude-opus-4-20250514', label: 'Claude Opus 4 (2025-05-14)' },
-  { value: 'claude-sonnet-4-5-20250929', label: 'Claude Sonnet 4.5 (2025-09-29)' },
-  { value: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4 (2025-05-14)' },
-  // Claude 3.7 Models
-  { value: 'claude-3-7-sonnet-20250219', label: 'Claude 3.7 Sonnet (2025-02-19)' },
-  { value: 'claude-3-5-haiku-20241022', label: 'Claude 3.5 Haiku (2024-10-22)' },
-])
+// Claudeモデルのオプション（API動的取得）
+const { modelOptions: claudeModelOptions } = useClaudeModelOptions(computed(() => props.localSettings.claudeApiKey))
 
 const currentModelOptions = computed(() => {
   if (apiProvider.value === 'openai') return openaiModelOptions.value
   if (apiProvider.value === 'claude') return claudeModelOptions.value
+  if (apiProvider.value === 'ollama') return ollamaModelOptions.value
   return geminiModelOptions.value
 })
 </script>

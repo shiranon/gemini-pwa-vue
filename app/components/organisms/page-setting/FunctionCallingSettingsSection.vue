@@ -7,6 +7,7 @@
   >
     <div class="flex flex-col gap-4">
       <SettingToggle
+        v-if="props.localProfileSettings.apiProvider === 'gemini'"
         :model-value="localProfileSettings.geminiEnableGrounding"
         label="Google Search"
         description="Google Searchによる情報取得を有効化(Gemini APIのみ)"

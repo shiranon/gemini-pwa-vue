@@ -1,7 +1,11 @@
-import { describe, expect, it } from 'bun:test'
+import { beforeEach, describe, expect, it, mock } from 'bun:test'
+import type { FolderStructure } from '~/composables/useFolderUpload'
 import type { CharacterImageRecord, CharacterOutfitRecord, CharacterRecord } from '../../app/types/database'
 
-// モックデータの準備
+// ============================================================================
+// 既存ロジックテスト用のモックデータ
+// ============================================================================
+
 const mockCharacter: CharacterRecord = {
   id: 'char-1',
   name: 'テストキャラクター',
@@ -30,6 +34,563 @@ const mockImage: CharacterImageRecord = {
   createdAt: Date.now(),
   updatedAt: Date.now(),
 }
+
+// ============================================================================
+// imageBulkUpload.ts の純粋関数テスト
+// ============================================================================
+
+describe('imageBulkUpload', () => {
+  describe('getFileNameWithoutExtension', () => {
+    let getFileNameWithoutExtension: (filename: string) => string
+
+    beforeEach(async () => {
+      const mod = await import('~/lib/imageBulkUpload')
+      getFileNameWithoutExtension = mod.getFileNameWithoutExtension
+    })
+
+    it('拡張子を除いたファイル名を返す', () => {
+      expect(getFileNameWithoutExtension('smile.png')).toBe('smile')
+    })
+
+    it('複数のドットがある場合は最後のドット以降を除く', () => {
+      expect(getFileNameWithoutExtension('my.image.file.jpg')).toBe('my.image.file')
+    })
+
+    it('拡張子がない場合はファイル名をそのまま返す', () => {
+      expect(getFileNameWithoutExtension('noextension')).toBe('noextension')
+    })
+
+    it('先頭がドットの隠しファイルはそのまま返す', () => {
+      expect(getFileNameWithoutExtension('.gitignore')).toBe('.gitignore')
+    })
+
+    it('空文字列を処理する', () => {
+      expect(getFileNameWithoutExtension('')).toBe('')
+    })
+  })
+
+  describe('createBulkImageUploader', () => {
+    let createBulkImageUploader: typeof import('~/lib/imageBulkUpload').createBulkImageUploader
+
+    beforeEach(async () => {
+      const mod = await import('~/lib/imageBulkUpload')
+      createBulkImageUploader = mod.createBulkImageUploader
+    })
+
+    const createMockImageUpload = (
+      overrides: {
+        uploadResult?: { base64Data: string; mimeType: string; size: number } | null
+        errorValue?: string | null
+      } = {}
+    ) =>
+      ({
+        uploadImage: mock(async () =>
+          'uploadResult' in overrides
+            ? overrides.uploadResult
+            : {
+                base64Data: 'data:image/png;base64,AAAA',
+                mimeType: 'image/png',
+                size: 1024,
+              }
+        ),
+        error: { value: overrides.errorValue ?? null },
+        clearError: mock(),
+        isUploading: { value: false },
+        progress: { value: 0 },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      }) as any
+
+    const createMockFile = (name: string): File => {
+      return new File(['dummy'], name, { type: 'image/png' })
+    }
+
+    it('全ファイルのアップロードに成功する', async () => {
+      const mockUpload = createMockImageUpload()
+      const dbUploadFn = mock(async () => ({ success: true }))
+
+      const uploader = createBulkImageUploader(mockUpload, dbUploadFn, 'test')
+      const files = [createMockFile('smile.png'), createMockFile('angry.png')]
+
+      const result = await uploader(files)
+
+      expect(result.success).toBe(2)
+      expect(result.failed).toBe(0)
+      expect(result.errors).toHaveLength(0)
+      expect(dbUploadFn).toHaveBeenCalledTimes(2)
+    })
+
+    it('進捗コールバックが正しく呼ばれる', async () => {
+      const mockUpload = createMockImageUpload()
+      const dbUploadFn = mock(async () => ({ success: true }))
+      const onProgress = mock()
+
+      const uploader = createBulkImageUploader(mockUpload, dbUploadFn, 'test')
+      const files = [createMockFile('a.png'), createMockFile('b.png'), createMockFile('c.png')]
+
+      await uploader(files, onProgress)
+
+      expect(onProgress).toHaveBeenCalledTimes(3)
+      expect(onProgress).toHaveBeenNthCalledWith(1, 1, 3)
+      expect(onProgress).toHaveBeenNthCalledWith(2, 2, 3)
+      expect(onProgress).toHaveBeenNthCalledWith(3, 3, 3)
+    })
+
+    it('画像処理失敗時にfailedカウントが増える', async () => {
+      const mockUpload = createMockImageUpload({
+        uploadResult: null,
+        errorValue: '画像が大きすぎます',
+      })
+      const dbUploadFn = mock(async () => ({ success: true }))
+
+      const uploader = createBulkImageUploader(mockUpload, dbUploadFn, 'test')
+      const files = [createMockFile('bad.png')]
+
+      const result = await uploader(files)
+
+      expect(result.success).toBe(0)
+      expect(result.failed).toBe(1)
+      expect(result.errors).toHaveLength(1)
+      expect(result.errors[0]).toContain('bad')
+      expect(dbUploadFn).not.toHaveBeenCalled()
+    })
+
+    it('DBアップロード失敗時にfailedカウントが増える', async () => {
+      const mockUpload = createMockImageUpload()
+      const dbUploadFn = mock(async () => ({ success: false, error: 'DB error' }))
+
+      const uploader = createBulkImageUploader(mockUpload, dbUploadFn, 'test')
+      const files = [createMockFile('test.png')]
+
+      const result = await uploader(files)
+
+      expect(result.success).toBe(0)
+      expect(result.failed).toBe(1)
+      expect(result.errors[0]).toContain('DB error')
+    })
+
+    it('base64データ抽出失敗時にfailedカウントが増える', async () => {
+      const mockUpload = createMockImageUpload({
+        uploadResult: {
+          base64Data: 'invalid-no-comma',
+          mimeType: 'image/png',
+          size: 1024,
+        },
+      })
+      const dbUploadFn = mock(async () => ({ success: true }))
+
+      const uploader = createBulkImageUploader(mockUpload, dbUploadFn, 'test')
+      const files = [createMockFile('broken.png')]
+
+      const result = await uploader(files)
+
+      expect(result.success).toBe(0)
+      expect(result.failed).toBe(1)
+      expect(result.errors[0]).toContain('画像データの抽出に失敗')
+    })
+
+    it('空のファイル配列では成功0失敗0を返す', async () => {
+      const mockUpload = createMockImageUpload()
+      const dbUploadFn = mock(async () => ({ success: true }))
+
+      const uploader = createBulkImageUploader(mockUpload, dbUploadFn, 'test')
+      const result = await uploader([])
+
+      expect(result.success).toBe(0)
+      expect(result.failed).toBe(0)
+      expect(result.errors).toHaveLength(0)
+    })
+
+    it('一部成功・一部失敗の混在を正しくカウントする', async () => {
+      let callCount = 0
+      const mockUpload = createMockImageUpload()
+      const dbUploadFn = mock(async () => {
+        callCount++
+        if (callCount === 2) {
+          return { success: false, error: 'second file failed' }
+        }
+        return { success: true }
+      })
+
+      const uploader = createBulkImageUploader(mockUpload, dbUploadFn, 'test')
+      const files = [createMockFile('a.png'), createMockFile('b.png'), createMockFile('c.png')]
+
+      const result = await uploader(files)
+
+      expect(result.success).toBe(2)
+      expect(result.failed).toBe(1)
+      expect(result.errors).toHaveLength(1)
+    })
+  })
+
+  describe('createBulkOutfitUploader', () => {
+    let createBulkOutfitUploader: typeof import('~/lib/imageBulkUpload').createBulkOutfitUploader
+
+    beforeEach(async () => {
+      const mod = await import('~/lib/imageBulkUpload')
+      createBulkOutfitUploader = mod.createBulkOutfitUploader
+    })
+
+    const createMockFile = (name: string): File => {
+      return new File(['dummy'], name, { type: 'image/png' })
+    }
+
+    it('複数衣装と画像を正しくアップロードする', async () => {
+      const createOutfit = mock(async (_charId: string, outfitName: string) => ({
+        id: `outfit-${outfitName}`,
+      }))
+      const uploadImages = mock(async () => ({
+        success: 2,
+        failed: 0,
+        errors: [],
+      }))
+
+      const uploader = createBulkOutfitUploader(createOutfit, uploadImages, 'test')
+      const outfits = [
+        { outfitName: 'casual', images: [createMockFile('a.png'), createMockFile('b.png')] },
+        { outfitName: 'formal', images: [createMockFile('c.png'), createMockFile('d.png')] },
+      ]
+
+      const result = await uploader('char-1', outfits)
+
+      expect(result.success).toBe(4)
+      expect(result.failed).toBe(0)
+      expect(result.errors).toHaveLength(0)
+      expect(createOutfit).toHaveBeenCalledTimes(2)
+      expect(uploadImages).toHaveBeenCalledTimes(2)
+    })
+
+    it('衣装作成失敗時にその衣装の画像数がfailedに加算される', async () => {
+      const createOutfit = mock(async () => null)
+      const uploadImages = mock(async () => ({
+        success: 0,
+        failed: 0,
+        errors: [],
+      }))
+
+      const uploader = createBulkOutfitUploader(createOutfit, uploadImages, 'test')
+      const outfits = [{ outfitName: 'broken', images: [createMockFile('a.png'), createMockFile('b.png'), createMockFile('c.png')] }]
+
+      const result = await uploader('char-1', outfits)
+
+      expect(result.success).toBe(0)
+      expect(result.failed).toBe(3)
+      expect(result.errors).toHaveLength(1)
+      expect(result.errors[0]).toContain('broken')
+      expect(uploadImages).not.toHaveBeenCalled()
+    })
+
+    it('進捗コールバックがオフセット付きで正しく呼ばれる', async () => {
+      const createOutfit = mock(async (_charId: string, outfitName: string) => ({
+        id: `outfit-${outfitName}`,
+      }))
+
+      const uploadImages = mock(async (_charId: string, _outfitId: string, files: File[], onProgress?: (current: number, total: number) => void) => {
+        for (let i = 0; i < files.length; i++) {
+          onProgress?.(i + 1, files.length)
+        }
+        return { success: files.length, failed: 0, errors: [] }
+      })
+
+      const onProgress = mock()
+      const uploader = createBulkOutfitUploader(createOutfit, uploadImages, 'test')
+
+      const outfits = [
+        { outfitName: 'outfit1', images: [createMockFile('a.png'), createMockFile('b.png')] },
+        { outfitName: 'outfit2', images: [createMockFile('c.png')] },
+      ]
+
+      await uploader('char-1', outfits, onProgress)
+
+      // outfit1: offset=0, images=2 -> onProgress(1,3), onProgress(2,3)
+      // outfit2: offset=2, images=1 -> onProgress(3,3)
+      expect(onProgress).toHaveBeenCalledTimes(3)
+      expect(onProgress).toHaveBeenNthCalledWith(1, 1, 3)
+      expect(onProgress).toHaveBeenNthCalledWith(2, 2, 3)
+      expect(onProgress).toHaveBeenNthCalledWith(3, 3, 3)
+    })
+
+    it('空の衣装配列では成功0失敗0を返す', async () => {
+      const createOutfit = mock(async () => ({ id: 'outfit-id' }))
+      const uploadImages = mock(async () => ({ success: 0, failed: 0, errors: [] }))
+
+      const uploader = createBulkOutfitUploader(createOutfit, uploadImages, 'test')
+      const result = await uploader('char-1', [])
+
+      expect(result.success).toBe(0)
+      expect(result.failed).toBe(0)
+      expect(result.errors).toHaveLength(0)
+      expect(createOutfit).not.toHaveBeenCalled()
+    })
+
+    it('衣装処理中の例外がキャッチされてエラーに含まれる', async () => {
+      const createOutfit = mock(async () => {
+        throw new Error('unexpected outfit error')
+      })
+      const uploadImages = mock(async () => ({ success: 0, failed: 0, errors: [] }))
+
+      const uploader = createBulkOutfitUploader(createOutfit, uploadImages, 'test')
+      const outfits = [{ outfitName: 'error-outfit', images: [createMockFile('a.png')] }]
+
+      const result = await uploader('char-1', outfits)
+
+      expect(result.success).toBe(0)
+      expect(result.failed).toBe(1)
+      expect(result.errors).toHaveLength(1)
+      expect(result.errors[0]).toContain('error-outfit')
+      expect(result.errors[0]).toContain('unexpected outfit error')
+    })
+  })
+})
+
+// ============================================================================
+// useCharacterImages composable の bulkUploadMultipleCharacters テスト
+// ============================================================================
+
+const mockDbCreateCharacter = mock(async (name: string, _desc?: string) => ({
+  success: true,
+  data: {
+    id: `char-${name}`,
+    name,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  } as CharacterRecord,
+}))
+
+const mockDbCreateCharacterOutfit = mock(async (characterId: string, name: string) => ({
+  success: true,
+  data: {
+    id: `outfit-${name}`,
+    characterId,
+    name,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  },
+}))
+
+const mockDbUploadCharacterImage = mock(async () => ({
+  success: true,
+  data: {
+    id: 'img-1',
+    characterId: 'char-1',
+    outfitId: 'outfit-1',
+    expression: 'smile',
+    base64Data: 'AAAA',
+    mimeType: 'image/png',
+    size: 1024,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  },
+}))
+
+mock.module('~/lib/database', () => ({
+  dbCreateCharacter: mockDbCreateCharacter,
+  dbCreateCharacterOutfit: mockDbCreateCharacterOutfit,
+  dbUploadCharacterImage: mockDbUploadCharacterImage,
+  dbDeleteCharacter: mock(async () => ({ success: true })),
+  dbDeleteCharacterImage: mock(async () => ({ success: true })),
+  dbDeleteCharacterOutfit: mock(async () => ({ success: true })),
+  dbGetAllCharacters: mock(async () => ({ success: true, data: [] })),
+  dbGetCharacterAllImages: mock(async () => ({ success: true, data: [] })),
+  dbGetCharacterFirstImage: mock(async () => ({ success: true, data: null })),
+  dbGetCharacterImageByNames: mock(async () => ({ success: true, data: null })),
+  dbGetCharacterOutfits: mock(async () => ({ success: true, data: [] })),
+  dbGetOutfitImages: mock(async () => ({ success: true, data: [] })),
+  dbUpdateCharacter: mock(async () => ({ success: true })),
+  dbUpdateCharacterOutfit: mock(async () => ({ success: true })),
+}))
+
+mock.module('~/lib/logger', () => ({
+  logger: {
+    info: mock(),
+    warn: mock(),
+    error: mock(),
+    debug: mock(),
+  },
+}))
+
+mock.module('~/stores/settings', () => ({
+  useSettingsStore: () => ({
+    settings: {
+      enableImageOptimization: false,
+      maxImageWidth: 1920,
+      maxImageHeight: 1080,
+      compressionQuality: 0.8,
+      enableWebPConversion: false,
+      webpQuality: 0.8,
+    },
+  }),
+}))
+
+mock.module('~/composables/useImageUpload', () => ({
+  useImageUpload: () => ({
+    uploadImage: mock(async () => ({
+      base64Data: 'data:image/png;base64,AAAA',
+      mimeType: 'image/png',
+      size: 1024,
+    })),
+    error: { value: null },
+    clearError: mock(),
+    isUploading: { value: false },
+    progress: { value: 0 },
+  }),
+  processFileOrAttachedFile: mock(async () => ({
+    base64: 'AAAA',
+    mimeType: 'image/png',
+    size: 1024,
+  })),
+}))
+
+mock.module('~/composables/useFolderUpload', () => ({
+  useFolderUpload: () => ({
+    isSupported: { value: true },
+    selectFolder: mock(async () => null),
+    selectMultipleFolders: mock(async () => []),
+  }),
+}))
+
+describe('useCharacterImages - bulkUploadMultipleCharacters', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let useCharacterImages: any
+
+  beforeEach(async () => {
+    mockDbCreateCharacter.mockClear()
+    mockDbCreateCharacterOutfit.mockClear()
+    mockDbUploadCharacterImage.mockClear()
+
+    // デフォルトの成功モック実装を再設定
+    mockDbCreateCharacter.mockImplementation(async (name: string) => ({
+      success: true,
+      data: {
+        id: `char-${name}`,
+        name,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      } as CharacterRecord,
+    }))
+
+    const mod = await import('~/composables/useCharacterImages')
+    useCharacterImages = mod.useCharacterImages
+  })
+
+  const createMockFile = (name: string): File => {
+    return new File(['dummy'], name, { type: 'image/png' })
+  }
+
+  const createFolderStructure = (charName: string, outfits: { name: string; imageNames: string[] }[]): FolderStructure => ({
+    characterName: charName,
+    outfits: outfits.map((o) => ({
+      outfitName: o.name,
+      images: o.imageNames.map((img) => createMockFile(img)),
+    })),
+  })
+
+  it('複数キャラクターの一括アップロードが成功する', async () => {
+    const composable = useCharacterImages()
+
+    const structures: FolderStructure[] = [
+      createFolderStructure('Alice', [{ name: 'casual', imageNames: ['smile.png', 'angry.png'] }]),
+      createFolderStructure('Bob', [{ name: 'formal', imageNames: ['happy.png'] }]),
+    ]
+
+    const result = await composable.bulkUploadMultipleCharacters(structures)
+
+    expect(result.characters).toHaveLength(2)
+    expect(result.characters[0].name).toBe('Alice')
+    expect(result.characters[1].name).toBe('Bob')
+    expect(result.totalSuccess).toBe(3)
+    expect(result.totalFailed).toBe(0)
+    expect(result.errors).toHaveLength(0)
+  })
+
+  it('進捗コールバックが正しいオフセットで呼ばれる', async () => {
+    const composable = useCharacterImages()
+    const onProgress = mock()
+
+    const structures: FolderStructure[] = [
+      createFolderStructure('Alice', [{ name: 'casual', imageNames: ['a.png', 'b.png'] }]),
+      createFolderStructure('Bob', [{ name: 'formal', imageNames: ['c.png'] }]),
+    ]
+
+    await composable.bulkUploadMultipleCharacters(structures, onProgress)
+
+    // onProgressが呼ばれていることを確認
+    expect(onProgress.mock.calls.length).toBeGreaterThan(0)
+
+    // grandTotal は 3 (2 + 1) なので、全ての呼び出しでtotalが3であることを確認
+    for (const call of onProgress.mock.calls) {
+      expect(call[1]).toBe(3)
+    }
+
+    // 最後の呼び出しでcurrentがgrandTotalに到達
+    const lastCall = onProgress.mock.calls[onProgress.mock.calls.length - 1]
+    expect(lastCall?.[0]).toBe(3)
+  })
+
+  it('部分エラー時の動作（一部キャラクターのアップロード失敗）', async () => {
+    // 2番目のキャラクター作成で失敗するようモックを設定
+    let createCallCount = 0
+    mockDbCreateCharacter.mockImplementation(async (name: string, _desc?: string) => {
+      createCallCount++
+      if (createCallCount === 2) {
+        return { success: false, data: undefined as unknown as CharacterRecord, error: 'キャラクター作成失敗' }
+      }
+      return {
+        success: true,
+        data: {
+          id: `char-${name}`,
+          name,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        } as CharacterRecord,
+      }
+    })
+
+    const composable = useCharacterImages()
+
+    const structures: FolderStructure[] = [
+      createFolderStructure('Alice', [{ name: 'casual', imageNames: ['smile.png'] }]),
+      createFolderStructure('Bob', [{ name: 'formal', imageNames: ['happy.png', 'sad.png'] }]),
+    ]
+
+    const result = await composable.bulkUploadMultipleCharacters(structures)
+
+    // Alice は成功、Bob はキャラクター作成失敗
+    expect(result.characters).toHaveLength(1)
+    expect(result.characters[0].name).toBe('Alice')
+    expect(result.totalSuccess).toBe(1)
+    // Bob のキャラクター作成失敗 -> bulkUploadFromFolder がエラーを返す
+    expect(result.totalFailed).toBeGreaterThanOrEqual(2)
+    expect(result.errors.length).toBeGreaterThan(0)
+  })
+
+  it('空の入力では空の結果を返す', async () => {
+    const composable = useCharacterImages()
+
+    const result = await composable.bulkUploadMultipleCharacters([])
+
+    expect(result.characters).toHaveLength(0)
+    expect(result.totalSuccess).toBe(0)
+    expect(result.totalFailed).toBe(0)
+    expect(result.errors).toHaveLength(0)
+  })
+
+  it('空の衣装を持つキャラクターを処理できる', async () => {
+    const composable = useCharacterImages()
+
+    const structures: FolderStructure[] = [createFolderStructure('EmptyChar', [])]
+
+    const result = await composable.bulkUploadMultipleCharacters(structures)
+
+    expect(result.characters).toHaveLength(1)
+    expect(result.characters[0].name).toBe('EmptyChar')
+    expect(result.totalSuccess).toBe(0)
+    expect(result.totalFailed).toBe(0)
+  })
+})
+
+// ============================================================================
+// 既存のロジックテスト（キャラクター画像管理）
+// ============================================================================
 
 describe('useCharacterImages（ロジックテスト）', () => {
   describe('状態管理のロジック', () => {

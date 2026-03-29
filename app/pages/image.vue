@@ -36,37 +36,91 @@
         </div>
 
         <!-- キャラクター一覧 -->
-        <div
-          v-else
-          class="grid grid-cols-2 gap-4 sm:grid-cols-3"
-        >
-          <!-- キャラクター追加カード -->
-          <div
-            class="border-border bg-card hover:bg-muted/50 cursor-pointer rounded-xl border border-dashed p-6 transition-all duration-200 hover:shadow-md"
-            @click="showCreateModal = true"
-          >
-            <div class="flex flex-col items-center text-center">
-              <div class="border-border bg-muted/50 mb-4 flex h-20 w-20 items-center justify-center rounded-full border border-dashed sm:h-24 sm:w-24">
+        <div v-else>
+          <!-- ツールバー -->
+          <div class="mb-4 flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              @click="toggleSelectMode"
+            >
+              <Icon
+                :icon="isSelectMode ? 'material-symbols:close' : 'material-symbols:checklist'"
+                class="mr-1 h-4 w-4"
+              />
+              {{ isSelectMode ? '選択解除' : '選択' }}
+            </Button>
+            <template v-if="isSelectMode">
+              <Button
+                variant="ghost"
+                size="sm"
+                @click="selectAllCharacters"
+              >
                 <Icon
-                  icon="material-symbols:person-add"
-                  class="text-muted-foreground h-8 w-8 sm:h-10 sm:w-10"
+                  icon="material-symbols:select-all"
+                  class="mr-1 h-4 w-4"
                 />
-              </div>
-              <h3 class="mb-2 text-lg font-semibold">キャラクターを追加</h3>
-              <p class="text-muted-foreground text-sm">キャラクター画像を追加できます</p>
-            </div>
+                全選択
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                @click="clearCharacterSelection"
+              >
+                <Icon
+                  icon="material-symbols:clear-all"
+                  class="mr-1 h-4 w-4"
+                />
+                選択解除
+              </Button>
+              <Button
+                v-if="selectedCharacterIds.size > 0"
+                variant="destructive"
+                size="sm"
+                @click="deleteSelectedCharacters"
+              >
+                <Icon
+                  icon="material-symbols:delete"
+                  class="mr-1 h-4 w-4"
+                />
+                選択削除 ({{ selectedCharacterIds.size }})
+              </Button>
+            </template>
           </div>
 
-          <!-- 既存のキャラクター -->
-          <CharacterCard
-            v-for="character in characters"
-            :key="character.id"
-            :character="character"
-            class="relative"
-            @select="selectCharacter"
-            @edit="editCharacter"
-            @delete="deleteCharacter"
-          />
+          <div class="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <!-- キャラクター追加カード -->
+            <div
+              v-if="!isSelectMode"
+              class="border-border bg-card hover:bg-muted/50 cursor-pointer rounded-xl border border-dashed p-6 transition-all duration-200 hover:shadow-md"
+              @click="showCreateModal = true"
+            >
+              <div class="flex flex-col items-center text-center">
+                <div class="border-border bg-muted/50 mb-4 flex h-20 w-20 items-center justify-center rounded-full border border-dashed sm:h-24 sm:w-24">
+                  <Icon
+                    icon="material-symbols:person-add"
+                    class="text-muted-foreground h-8 w-8 sm:h-10 sm:w-10"
+                  />
+                </div>
+                <h3 class="mb-2 text-lg font-semibold">キャラクターを追加</h3>
+                <p class="text-muted-foreground text-sm">キャラクター画像を追加できます</p>
+              </div>
+            </div>
+
+            <!-- 既存のキャラクター -->
+            <CharacterCard
+              v-for="character in characters"
+              :key="character.id"
+              :character="character"
+              :selectable="isSelectMode"
+              :selected="selectedCharacterIds.has(character.id)"
+              class="relative"
+              @select="selectCharacter"
+              @edit="editCharacter"
+              @delete="deleteCharacter"
+              @toggle-select="toggleCharacterSelect"
+            />
+          </div>
         </div>
       </TabsContent>
 
@@ -187,6 +241,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { Icon } from '@iconify/vue'
+import { Button } from '~/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 import ConfirmDialog from '~/components/molecules/dialogs/ConfirmDialog.vue'
 import CharacterCreateModal from '~/components/organisms/page-image/CharacterCreateModal.vue'
@@ -223,6 +278,10 @@ const showCreateModal = ref(false)
 const selectedCharacter = ref<CharacterRecord | null>(null)
 const selectedOutfit = ref<CharacterOutfitRecord | null>(null)
 const editingCharacter = ref<CharacterRecord | null>(null)
+
+// 一括選択・削除
+const isSelectMode = ref(false)
+const selectedCharacterIds = ref<Set<string>>(new Set())
 
 // 背景画像状態管理
 const categories = ref<BackgroundCategoryRecord[]>([])
@@ -324,6 +383,58 @@ const handleOutfitSelected = (outfit: CharacterOutfitRecord) => {
 // 衣装一覧モーダルが閉じられた時の処理
 const handleOutfitListClosed = () => {
   selectedCharacter.value = null
+}
+
+// 選択モードの切替
+const toggleSelectMode = () => {
+  isSelectMode.value = !isSelectMode.value
+  if (!isSelectMode.value) {
+    selectedCharacterIds.value = new Set()
+  }
+}
+
+// キャラクター選択のトグル
+const toggleCharacterSelect = (character: CharacterRecord) => {
+  const newSet = new Set(selectedCharacterIds.value)
+  if (newSet.has(character.id)) {
+    newSet.delete(character.id)
+  } else {
+    newSet.add(character.id)
+  }
+  selectedCharacterIds.value = newSet
+}
+
+// 全キャラクターを選択
+const selectAllCharacters = () => {
+  selectedCharacterIds.value = new Set(characters.value.map((c) => c.id))
+}
+
+// キャラクター選択を解除
+const clearCharacterSelection = () => {
+  selectedCharacterIds.value = new Set()
+}
+
+// 選択したキャラクターを一括削除
+const deleteSelectedCharacters = async () => {
+  if (selectedCharacterIds.value.size === 0) return
+
+  const count = selectedCharacterIds.value.size
+  const confirmed = await showConfirm(`選択した${count}件のキャラクターを削除しますか？関連する衣装と画像もすべて削除されます。`, 'キャラクターの一括削除')
+  if (!confirmed) return
+
+  const ids = [...selectedCharacterIds.value]
+  const results = await Promise.allSettled(ids.map((id) => deleteCharacterFromDB(id)))
+  const deletedIds = new Set(ids.filter((_, i) => results[i]?.status === 'fulfilled'))
+  const failedCount = ids.length - deletedIds.size
+
+  if (deletedIds.size > 0) {
+    characters.value = characters.value.filter((c) => !deletedIds.has(c.id))
+  }
+  if (failedCount > 0) {
+    logger.error(`${failedCount}件のキャラクター削除に失敗`, { component: 'image.vue' })
+  }
+  selectedCharacterIds.value = new Set()
+  isSelectMode.value = false
 }
 
 // ============================================================================

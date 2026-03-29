@@ -34,7 +34,10 @@ export interface OutfitUploadData {
 export type CreateOutfitFunction = (characterId: string, outfitName: string) => Promise<{ id: string } | null>
 
 /** 画像一括アップロード関数の型 */
-export type UploadImagesFunction = (characterId: string, outfitId: string, files: File[]) => Promise<BulkUploadResult>
+export type UploadImagesFunction = (characterId: string, outfitId: string, files: File[], onProgress?: OnProgressCallback) => Promise<BulkUploadResult>
+
+/** 進捗コールバックの型 */
+export type OnProgressCallback = (current: number, total: number) => void
 
 /**
  * 画像一括アップロード処理を生成するファクトリー関数
@@ -45,10 +48,11 @@ export type UploadImagesFunction = (characterId: string, outfitId: string, files
  * @returns 一括アップロード処理を実行する関数
  */
 export const createBulkImageUploader = (imageUpload: ReturnType<typeof useImageUpload>, dbUploadFn: DbUploadFunction, componentName: string) => {
-  return async (files: File[]): Promise<BulkUploadResult> => {
+  return async (files: File[], onProgress?: OnProgressCallback): Promise<BulkUploadResult> => {
     let successCount = 0
     let failedCount = 0
     const errors: string[] = []
+    let processed = 0
 
     for (const file of files) {
       try {
@@ -90,6 +94,8 @@ export const createBulkImageUploader = (imageUpload: ReturnType<typeof useImageU
         errors.push(`${file.name}: ${errorMessage}`)
         logger.error(`ファイル処理エラー: ${file.name}`, { component: componentName }, fileError)
       }
+      processed++
+      onProgress?.(processed, files.length)
     }
 
     logger.info(`一括アップロード完了: 成功${successCount}件、失敗${failedCount}件`, { component: componentName })
@@ -106,10 +112,12 @@ export const createBulkImageUploader = (imageUpload: ReturnType<typeof useImageU
  * @returns 衣装と画像の一括アップロード処理を実行する関数
  */
 export const createBulkOutfitUploader = (createOutfit: CreateOutfitFunction, uploadImages: UploadImagesFunction, componentName: string) => {
-  return async (characterId: string, outfits: OutfitUploadData[]): Promise<BulkUploadResult> => {
+  return async (characterId: string, outfits: OutfitUploadData[], onProgress?: OnProgressCallback): Promise<BulkUploadResult> => {
     let totalSuccess = 0
     let totalFailed = 0
     const allErrors: string[] = []
+    const totalImageCount = outfits.reduce((sum, o) => sum + o.images.length, 0)
+    let processedCount = 0
 
     for (const outfitData of outfits) {
       try {
@@ -118,11 +126,17 @@ export const createBulkOutfitUploader = (createOutfit: CreateOutfitFunction, upl
         if (!outfit) {
           allErrors.push(`衣装「${outfitData.outfitName}」の作成に失敗しました`)
           totalFailed += outfitData.images.length
+          processedCount += outfitData.images.length
+          onProgress?.(processedCount, totalImageCount)
           continue
         }
 
-        // 画像を一括アップロード
-        const result = await uploadImages(characterId, outfit.id, outfitData.images)
+        // 画像を一括アップロード（進捗をオフセット付きで転送）
+        const currentOffset = processedCount
+        const result = await uploadImages(characterId, outfit.id, outfitData.images, (current, _total) => {
+          onProgress?.(currentOffset + current, totalImageCount)
+        })
+        processedCount += outfitData.images.length
         totalSuccess += result.success
         totalFailed += result.failed
         allErrors.push(...result.errors.map((error) => `衣装「${outfitData.outfitName}」: ${error}`))
@@ -130,6 +144,8 @@ export const createBulkOutfitUploader = (createOutfit: CreateOutfitFunction, upl
         const errorMessage = outfitError instanceof Error ? outfitError.message : '衣装処理エラー'
         allErrors.push(`衣装「${outfitData.outfitName}」: ${errorMessage}`)
         totalFailed += outfitData.images.length
+        processedCount += outfitData.images.length
+        onProgress?.(processedCount, totalImageCount)
         logger.error(`衣装処理エラー: ${outfitData.outfitName}`, { component: componentName }, outfitError)
       }
     }
