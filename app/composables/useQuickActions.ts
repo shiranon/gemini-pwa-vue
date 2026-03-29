@@ -100,9 +100,13 @@ export const useQuickActions = () => {
     }
   })
 
+  const OLLAMA_UNSUPPORTED_ACTIONS = new Set(['thinking-mode', 'thinking-process', 'translation', 'google-search', 'proofreading', 'summary'])
+
   const quickActions = computed<QuickAction[]>(() => {
     const settings = currentSettings.value
-    return [
+    const provider = (settings.apiProvider as string) || 'gemini'
+
+    const allActions: QuickAction[] = [
       {
         id: 'thinking-mode',
         label: '思考モード',
@@ -200,6 +204,14 @@ export const useQuickActions = () => {
         settingKey: 'hideSystemPromptInChat',
       },
     ]
+
+    if (provider === 'ollama') {
+      return allActions.filter((a) => !OLLAMA_UNSUPPORTED_ACTIONS.has(a.id))
+    }
+    if (provider !== 'gemini') {
+      return allActions.filter((a) => a.id !== 'google-search')
+    }
+    return allActions
   })
 
   /**
@@ -309,22 +321,25 @@ export const useQuickActions = () => {
     }
   }
 
-  const executableActions = computed<ExecutableAction[]>(() => [
-    {
-      id: 'summarize',
-      label: '要約作成',
-      icon: ICON_MAP['summarize'],
-      description: '会話を要約',
-      disabled: false,
-    },
-    {
-      id: 'toggle-functions',
-      label: '関数設定',
-      icon: ICON_MAP['toggle-functions'],
-      description: '関数のオンオフ',
-      disabled: false,
-    },
-  ])
+  const executableActions = computed<ExecutableAction[]>(() => {
+    const provider = (currentSettings.value.apiProvider as string) || 'gemini'
+    return [
+      {
+        id: 'summarize',
+        label: '要約作成',
+        icon: ICON_MAP['summarize'],
+        description: '会話を要約',
+        disabled: provider === 'ollama',
+      },
+      {
+        id: 'toggle-functions',
+        label: '関数設定',
+        icon: ICON_MAP['toggle-functions'],
+        description: '関数のオンオフ',
+        disabled: false,
+      },
+    ]
+  })
 
   /**
    * 指定されたアクションを実行します

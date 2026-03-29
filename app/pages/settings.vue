@@ -100,16 +100,19 @@
         />
 
         <ProofreadingSettingsSection
+          v-if="localProfileSettings.apiProvider !== 'ollama'"
           :local-settings="localSettings as AppSettings"
           @update-setting="handleUpdateSetting"
         />
 
         <SummarySettingsSection
+          v-if="localProfileSettings.apiProvider !== 'ollama'"
           :local-settings="localSettings as AppSettings"
           @update-setting="handleUpdateSetting"
         />
 
         <ThoughtTranslationSettingsSection
+          v-if="localProfileSettings.apiProvider !== 'ollama'"
           :local-settings="localSettings as AppSettings"
           @update-setting="handleUpdateSetting"
         />

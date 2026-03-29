@@ -544,7 +544,8 @@ const clearChat = () => {
 const isSummarizing = ref(false)
 
 const canSummarize = computed(() => {
-  return settingsStore.settings.enableSummary && chatStore.visibleMessages.length > 0 && !isSummarizing.value
+  const apiProvider = profilesStore.activeProfile?.settings.apiProvider || 'gemini'
+  return apiProvider !== 'ollama' && settingsStore.settings.enableSummary && chatStore.visibleMessages.length > 0 && !isSummarizing.value
 })
 
 const summarizeChat = async () => {
