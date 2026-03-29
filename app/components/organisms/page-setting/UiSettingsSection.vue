@@ -318,6 +318,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~
 import { Input } from '~/components/ui/input'
 import { Slider } from '~/components/ui/slider'
 import { RadioGroup, RadioGroupItem } from '~/components/ui/radio-group'
+import type { AcceptableValue } from 'reka-ui'
 import type { AppSettings } from '~/types/settings'
 import { clamp } from '~/lib/calc'
 import { fontSettings } from '~/lib/fontSettings'
@@ -408,7 +409,7 @@ const updateMessageImageWidthPercent = (value: number | null | undefined) => {
   props.updateLocalSetting('messageImageWidthPercent', clamped as AppSettings['messageImageWidthPercent'])
 }
 
-const updateMessageImageJustify = (value: unknown) => {
+const updateMessageImageJustify = (value: AcceptableValue) => {
   if (value === 'start' || value === 'center' || value === 'end') {
     props.updateLocalSetting('messageImageJustify', value as AppSettings['messageImageJustify'])
   }

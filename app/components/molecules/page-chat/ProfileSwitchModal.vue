@@ -46,6 +46,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from '~/components/ui/button'
 import { Label } from '~/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '~/components/ui/radio-group'
+import type { AcceptableValue } from 'reka-ui'
 import { useSettingsStore } from '~/stores/settings'
 import { logger } from '~/lib/logger'
 
@@ -70,7 +71,7 @@ const profiles = computed(() => {
   return [defaultProfile, ...customProfiles]
 })
 
-const handleProfileChange = (profileId: unknown) => {
+const handleProfileChange = (profileId: AcceptableValue) => {
   if (typeof profileId !== 'string') return
   settingsStore.updateSettings({ currentProfileId: profileId })
   logger.info(`[Profile Switch] プロファイルが切り替えられました: ${profileId}`, { component: 'ProfileSwitchModal' })
