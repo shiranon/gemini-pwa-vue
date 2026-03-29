@@ -34,7 +34,7 @@ export interface ImportResult {
 
 function sanitizeSettingsForImport(settings: AppSettings, warnings: string[]): AppSettings {
   const safe = { ...settings }
-  const credentialKeys = ['apiKey', 'claudeApiKey', 'ollamaApiKey', 'deeplApiKey'] as const
+  const credentialKeys = ['apiKey', 'claudeApiKey', 'ollamaApiKey', 'deeplApiKey', 'openaiApiKey'] as const
   let hasCredentials = false
   for (const key of credentialKeys) {
     if (key in safe && safe[key as keyof AppSettings]) {
@@ -91,7 +91,7 @@ export const exportFullData = async (): Promise<FullBackupData> => {
   const stats = database.stats.value
 
   const exportedSettings = { ...settingsStore.exportSettings() }
-  const credentialKeys = ['apiKey', 'claudeApiKey', 'ollamaApiKey', 'deeplApiKey'] as const
+  const credentialKeys = ['apiKey', 'claudeApiKey', 'ollamaApiKey', 'deeplApiKey', 'openaiApiKey'] as const
   for (const key of credentialKeys) {
     if (key in exportedSettings) {
       ;(exportedSettings as Record<string, unknown>)[key] = ''
