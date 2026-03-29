@@ -141,12 +141,14 @@
                 <div
                   v-for="image in images"
                   :key="image.id"
-                  class="border-border bg-card group relative cursor-pointer rounded-lg border p-2 transition-all duration-200 hover:shadow-lg"
+                  class="border-border bg-card group relative rounded-lg border p-2 transition-all duration-200 hover:shadow-lg"
                   :class="{ 'ring-primary ring-2': selectedImages.has(image.id) }"
-                  @click="toggleImageSelection(image.id)"
                 >
                   <!-- 選択チェックボックス -->
-                  <div class="absolute top-2 left-2 z-10">
+                  <div
+                    class="absolute top-2 left-2 z-10 cursor-pointer"
+                    @click="toggleImageSelection(image.id)"
+                  >
                     <div
                       class="border-border bg-background flex h-5 w-5 items-center justify-center rounded border"
                       :class="{ 'bg-primary border-primary': selectedImages.has(image.id) }"
@@ -160,7 +162,10 @@
                   </div>
 
                   <!-- 画像 -->
-                  <div class="aspect-square overflow-hidden rounded">
+                  <div
+                    class="aspect-square cursor-pointer overflow-hidden rounded"
+                    @click="previewImage(image)"
+                  >
                     <img
                       :src="`data:${image.mimeType};base64,${image.base64Data}`"
                       :alt="`${image.expression}の画像`"
@@ -362,6 +367,29 @@
       @confirm="handleConfirmOk"
       @cancel="handleConfirmCancel"
     />
+
+    <!-- 画像プレビューダイアログ -->
+    <Dialog
+      :open="previewingImage !== null"
+      @update:open="(open) => !open && (previewingImage = null)"
+    >
+      <DialogContent class="flex max-h-[90vh] max-w-[90vw] flex-col items-center justify-center p-4 sm:max-w-3xl">
+        <DialogHeader class="w-full flex-shrink-0">
+          <DialogTitle>{{ previewingImage?.expression }}</DialogTitle>
+          <DialogDescription>
+            {{ formatFileSize(previewingImage?.size ?? 0) }}
+          </DialogDescription>
+        </DialogHeader>
+        <div class="flex flex-1 items-center justify-center overflow-hidden">
+          <img
+            v-if="previewingImage"
+            :src="`data:${previewingImage.mimeType};base64,${previewingImage.base64Data}`"
+            :alt="`${previewingImage.expression}の画像`"
+            class="max-h-[70vh] max-w-full rounded object-contain"
+          />
+        </div>
+      </DialogContent>
+    </Dialog>
   </Dialog>
 </template>
 
@@ -415,6 +443,7 @@ const editingOutfit = ref<CharacterOutfitRecord | null>(null)
 const showUploadModal = ref(false)
 const showCreateOutfitModal = ref(false)
 const selectedFolder = ref<FolderStructure | null>(null)
+const previewingImage = ref<CharacterImageRecord | null>(null)
 
 // 計算プロパティ
 const totalImages = computed(() => {
@@ -575,6 +604,11 @@ const toggleImageSelection = (imageId: string) => {
   } else {
     selectedImages.value.add(imageId)
   }
+}
+
+// 画像をプレビュー
+const previewImage = (image: CharacterImageRecord) => {
+  previewingImage.value = image
 }
 
 // すべての画像を選択

@@ -174,6 +174,40 @@ export function useFolderUpload() {
     }
   }
 
+  // 複数キャラクター用の親フォルダを選択
+  const selectMultiCharacterFolder = async (): Promise<FolderStructure[] | null> => {
+    if (!checkSupport()) {
+      throw new Error('このブラウザはフォルダ選択をサポートしていません')
+    }
+
+    try {
+      const directoryHandle = await (window as unknown as FileSystemAccessAPI).showDirectoryPicker({
+        mode: 'read',
+      })
+
+      const structures: FolderStructure[] = []
+
+      // 親フォルダ内の各サブディレクトリをキャラクターとして解析
+      for await (const [, handle] of directoryHandle.entries()) {
+        if (handle.kind === 'directory') {
+          const structure = await analyzeFolderStructure(handle as FileSystemDirectoryHandle)
+          // 衣装が0個のキャラクターはスキップ
+          if (structure.outfits.length > 0) {
+            structures.push(structure)
+          }
+        }
+      }
+
+      return structures.length > 0 ? structures : null
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        return null
+      }
+      logger.error('複数キャラクターフォルダ選択に失敗', { component: 'useFolderUpload' }, error)
+      throw error
+    }
+  }
+
   // 背景画像用のフォルダを選択（フォルダ内の全画像を取得）
   const selectImageFolder = async (): Promise<{ folderName: string; images: File[] } | null> => {
     if (!checkSupport()) {
@@ -227,6 +261,7 @@ export function useFolderUpload() {
     checkSupport,
     selectFolder,
     selectOutfitFolder,
+    selectMultiCharacterFolder,
     selectImageFolder,
   }
 }

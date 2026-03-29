@@ -2,7 +2,7 @@ import { computed, ref } from 'vue'
 import { useFolderUpload, type FolderStructure } from '~/composables/useFolderUpload'
 import { processFileOrAttachedFile, useImageUpload } from '~/composables/useImageUpload'
 import { IMAGE_LIMITS } from '~/constants/constants'
-import { createBulkImageUploader, createBulkOutfitUploader } from '~/lib/imageBulkUpload'
+import { createBulkImageUploader, createBulkOutfitUploader, type OnProgressCallback } from '~/lib/imageBulkUpload'
 import {
   dbCreateCharacter,
   dbCreateCharacterOutfit,
@@ -131,7 +131,8 @@ export function useCharacterImages() {
   /** フォルダからキャラクターと衣装を一括作成・アップロード */
   const bulkUploadFromFolder = async (
     folderStructure: FolderStructure,
-    description?: string
+    description?: string,
+    onProgress?: OnProgressCallback
   ): Promise<{
     character: CharacterRecord | null
     success: number
@@ -148,7 +149,7 @@ export function useCharacterImages() {
 
         // 2. 衣装と画像を一括アップロード（共通関数を使用）
         const uploader = createBulkOutfitUploader(createOutfit, bulkUploadExpressions, 'useCharacterImages')
-        const result = await uploader(character.id, folderStructure.outfits)
+        const result = await uploader(character.id, folderStructure.outfits, onProgress)
 
         logger.info(`フォルダ一括アップロード完了: 成功${result.success}件、失敗${result.failed}件`, { component: 'useCharacterImages' })
         return {
@@ -191,6 +192,53 @@ export function useCharacterImages() {
         success: 0,
         failed: folderStructure.outfits.reduce((sum, o) => sum + o.images.length, 0),
         errors: ['衣装一括追加に失敗しました'],
+      }
+    )
+  }
+
+  /** 複数キャラクターを一括アップロード */
+  const bulkUploadMultipleCharacters = async (
+    folderStructures: FolderStructure[],
+    onProgress?: OnProgressCallback
+  ): Promise<{
+    characters: CharacterRecord[]
+    totalSuccess: number
+    totalFailed: number
+    errors: string[]
+  }> => {
+    return handleBulkOperation(
+      async () => {
+        const characters: CharacterRecord[] = []
+        let totalSuccess = 0
+        let totalFailed = 0
+        const errors: string[] = []
+        const grandTotal = folderStructures.reduce((sum, s) => sum + s.outfits.reduce((oSum, o) => oSum + o.images.length, 0), 0)
+        let processedOffset = 0
+
+        for (const structure of folderStructures) {
+          const currentOffset = processedOffset
+          const structureImageCount = structure.outfits.reduce((sum, o) => sum + o.images.length, 0)
+          const result = await bulkUploadFromFolder(structure, undefined, (current, _total) => {
+            onProgress?.(currentOffset + current, grandTotal)
+          })
+          processedOffset += structureImageCount
+          if (result.character) {
+            characters.push(result.character)
+          }
+          totalSuccess += result.success
+          totalFailed += result.failed
+          errors.push(...result.errors)
+        }
+
+        logger.info(`複数キャラクター一括アップロード完了: ${characters.length}キャラクター、成功${totalSuccess}件、失敗${totalFailed}件`, { component: 'useCharacterImages' })
+        return { characters, totalSuccess, totalFailed, errors }
+      },
+      '複数キャラクター一括アップロードに失敗しました',
+      {
+        characters: [] as CharacterRecord[],
+        totalSuccess: 0,
+        totalFailed: folderStructures.reduce((sum, s) => sum + s.outfits.reduce((oSum, o) => oSum + o.images.length, 0), 0),
+        errors: ['複数キャラクター一括アップロードに失敗しました'],
       }
     )
   }
@@ -353,7 +401,7 @@ export function useCharacterImages() {
   }
 
   /** 複数ファイル選択で一気にアップロード */
-  const bulkUploadExpressions = async (characterId: string, outfitId: string, files: File[]): Promise<{ success: number; failed: number; errors: string[] }> => {
+  const bulkUploadExpressions = async (characterId: string, outfitId: string, files: File[], onProgress?: OnProgressCallback): Promise<{ success: number; failed: number; errors: string[] }> => {
     return handleBulkOperation(
       async () => {
         // 共通のバルクアップローダーを使用
@@ -363,7 +411,7 @@ export function useCharacterImages() {
           'useCharacterImages'
         )
 
-        return await uploader(files)
+        return await uploader(files, onProgress)
       },
       '一括アップロードに失敗しました',
       { success: 0, failed: files.length, errors: ['一括アップロードに失敗しました'] }
@@ -473,6 +521,7 @@ export function useCharacterImages() {
     // フォルダ一括アップロード
     bulkUploadFromFolder,
     bulkAddOutfitsFromFolder,
+    bulkUploadMultipleCharacters,
     folderUpload,
 
     // ユーティリティ

@@ -1,8 +1,26 @@
 <template>
   <div
     class="border-border bg-card hover:bg-muted/50 group relative cursor-pointer rounded-xl border p-2 transition-all duration-200 hover:shadow-md"
-    @click="selectCharacter"
+    :class="{ 'ring-primary ring-2': selectable && selected }"
+    @click="handleCardClick"
   >
+    <!-- 選択モード時のチェックボックス -->
+    <div
+      v-if="selectable"
+      class="absolute top-2 left-2 z-10"
+    >
+      <div
+        class="border-border bg-background flex h-5 w-5 items-center justify-center rounded border"
+        :class="{ 'bg-primary border-primary': selected }"
+      >
+        <Icon
+          v-if="selected"
+          icon="material-symbols:check"
+          class="text-primary-foreground h-3 w-3"
+        />
+      </div>
+    </div>
+
     <div class="flex flex-col items-center justify-center text-center">
       <!-- キャラクターサムネイル -->
       <div class="border-border bg-muted mb-4 flex w-full items-center justify-center overflow-hidden rounded-2xl border">
@@ -34,8 +52,11 @@
       </div>
     </div>
 
-    <!-- アクションボタン（ホバー時に表示） -->
-    <div class="absolute top-2 right-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+    <!-- アクションボタン（ホバー時に表示、選択モードでは非表示） -->
+    <div
+      v-if="!selectable"
+      class="absolute top-2 right-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+    >
       <div class="flex gap-1">
         <Button
           variant="ghost"
@@ -99,12 +120,15 @@ import { logger } from '~/lib/logger'
 
 interface Props {
   character: CharacterRecord
+  selectable?: boolean
+  selected?: boolean
 }
 
 interface Emits {
   select: [character: CharacterRecord]
   edit: [character: CharacterRecord]
   delete: [character: CharacterRecord]
+  'toggle-select': [character: CharacterRecord]
 }
 
 const props = defineProps<Props>()
@@ -127,9 +151,13 @@ const loadThumbnail = async () => {
   }
 }
 
-// キャラクターを選択
-const selectCharacter = () => {
-  emit('select', props.character)
+// カードクリック時の処理
+const handleCardClick = () => {
+  if (props.selectable) {
+    emit('toggle-select', props.character)
+  } else {
+    emit('select', props.character)
+  }
 }
 
 // キャラクターを編集
