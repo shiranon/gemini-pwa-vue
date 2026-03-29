@@ -191,6 +191,7 @@ import { useSettingsProfilesStore } from '~/stores/settingsProfiles'
 import { useGeminiStore } from '~/stores/gemini'
 import { useOpenAiStore } from '~/stores/openai'
 import { useClaudeStore } from '~/stores/claude'
+import { useOllamaStore } from '~/stores/ollama'
 import { useSettings } from '~/composables/useSettings'
 import { useTemporaryBackground } from '~/composables/useTemporaryBackground'
 import { scrollToBottom } from '~/lib/scroll'
@@ -218,6 +219,7 @@ const profilesStore = useSettingsProfilesStore()
 const geminiStore = useGeminiStore()
 const openaiStore = useOpenAiStore()
 const claudeStore = useClaudeStore()
+const ollamaStore = useOllamaStore()
 const { attachedFiles } = storeToRefs(chatStore)
 
 // 現在のプロバイダーに応じて適切なストアを取得
@@ -225,6 +227,7 @@ const currentApiStore = computed(() => {
   const apiProvider = profilesStore.activeProfile?.settings.apiProvider || 'gemini'
   if (apiProvider === 'openai') return openaiStore
   if (apiProvider === 'claude') return claudeStore
+  if (apiProvider === 'ollama') return ollamaStore
   return geminiStore
 })
 

@@ -56,7 +56,7 @@ export const mergeProfilePartial = (base: SettingsProfileData, partial: Partial<
         break
       }
       case 'apiProvider': {
-        if (value === 'gemini' || value === 'openai' || value === 'claude') {
+        if (value === 'gemini' || value === 'openai' || value === 'claude' || value === 'ollama') {
           next.apiProvider = value
         }
         break
