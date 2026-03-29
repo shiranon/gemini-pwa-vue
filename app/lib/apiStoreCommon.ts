@@ -217,6 +217,7 @@ export function createApiStoreState() {
   const isStreaming = ref(false)
   const streamingMessageId = ref<string | null>(null)
   const streamingContent = ref('')
+  const abortController = ref<AbortController | null>(null)
 
   // エラー状態
   const currentError = ref<string | null>(null)
@@ -243,8 +244,17 @@ export function createApiStoreState() {
     lastErrorTime.value = null
   }
 
+  const createAbortController = (): AbortController => {
+    abortController.value?.abort()
+    const controller = new AbortController()
+    abortController.value = controller
+    return controller
+  }
+
   const stopStreaming = () => {
     if (isStreaming.value) {
+      abortController.value?.abort()
+      abortController.value = null
       isStreaming.value = false
       streamingContent.value = ''
       streamingMessageId.value = null
@@ -252,6 +262,8 @@ export function createApiStoreState() {
   }
 
   const cancelSending = () => {
+    abortController.value?.abort()
+    abortController.value = null
     if (isSending.value) {
       isSending.value = false
     }
@@ -265,6 +277,8 @@ export function createApiStoreState() {
   }
 
   const reset = () => {
+    abortController.value?.abort()
+    abortController.value = null
     isSending.value = false
     isStreaming.value = false
     streamingMessageId.value = null
@@ -279,6 +293,7 @@ export function createApiStoreState() {
     isStreaming,
     streamingMessageId,
     streamingContent,
+    abortController,
     currentError,
     lastErrorTime,
     totalApiCalls,
@@ -291,6 +306,7 @@ export function createApiStoreState() {
     successRate,
 
     // actions
+    createAbortController,
     setError,
     clearError,
     stopStreaming,
