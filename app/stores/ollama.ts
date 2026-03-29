@@ -45,8 +45,9 @@ export const useOllamaStore = defineStore('ollama', () => {
     let accumulatedToolCalls: FunctionCall[] = []
     let accumulatedToolResults: FunctionCallResult[] = []
 
+    const controller = state.createAbortController()
     try {
-      for await (const chunk of ollamaApi.generateContentStream(messages, settings)) {
+      for await (const chunk of ollamaApi.generateContentStream(messages, settings, { signal: controller.signal })) {
         if (chunk.type === 'chunk') {
           if (messageIndex === -1) {
             assistantMessage = {
@@ -111,6 +112,10 @@ export const useOllamaStore = defineStore('ollama', () => {
       state.successfulCalls.value++
       completed = true
     } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        completed = true
+        return
+      }
       if (messageIndex !== -1 && assistantMessage) {
         callbacks.onMessageUpdate(messageIndex, {
           content: assistantMessage.content,

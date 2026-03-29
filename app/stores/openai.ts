@@ -118,8 +118,9 @@ export const useOpenAiStore = defineStore('openai', () => {
     let accumulatedFunctionCalls: FunctionCall[] = []
     let accumulatedFunctionResults: FunctionCallResult[] = []
 
+    const controller = state.createAbortController()
     try {
-      for await (const chunk of openaiApi.generateContentStream(messagesForApi, generationConfig, systemInstruction, settings)) {
+      for await (const chunk of openaiApi.generateContentStream(messagesForApi, generationConfig, systemInstruction, settings, { signal: controller.signal })) {
         if (chunk.type === 'chunk') {
           // 初回チャンクでメッセージを作成
           if (messageIndex === -1) {
@@ -241,6 +242,10 @@ export const useOpenAiStore = defineStore('openai', () => {
       state.successfulCalls.value++
       completed = true
     } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        completed = true
+        return
+      }
       // ベストプラクティス: より詳細なエラーログ
       logger.error('[OpenAIストア] ストリーミング処理中にエラーが発生:', { component: 'useOpenAiStore' }, error)
       if (messageIndex !== -1 && assistantMessage) {

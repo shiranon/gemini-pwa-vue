@@ -135,13 +135,13 @@
         </div>
         <div class="flex flex-col gap-2">
           <Button
-            :disabled="isSending || (!inputText.trim() && !hasAttachments)"
+            :disabled="!isSending && !inputText.trim() && !hasAttachments"
             class="size-10 p-2 text-lg sm:size-11"
-            @click="sendMessage"
+            @click="isSending ? handleCancelSending() : sendMessage()"
           >
             <div v-if="isSending">
               <Icon
-                icon="line-md:loading-alt-loop"
+                icon="material-symbols:stop-circle-outline"
                 width="24"
                 height="24"
               />
@@ -479,6 +479,10 @@ const handleGeminiError = (error: ApiError | null) => {
     dismissErrorToast()
     dismissRetryToast()
   }
+}
+
+const handleCancelSending = () => {
+  currentApiStore.value.cancelSending()
 }
 
 const sendMessage = async (options?: { contentOverride?: string; skipAddingUserMessage?: boolean; attachmentsOverride?: AttachedFile[] }) => {
