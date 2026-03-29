@@ -99,36 +99,39 @@
       />
     </SettingItem>
 
-    <SettingToggle
-      :model-value="localSettings.enableThinking"
-      label="思考機能有効化"
-      description="AIの思考機能を有効化"
-      @update:model-value="(value: boolean) => updateSetting('enableThinking', value)"
-    />
-
-    <SettingToggle
-      :model-value="localSettings.includeThoughts"
-      label="思考プロセス表示"
-      description="AIの思考過程を表示"
-      @update:model-value="(value: boolean) => updateSetting('includeThoughts', value)"
-    />
-
-    <SettingItem
-      name="thinkingBudget"
-      label="Thinking Budget"
-      description="思考プロセス用のトークン予算 (-1: 自動, 0: 無効)"
-      :disabled="!localSettings.enableThinking"
-    >
-      <Input
-        :model-value="localProfileSettings.thinkingBudget ?? undefined"
-        type="number"
-        placeholder="自動 (-1)"
-        :min="-1"
-        :max="32768"
-        :disabled="!localSettings.enableThinking"
-        @update:model-value="(value: string | number | null) => updateProfileSetting('thinkingBudget', value ? (typeof value === 'number' ? value : Number(value)) : null)"
+    <!-- 思考機能設定（Ollamaでは非対応） -->
+    <template v-if="localProfileSettings.apiProvider !== 'ollama'">
+      <SettingToggle
+        :model-value="localSettings.enableThinking"
+        label="思考機能有効化"
+        description="AIの思考機能を有効化"
+        @update:model-value="(value: boolean) => updateSetting('enableThinking', value)"
       />
-    </SettingItem>
+
+      <SettingToggle
+        :model-value="localSettings.includeThoughts"
+        label="思考プロセス表示"
+        description="AIの思考過程を表示"
+        @update:model-value="(value: boolean) => updateSetting('includeThoughts', value)"
+      />
+
+      <SettingItem
+        name="thinkingBudget"
+        label="Thinking Budget"
+        description="思考プロセス用のトークン予算 (-1: 自動, 0: 無効)"
+        :disabled="!localSettings.enableThinking"
+      >
+        <Input
+          :model-value="localProfileSettings.thinkingBudget ?? undefined"
+          type="number"
+          placeholder="自動 (-1)"
+          :min="-1"
+          :max="32768"
+          :disabled="!localSettings.enableThinking"
+          @update:model-value="(value: string | number | null) => updateProfileSetting('thinkingBudget', value ? (typeof value === 'number' ? value : Number(value)) : null)"
+        />
+      </SettingItem>
+    </template>
 
     <!-- GPT-5専用設定 -->
     <template v-if="isGpt5Model">
