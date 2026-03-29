@@ -322,7 +322,7 @@ export const useOllamaApi = () => {
   /**
    * Ollama API をストリーミングで呼び出す
    */
-  const generateContentStream = async function* (messages: ChatMessage[], settings: OllamaApiSettings) {
+  const generateContentStream = async function* (messages: ChatMessage[], settings: OllamaApiSettings, options?: { signal?: AbortSignal }) {
     const client = createOllamaClient(settings)
     const tools = buildTools(settings)
 
@@ -339,16 +339,20 @@ export const useOllamaApi = () => {
 
       const openaiMessages = toOpenAiMessages(currentMessages, settings)
 
-      const stream = await client.chat.completions.create({
-        model: settings.model,
-        messages: openaiMessages,
-        stream: true,
-        ...(settings.temperature !== undefined && { temperature: settings.temperature }),
-        ...(settings.maxTokens && { max_tokens: settings.maxTokens }),
-        ...(settings.topP !== undefined && { top_p: settings.topP }),
-        ...(tools && { tools }),
-        ...(tools && { tool_choice: getToolChoice(settings, tools) }),
-      })
+      const streamRequestOptions = options?.signal ? { signal: options.signal } : undefined
+      const stream = await client.chat.completions.create(
+        {
+          model: settings.model,
+          messages: openaiMessages,
+          stream: true,
+          ...(settings.temperature !== undefined && { temperature: settings.temperature }),
+          ...(settings.maxTokens && { max_tokens: settings.maxTokens }),
+          ...(settings.topP !== undefined && { top_p: settings.topP }),
+          ...(tools && { tools }),
+          ...(tools && { tool_choice: getToolChoice(settings, tools) }),
+        },
+        streamRequestOptions
+      )
 
       const accumulatedToolCalls: Array<{ id: string; name: string; arguments: string }> = []
       let accumulatedFunctionCalls: FunctionCall[] = []
@@ -440,13 +444,16 @@ export const useOllamaApi = () => {
         })
 
         // 最終応答をストリーミング
-        const finalStream = await client.chat.completions.create({
-          model: settings.model,
-          messages: openaiMessages,
-          stream: true,
-          ...(settings.temperature !== undefined && { temperature: settings.temperature }),
-          ...(settings.maxTokens && { max_tokens: settings.maxTokens }),
-        })
+        const finalStream = await client.chat.completions.create(
+          {
+            model: settings.model,
+            messages: openaiMessages,
+            stream: true,
+            ...(settings.temperature !== undefined && { temperature: settings.temperature }),
+            ...(settings.maxTokens && { max_tokens: settings.maxTokens }),
+          },
+          streamRequestOptions
+        )
 
         for await (const chunk of finalStream) {
           const delta = chunk.choices[0]?.delta

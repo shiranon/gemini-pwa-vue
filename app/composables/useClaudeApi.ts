@@ -668,7 +668,7 @@ export const useClaudeApi = () => {
   /**
    * Claude API をストリーミングで呼び出す
    */
-  const generateContentStream = async function* (messages: ChatMessage[], settings: ClaudeApiSettings) {
+  const generateContentStream = async function* (messages: ChatMessage[], settings: ClaudeApiSettings, options?: { signal?: AbortSignal }) {
     const claude = createClaudeClient(settings.apiKey)
     const toolConfig = buildToolConfig(settings)
 
@@ -701,7 +701,7 @@ export const useClaudeApi = () => {
         ...(toolsWithCache && { tools: toolsWithCache }),
       }
 
-      const stream = claude.messages.stream(params)
+      const stream = options?.signal ? claude.messages.stream(params, { signal: options.signal }) : claude.messages.stream(params)
 
       let accumulatedToolCalls: FunctionCall[] = []
       const accumulatedToolResults: FunctionCallResult[] = []
@@ -810,7 +810,7 @@ export const useClaudeApi = () => {
           ...(settings.topK !== undefined && { top_k: settings.topK }),
         }
 
-        const finalStream = claude.messages.stream(finalParams)
+        const finalStream = options?.signal ? claude.messages.stream(finalParams, { signal: options.signal }) : claude.messages.stream(finalParams)
 
         for await (const chunk of finalStream) {
           let contentText = ''

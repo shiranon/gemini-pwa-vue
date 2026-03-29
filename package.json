@@ -17,7 +17,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "0.69.0",
     "@google/genai": "1.29.1",
-    "@openai/agents": "0.3.2",
+    "@openai/agents": "0.8.1",
     "@pinia-plugin-persistedstate/nuxt": "1.2.1",
     "@pinia/nuxt": "0.11.3",
     "@tailwindcss/vite": "4.1.17",

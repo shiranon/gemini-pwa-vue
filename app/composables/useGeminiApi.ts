@@ -321,7 +321,13 @@ export const useGeminiApi = () => {
   /**
    * Gemini API をストリーミングで呼び出す
    */
-  const generateContentStream = async function* (messages: GeminiMessage[], generationConfig: Record<string, unknown>, systemInstruction: Content | null, settings: GeminiApiSettings) {
+  const generateContentStream = async function* (
+    messages: GeminiMessage[],
+    generationConfig: Record<string, unknown>,
+    systemInstruction: Content | null,
+    settings: GeminiApiSettings,
+    options?: { signal?: AbortSignal }
+  ) {
     const genAI = createGeminiClient(settings.apiKey)
     const toolConfig = buildToolConfig(settings)
 
@@ -346,6 +352,7 @@ export const useGeminiApi = () => {
           ...(toolConfig.tools && { tools: toolConfig.tools }),
           ...(toolConfig.toolConfig && { toolConfig: toolConfig.toolConfig }),
           safetySettings: buildSafetySettings(),
+          ...(options?.signal && { abortSignal: options.signal }),
         },
       })
 
@@ -510,6 +517,7 @@ export const useGeminiApi = () => {
             ...(resultToolConfig.tools && { tools: resultToolConfig.tools }),
             ...(resultToolConfig.toolConfig && { toolConfig: resultToolConfig.toolConfig }),
             safetySettings: buildSafetySettings(),
+            ...(options?.signal && { abortSignal: options.signal }),
           },
         })
 

@@ -5,7 +5,7 @@
 
 import type { Content } from '@google/genai'
 import { defineStore } from 'pinia'
-import { createApiStoreState, createChatCallbacks, sleep, toApiError, type ChatCallbackHooks, type SendChatMessageOptions } from '~/lib/apiStoreCommon'
+import { createApiStoreState, createChatCallbacks, isAbortError, sleep, toApiError, type ChatCallbackHooks, type SendChatMessageOptions } from '~/lib/apiStoreCommon'
 import { useGeminiApi, type CombinedResponse } from '~/composables/useGeminiApi'
 import { proofreadText } from '~/lib/proofreader'
 import { translateThoughts } from '~/lib/translator'
@@ -131,8 +131,9 @@ export const useGeminiStore = defineStore('gemini', () => {
     let accumulatedFunctionCalls: FunctionCall[] = []
     let accumulatedFunctionResults: FunctionCallResult[] = []
 
+    const controller = state.createAbortController()
     try {
-      for await (const chunk of geminiApi.generateContentStream(messagesForApi, generationConfig, systemInstruction, settings)) {
+      for await (const chunk of geminiApi.generateContentStream(messagesForApi, generationConfig, systemInstruction, settings, { signal: controller.signal })) {
         if (chunk.type === 'chunk') {
           // 初回チャンクでメッセージを作成
           if (messageIndex === -1) {
@@ -254,6 +255,10 @@ export const useGeminiStore = defineStore('gemini', () => {
       state.successfulCalls.value++
       completed = true
     } catch (error) {
+      if (isAbortError(error)) {
+        completed = true
+        return
+      }
       if (messageIndex !== -1 && assistantMessage) {
         callbacks.onMessageUpdate(messageIndex, {
           content: assistantMessage.content,

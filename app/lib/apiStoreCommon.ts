@@ -5,8 +5,24 @@
  */
 
 import { computed, ref } from 'vue'
+import { APIUserAbortError as AnthropicAbortError } from '@anthropic-ai/sdk'
+import { APIUserAbortError as OpenAIAbortError } from 'openai'
 import { useChatStore } from '~/stores/chat'
 import type { ApiError, AssistantMessage, AttachedFile, ChatMessage } from '~/types/chat'
+
+/**
+ * AbortSignalによるキャンセルエラーかどうかを判定する。
+ * 各SDKは異なるエラー型を投げるため、統一的に判定する:
+ * - Gemini (@google/genai): ネイティブ DOMException (name === 'AbortError')
+ * - Claude (@anthropic-ai/sdk): APIUserAbortError
+ * - OpenAI/Ollama (openai): APIUserAbortError
+ */
+export const isAbortError = (error: unknown): boolean => {
+  if (error instanceof DOMException && error.name === 'AbortError') return true
+  if (error instanceof AnthropicAbortError) return true
+  if (error instanceof OpenAIAbortError) return true
+  return false
+}
 
 // ============================================================================
 // 共通型定義
@@ -217,6 +233,7 @@ export function createApiStoreState() {
   const isStreaming = ref(false)
   const streamingMessageId = ref<string | null>(null)
   const streamingContent = ref('')
+  const abortController = ref<AbortController | null>(null)
 
   // エラー状態
   const currentError = ref<string | null>(null)
@@ -243,8 +260,17 @@ export function createApiStoreState() {
     lastErrorTime.value = null
   }
 
+  const createAbortController = (): AbortController => {
+    abortController.value?.abort()
+    const controller = new AbortController()
+    abortController.value = controller
+    return controller
+  }
+
   const stopStreaming = () => {
     if (isStreaming.value) {
+      abortController.value?.abort()
+      abortController.value = null
       isStreaming.value = false
       streamingContent.value = ''
       streamingMessageId.value = null
@@ -252,6 +278,8 @@ export function createApiStoreState() {
   }
 
   const cancelSending = () => {
+    abortController.value?.abort()
+    abortController.value = null
     if (isSending.value) {
       isSending.value = false
     }
@@ -265,6 +293,8 @@ export function createApiStoreState() {
   }
 
   const reset = () => {
+    abortController.value?.abort()
+    abortController.value = null
     isSending.value = false
     isStreaming.value = false
     streamingMessageId.value = null
@@ -279,6 +309,7 @@ export function createApiStoreState() {
     isStreaming,
     streamingMessageId,
     streamingContent,
+    abortController,
     currentError,
     lastErrorTime,
     totalApiCalls,
@@ -291,6 +322,7 @@ export function createApiStoreState() {
     successRate,
 
     // actions
+    createAbortController,
     setError,
     clearError,
     stopStreaming,

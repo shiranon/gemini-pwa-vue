@@ -269,6 +269,7 @@ export type ClaudeApiSettings = BaseClaudeApiSettings & ThoughtTranslationConfig
 
 export interface OllamaApiSettings {
   baseUrl: string
+  /** API key for authenticated Ollama endpoints. Empty string uses default 'ollama' token. */
   apiKey: string
   model: string
   temperature?: number

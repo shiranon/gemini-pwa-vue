@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, mock } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test'
 import type { NotificationSoundRecord } from '~/types/database'
 
 // Vue のモック
@@ -69,7 +69,12 @@ const mockNotificationSounds: NotificationSoundRecord[] = [
 ]
 
 describe('NotificationSoundSection', () => {
+  const originalConsoleError = console.error
+
   beforeEach(() => {
+    // テスト内のconsole.errorをサプレス (エラーハンドリングテストのノイズ防止)
+    console.error = mock(() => {})
+
     // モックをリセット
     mockUseNotificationSound.addNotificationSound.mockClear()
     mockUseNotificationSound.deleteNotificationSound.mockClear()
@@ -79,6 +84,10 @@ describe('NotificationSoundSection', () => {
 
     // デフォルトのモックデータを設定
     mockUseNotificationSound.getNotificationSounds.mockResolvedValue(mockNotificationSounds)
+  })
+
+  afterEach(() => {
+    console.error = originalConsoleError
   })
 
   it('コンポーネントの初期化が正しく動作する', () => {

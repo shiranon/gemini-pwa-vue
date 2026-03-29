@@ -11,7 +11,7 @@ import { useSettingsProfilesStore } from '~/stores/settingsProfiles'
 import type { ApiError, ChatMessage, OllamaApiSettings } from '~/types/chat'
 import type { FunctionCall, FunctionCallResult } from '~/types/function-calling'
 import { logger } from '~/lib/logger'
-import { createApiStoreState, createChatCallbacks, sleep, toApiError, type ChatCallbackHooks, type SendChatMessageOptions } from '~/lib/apiStoreCommon'
+import { createApiStoreState, createChatCallbacks, isAbortError, sleep, toApiError, type ChatCallbackHooks, type SendChatMessageOptions } from '~/lib/apiStoreCommon'
 
 export const useOllamaStore = defineStore('ollama', () => {
   const state = createApiStoreState()
@@ -45,8 +45,9 @@ export const useOllamaStore = defineStore('ollama', () => {
     let accumulatedToolCalls: FunctionCall[] = []
     let accumulatedToolResults: FunctionCallResult[] = []
 
+    const controller = state.createAbortController()
     try {
-      for await (const chunk of ollamaApi.generateContentStream(messages, settings)) {
+      for await (const chunk of ollamaApi.generateContentStream(messages, settings, { signal: controller.signal })) {
         if (chunk.type === 'chunk') {
           if (messageIndex === -1) {
             assistantMessage = {
@@ -111,6 +112,10 @@ export const useOllamaStore = defineStore('ollama', () => {
       state.successfulCalls.value++
       completed = true
     } catch (error) {
+      if (isAbortError(error)) {
+        completed = true
+        return
+      }
       if (messageIndex !== -1 && assistantMessage) {
         callbacks.onMessageUpdate(messageIndex, {
           content: assistantMessage.content,
@@ -197,8 +202,11 @@ export const useOllamaStore = defineStore('ollama', () => {
         attempt++
         state.totalApiCalls.value++
 
+        logger.info('[自動リトライ] リクエスト試行を開始します', { attempt })
+
         if (attempt > 1) {
           callbacks.onRetryStarted?.({ attempt })
+          logger.info('[自動リトライ] 再試行を実行中です', { attempt })
         }
 
         try {
@@ -214,6 +222,11 @@ export const useOllamaStore = defineStore('ollama', () => {
           }
 
           callbacks.onError?.(null)
+          if (attempt > 1) {
+            logger.info('[自動リトライ] 再試行に成功しました', { attempt })
+          } else {
+            logger.info('[自動リトライ] 初回の試行で成功しました', { component: 'useOllamaStore' })
+          }
           break
         } catch (error) {
           const apiError = toApiError(error)
@@ -240,9 +253,17 @@ export const useOllamaStore = defineStore('ollama', () => {
 
           if (shouldRetry && delayMs) {
             callbacks.onRetryScheduled?.({ attempt: retryNumber, delayMs })
+            logger.info('[自動リトライ] 再試行を予約しました', {
+              nextAttempt: retryNumber + 1,
+              delayMs,
+            })
           }
 
           if (!shouldRetry || !delayMs) {
+            logger.info('[自動リトライ] 再試行を断念します', {
+              finalAttempt: attempt,
+              errorCode: apiError.code,
+            })
             const propagated = Object.assign(new Error(apiError.message), {
               apiError,
               alreadyNotified: true,

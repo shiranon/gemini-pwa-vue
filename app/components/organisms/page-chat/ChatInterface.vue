@@ -135,13 +135,13 @@
         </div>
         <div class="flex flex-col gap-2">
           <Button
-            :disabled="isSending || (!inputText.trim() && !hasAttachments)"
+            :disabled="!isSending && !inputText.trim() && !hasAttachments"
             class="size-10 p-2 text-lg sm:size-11"
-            @click="sendMessage"
+            @click="isSending ? handleCancelSending() : sendMessage()"
           >
             <div v-if="isSending">
               <Icon
-                icon="line-md:loading-alt-loop"
+                icon="material-symbols:stop-circle-outline"
                 width="24"
                 height="24"
               />
@@ -481,6 +481,10 @@ const handleGeminiError = (error: ApiError | null) => {
   }
 }
 
+const handleCancelSending = () => {
+  currentApiStore.value.cancelSending()
+}
+
 const sendMessage = async (options?: { contentOverride?: string; skipAddingUserMessage?: boolean; attachmentsOverride?: AttachedFile[] }) => {
   // 二重送信防止の早期リターン
   if (isSending.value) return
@@ -544,7 +548,8 @@ const clearChat = () => {
 const isSummarizing = ref(false)
 
 const canSummarize = computed(() => {
-  return settingsStore.settings.enableSummary && chatStore.visibleMessages.length > 0 && !isSummarizing.value
+  const apiProvider = profilesStore.activeProfile?.settings.apiProvider || 'gemini'
+  return apiProvider !== 'ollama' && settingsStore.settings.enableSummary && chatStore.visibleMessages.length > 0 && !isSummarizing.value
 })
 
 const summarizeChat = async () => {

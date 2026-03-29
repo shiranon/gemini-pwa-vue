@@ -5,7 +5,7 @@
 
 import { defineStore } from 'pinia'
 import { useClaudeApi, type ClaudeCombinedResponse } from '~/composables/useClaudeApi'
-import { createApiStoreState, createChatCallbacks, sleep, toApiError, type ChatCallbackHooks, type SendChatMessageOptions } from '~/lib/apiStoreCommon'
+import { createApiStoreState, createChatCallbacks, isAbortError, sleep, toApiError, type ChatCallbackHooks, type SendChatMessageOptions } from '~/lib/apiStoreCommon'
 import { proofreadText } from '~/lib/proofreader'
 import { translateThoughts } from '~/lib/translator'
 import { useChatStore } from '~/stores/chat'
@@ -53,8 +53,9 @@ export const useClaudeStore = defineStore('claude', () => {
     let accumulatedToolCalls: FunctionCall[] = []
     let accumulatedToolResults: FunctionCallResult[] = []
 
+    const controller = state.createAbortController()
     try {
-      for await (const chunk of claudeApi.generateContentStream(messages, settings)) {
+      for await (const chunk of claudeApi.generateContentStream(messages, settings, { signal: controller.signal })) {
         if (chunk.type === 'chunk') {
           // 初回チャンクでメッセージを作成
           if (messageIndex === -1) {
@@ -177,6 +178,10 @@ export const useClaudeStore = defineStore('claude', () => {
       state.successfulCalls.value++
       completed = true
     } catch (error) {
+      if (isAbortError(error)) {
+        completed = true
+        return
+      }
       if (messageIndex !== -1 && assistantMessage) {
         callbacks.onMessageUpdate(messageIndex, {
           content: assistantMessage.content,
