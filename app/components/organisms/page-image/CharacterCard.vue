@@ -111,7 +111,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Button } from '~/components/ui/button'
 import type { CharacterRecord, CharacterImageRecord } from '~/types/database'
@@ -138,6 +138,7 @@ const { getCharacterFirstImage, getOutfits, getCharacterAllExpressions } = useCh
 const thumbnailImage = ref<CharacterImageRecord | null>(null)
 const isLoadingThumbnail = ref(true)
 const showCopyNotification = ref(false)
+let copyNotificationTimer: ReturnType<typeof setTimeout> | null = null
 
 // サムネイル画像を読み込み
 const loadThumbnail = async () => {
@@ -204,8 +205,9 @@ ${expressionNames.join('\n')}`
     showCopyNotification.value = true
 
     // 1.5秒後に通知を非表示
-    setTimeout(() => {
+    copyNotificationTimer = setTimeout(() => {
       showCopyNotification.value = false
+      copyNotificationTimer = null
     }, 1500)
 
     // 成功通知（必要に応じて）
@@ -223,5 +225,11 @@ ${expressionNames.join('\n')}`
 // コンポーネントマウント時にサムネイルを読み込み
 onMounted(() => {
   loadThumbnail()
+})
+
+onUnmounted(() => {
+  if (copyNotificationTimer) {
+    clearTimeout(copyNotificationTimer)
+  }
 })
 </script>
