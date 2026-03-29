@@ -3,6 +3,9 @@
   "buildCommand": "bun run build",
   "outputDirectory": ".output/public",
   "installCommand": "bun install --frozen-lockfile",
+  "rewrites": [
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ],
   "git": {
     "deploymentEnabled": false
   }
