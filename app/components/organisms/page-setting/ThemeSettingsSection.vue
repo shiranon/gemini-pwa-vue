@@ -53,6 +53,7 @@ import { computed } from 'vue'
 import SettingSection from '~/components/molecules/page-setting/SettingSection.vue'
 import SettingItem from '~/components/molecules/page-setting/SettingItem.vue'
 import { RadioGroup, RadioGroupItem } from '~/components/ui/radio-group'
+import type { AcceptableValue } from 'reka-ui'
 import type { AppSettings, ThemePresetId } from '~/types/settings'
 import { applyTheme, getThemeBubbleColors, getThemePresetOptions } from '~/lib/theme'
 
@@ -65,7 +66,8 @@ const props = defineProps<Props>()
 
 const presetOptions = computed(() => getThemePresetOptions())
 
-const onPresetSelect = (value: string) => {
+const onPresetSelect = (value: AcceptableValue) => {
+  if (typeof value !== 'string') return
   const id = value as ThemePresetId
   const bubbles = getThemeBubbleColors(id)
   props.updateLocalSetting('themePreset', id)

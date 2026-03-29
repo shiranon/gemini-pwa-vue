@@ -15,7 +15,11 @@
           <Label class="text-base font-medium">関数呼び出しモード</Label>
           <RadioGroup
             :model-value="activeProfileSettings?.functionCallingMode"
-            @update:model-value="(value: string) => updateProfileSetting('functionCallingMode', value as 'auto' | 'any' | 'none')"
+            @update:model-value="
+              (value: AcceptableValue) => {
+                if (typeof value === 'string') updateProfileSetting('functionCallingMode', value as 'auto' | 'any' | 'none')
+              }
+            "
           >
             <div class="space-y-2">
               <div class="flex items-center space-x-2">
@@ -128,6 +132,7 @@ import { Button } from '~/components/ui/button'
 import { Checkbox } from '~/components/ui/checkbox'
 import { Label } from '~/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '~/components/ui/radio-group'
+import type { AcceptableValue } from 'reka-ui'
 import { useFunctionCalling } from '~/composables/useFunctionCalling'
 import { useQuickActions } from '~/composables/useQuickActions'
 import { computeNextEnabledFunctionTools } from '~/function-calling/selection'
