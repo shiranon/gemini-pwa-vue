@@ -327,19 +327,21 @@ export const useOllamaStore = defineStore('ollama', () => {
       return false
     }
 
-    await executeOllamaRequest(
-      chatStore.currentMessages,
-      settings,
-      createChatCallbacks({
-        onError: options.onError,
-        onRetryScheduled: options.onRetryScheduled,
-        onRetryStarted: options.onRetryStarted,
-      })
-    )
-
-    logger.info('[Ollamaストア] sendChatMessageが正常終了しました', { component: 'useOllamaStore' })
-
-    return true
+    try {
+      await executeOllamaRequest(
+        chatStore.currentMessages,
+        settings,
+        createChatCallbacks({
+          onError: options.onError,
+          onRetryScheduled: options.onRetryScheduled,
+          onRetryStarted: options.onRetryStarted,
+        })
+      )
+      logger.info('[Ollamaストア] sendChatMessageが正常終了しました', { component: 'useOllamaStore' })
+      return true
+    } catch {
+      return false
+    }
   }
 
   const retryLastUserMessage = async (hooks?: ChatCallbackHooks): Promise<boolean> => {

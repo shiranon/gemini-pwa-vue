@@ -81,7 +81,7 @@ const buildAttachmentBlocks = (attachments: AttachedFile[]): ContentBlockParam[]
           text: `添付ファイル: ${file.name}\n\n内容:\n${textContent}`,
         })
       } catch (error) {
-        console.error('テキストファイルのデコードに失敗:', error)
+        logger.error('テキストファイルのデコードに失敗', { component: 'useClaudeApi' }, error)
         blocks.push({ type: 'text', text: `添付ファイル: ${file.name} (デコードエラー)` })
       }
     } else {
@@ -91,6 +91,9 @@ const buildAttachmentBlocks = (attachments: AttachedFile[]): ContentBlockParam[]
 
   return blocks
 }
+
+const MAX_CACHE_SIZE = 100
+const schemaConversionCache = new Map<string, Tool.InputSchema>()
 
 export const useClaudeApi = () => {
   const { getEnabledFunctionDeclarations, executeFunction } = useFunctionCalling()
@@ -248,8 +251,6 @@ export const useClaudeApi = () => {
    * メモ化により同じschemaの変換を繰り返さない
    * キャッシュサイズ制限によりメモリリークを防止
    */
-  const MAX_CACHE_SIZE = 100
-  const schemaConversionCache = new Map<string, Tool.InputSchema>()
 
   // 型ガード関数: 有効なプロパティオブジェクトかどうかを検証
   const isValidPropertiesObject = (val: unknown): val is Record<string, unknown> => {

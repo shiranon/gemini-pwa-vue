@@ -406,6 +406,7 @@ import ExpressionUploadModal from '~/components/organisms/page-image/ExpressionU
 import { useCharacterImages } from '~/composables/useCharacterImages'
 import { useFolderUpload, type FolderStructure } from '~/composables/useFolderUpload'
 import { logger } from '~/lib/logger'
+import { formatFileSize } from '~/lib/format'
 import type { CharacterRecord, CharacterOutfitRecord, CharacterImageRecord } from '~/types/database'
 
 interface Props {
@@ -562,7 +563,7 @@ const handleCreateOutfit = async () => {
 // 衣装を選択
 const selectOutfit = async (outfit: CharacterOutfitRecord) => {
   selectedOutfit.value = outfit
-  selectedImages.value.clear()
+  selectedImages.value = new Set()
   await loadImages(outfit)
 }
 
@@ -599,11 +600,13 @@ const loadImages = async (outfit: CharacterOutfitRecord) => {
 
 // 画像の選択を切り替え
 const toggleImageSelection = (imageId: string) => {
-  if (selectedImages.value.has(imageId)) {
-    selectedImages.value.delete(imageId)
+  const next = new Set(selectedImages.value)
+  if (next.has(imageId)) {
+    next.delete(imageId)
   } else {
-    selectedImages.value.add(imageId)
+    next.add(imageId)
   }
+  selectedImages.value = next
 }
 
 // 画像をプレビュー
@@ -618,7 +621,7 @@ const selectAllImages = () => {
 
 // 選択を解除
 const clearSelection = () => {
-  selectedImages.value.clear()
+  selectedImages.value = new Set()
 }
 
 // 単一画像を削除
@@ -631,8 +634,9 @@ const deleteImage = async (image: CharacterImageRecord) => {
   try {
     const success = await deleteImageFromDB(image.id)
     if (success) {
-      await loadImages(selectedOutfit.value!)
-      selectedImages.value.delete(image.id)
+      if (!selectedOutfit.value) return
+      await loadImages(selectedOutfit.value)
+      selectedImages.value = new Set([...selectedImages.value].filter((id) => id !== image.id))
     }
   } catch (err) {
     logger.error('画像の削除に失敗', { component: 'OutfitListModal' }, err)
@@ -659,8 +663,9 @@ const deleteSelectedImages = async () => {
     }
 
     if (successCount > 0) {
-      await loadImages(selectedOutfit.value!)
-      selectedImages.value.clear()
+      if (!selectedOutfit.value) return
+      await loadImages(selectedOutfit.value)
+      selectedImages.value = new Set()
     }
   } catch (err) {
     logger.error('一括削除に失敗', { component: 'OutfitListModal' }, err)
@@ -673,15 +678,6 @@ const handleImagesUploaded = async () => {
     await loadImages(selectedOutfit.value)
   }
   showUploadModal.value = false
-}
-
-// ファイルサイズをフォーマット
-const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return '0 B'
-  const k = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
 }
 
 // 衣装更新完了時の処理

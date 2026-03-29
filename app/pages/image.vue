@@ -422,16 +422,19 @@ const deleteSelectedCharacters = async () => {
   const confirmed = await showConfirm(`選択した${count}件のキャラクターを削除しますか？関連する衣装と画像もすべて削除されます。`, 'キャラクターの一括削除')
   if (!confirmed) return
 
-  try {
-    for (const id of selectedCharacterIds.value) {
-      await deleteCharacterFromDB(id)
-    }
-    characters.value = characters.value.filter((c) => !selectedCharacterIds.value.has(c.id))
-    selectedCharacterIds.value = new Set()
-    isSelectMode.value = false
-  } catch (err) {
-    logger.error('キャラクターの一括削除に失敗', { component: 'image.vue' }, err)
+  const ids = [...selectedCharacterIds.value]
+  const results = await Promise.allSettled(ids.map((id) => deleteCharacterFromDB(id)))
+  const deletedIds = new Set(ids.filter((_, i) => results[i]?.status === 'fulfilled'))
+  const failedCount = ids.length - deletedIds.size
+
+  if (deletedIds.size > 0) {
+    characters.value = characters.value.filter((c) => !deletedIds.has(c.id))
   }
+  if (failedCount > 0) {
+    logger.error(`${failedCount}件のキャラクター削除に失敗`, { component: 'image.vue' })
+  }
+  selectedCharacterIds.value = new Set()
+  isSelectMode.value = false
 }
 
 // ============================================================================

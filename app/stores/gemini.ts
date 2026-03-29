@@ -11,6 +11,7 @@ import { proofreadText } from '~/lib/proofreader'
 import { translateThoughts } from '~/lib/translator'
 import { useChatStore } from '~/stores/chat'
 import { useSettingsStore } from '~/stores/settings'
+import { useSettingsProfilesStore } from '~/stores/settingsProfiles'
 import type { ApiError, AssistantMessage, ChatMessage, GeminiApiSettings, GeminiMessage, GeminiPart } from '~/types/chat'
 import type { FunctionCall, FunctionCallResult } from '~/types/function-calling'
 import { logger } from '~/lib/logger'
@@ -561,19 +562,21 @@ export const useGeminiStore = defineStore('gemini', () => {
       return false
     }
 
-    await executeGeminiRequest(
-      chatStore.currentMessages,
-      settings,
-      createChatCallbacks({
-        onError: options.onError,
-        onRetryScheduled: options.onRetryScheduled,
-        onRetryStarted: options.onRetryStarted,
-      })
-    )
-
-    logger.info('[自動リトライ] sendChatMessageが正常終了しました', { component: 'useGeminiStore' })
-
-    return true
+    try {
+      await executeGeminiRequest(
+        chatStore.currentMessages,
+        settings,
+        createChatCallbacks({
+          onError: options.onError,
+          onRetryScheduled: options.onRetryScheduled,
+          onRetryStarted: options.onRetryStarted,
+        })
+      )
+      logger.info('[自動リトライ] sendChatMessageが正常終了しました', { component: 'useGeminiStore' })
+      return true
+    } catch {
+      return false
+    }
   }
 
   const retryLastUserMessage = async (hooks?: ChatCallbackHooks): Promise<boolean> => {

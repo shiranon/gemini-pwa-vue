@@ -641,19 +641,21 @@ export const useOpenAiStore = defineStore('openai', () => {
       return false
     }
 
-    await executeOpenAiRequest(
-      chatStore.currentMessages,
-      settings,
-      createChatCallbacks({
-        onError: options.onError,
-        onRetryScheduled: options.onRetryScheduled,
-        onRetryStarted: options.onRetryStarted,
-      })
-    )
-
-    logger.info('[自動リトライ] sendChatMessageが正常終了しました', { component: 'useOpenAiStore' })
-
-    return true
+    try {
+      await executeOpenAiRequest(
+        chatStore.currentMessages,
+        settings,
+        createChatCallbacks({
+          onError: options.onError,
+          onRetryScheduled: options.onRetryScheduled,
+          onRetryStarted: options.onRetryStarted,
+        })
+      )
+      logger.info('[自動リトライ] sendChatMessageが正常終了しました', { component: 'useOpenAiStore' })
+      return true
+    } catch {
+      return false
+    }
   }
 
   const retryLastUserMessage = async (hooks?: ChatCallbackHooks): Promise<boolean> => {

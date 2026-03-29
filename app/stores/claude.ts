@@ -485,19 +485,21 @@ export const useClaudeStore = defineStore('claude', () => {
       return false
     }
 
-    await executeClaudeRequest(
-      chatStore.currentMessages,
-      settings,
-      createChatCallbacks({
-        onError: options.onError,
-        onRetryScheduled: options.onRetryScheduled,
-        onRetryStarted: options.onRetryStarted,
-      })
-    )
-
-    logger.info('[自動リトライ] sendChatMessageが正常終了しました', { component: 'useClaudeStore' })
-
-    return true
+    try {
+      await executeClaudeRequest(
+        chatStore.currentMessages,
+        settings,
+        createChatCallbacks({
+          onError: options.onError,
+          onRetryScheduled: options.onRetryScheduled,
+          onRetryStarted: options.onRetryStarted,
+        })
+      )
+      logger.info('[自動リトライ] sendChatMessageが正常終了しました', { component: 'useClaudeStore' })
+      return true
+    } catch {
+      return false
+    }
   }
 
   const retryLastUserMessage = async (hooks?: ChatCallbackHooks): Promise<boolean> => {

@@ -297,7 +297,7 @@ const messages = computed(() =>
 )
 const retryDialogTargetMessage = computed(() => chatStore.retryTargetMessage as Message | null)
 const retryDialogResendMessage = computed(() => chatStore.retryResendMessage as Message | null)
-const isSending = computed(() => geminiStore.isSending)
+const isSending = computed(() => currentApiStore.value.isSending)
 const hasAttachments = computed(() => attachedFiles.value.length > 0)
 const attachmentAccept = ATTACHMENT_LIMITS.SUPPORTED_TYPES.join(',')
 
