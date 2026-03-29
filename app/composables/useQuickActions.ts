@@ -25,6 +25,8 @@ const ICON_MAP = {
   'toggle-functions': markRaw(Settings),
 } as const
 
+const OLLAMA_UNSUPPORTED_ACTIONS = new Set(['thinking-mode', 'thinking-process', 'translation', 'google-search', 'proofreading', 'summary'])
+
 /**
  * クイックアクションの設定項目を表すインターフェース
  */
@@ -99,8 +101,6 @@ export const useQuickActions = () => {
       ...profilesStore.activeProfileSettingsWithTemporary,
     }
   })
-
-  const OLLAMA_UNSUPPORTED_ACTIONS = new Set(['thinking-mode', 'thinking-process', 'translation', 'google-search', 'proofreading', 'summary'])
 
   const quickActions = computed<QuickAction[]>(() => {
     const settings = currentSettings.value

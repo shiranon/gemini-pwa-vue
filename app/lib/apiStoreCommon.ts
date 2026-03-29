@@ -5,8 +5,24 @@
  */
 
 import { computed, ref } from 'vue'
+import { APIUserAbortError as AnthropicAbortError } from '@anthropic-ai/sdk'
+import { APIUserAbortError as OpenAIAbortError } from 'openai'
 import { useChatStore } from '~/stores/chat'
 import type { ApiError, AssistantMessage, AttachedFile, ChatMessage } from '~/types/chat'
+
+/**
+ * AbortSignalによるキャンセルエラーかどうかを判定する。
+ * 各SDKは異なるエラー型を投げるため、統一的に判定する:
+ * - Gemini (@google/genai): ネイティブ DOMException (name === 'AbortError')
+ * - Claude (@anthropic-ai/sdk): APIUserAbortError
+ * - OpenAI/Ollama (openai): APIUserAbortError
+ */
+export const isAbortError = (error: unknown): boolean => {
+  if (error instanceof DOMException && error.name === 'AbortError') return true
+  if (error instanceof AnthropicAbortError) return true
+  if (error instanceof OpenAIAbortError) return true
+  return false
+}
 
 // ============================================================================
 // 共通型定義

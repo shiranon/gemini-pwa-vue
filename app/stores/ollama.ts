@@ -11,7 +11,7 @@ import { useSettingsProfilesStore } from '~/stores/settingsProfiles'
 import type { ApiError, ChatMessage, OllamaApiSettings } from '~/types/chat'
 import type { FunctionCall, FunctionCallResult } from '~/types/function-calling'
 import { logger } from '~/lib/logger'
-import { createApiStoreState, createChatCallbacks, sleep, toApiError, type ChatCallbackHooks, type SendChatMessageOptions } from '~/lib/apiStoreCommon'
+import { createApiStoreState, createChatCallbacks, isAbortError, sleep, toApiError, type ChatCallbackHooks, type SendChatMessageOptions } from '~/lib/apiStoreCommon'
 
 export const useOllamaStore = defineStore('ollama', () => {
   const state = createApiStoreState()
@@ -112,7 +112,7 @@ export const useOllamaStore = defineStore('ollama', () => {
       state.successfulCalls.value++
       completed = true
     } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') {
+      if (isAbortError(error)) {
         completed = true
         return
       }

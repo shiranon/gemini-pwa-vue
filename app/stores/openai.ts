@@ -5,7 +5,7 @@
 
 import { defineStore } from 'pinia'
 import { useOpenAiAgentsApi, type OpenAiApiSettings } from '~/composables/useOpenAiAgentsApi'
-import { createApiStoreState, createChatCallbacks, sleep, toApiError, type ChatCallbackHooks, type SendChatMessageOptions } from '~/lib/apiStoreCommon'
+import { createApiStoreState, createChatCallbacks, isAbortError, sleep, toApiError, type ChatCallbackHooks, type SendChatMessageOptions } from '~/lib/apiStoreCommon'
 import { logger } from '~/lib/logger'
 import { proofreadText } from '~/lib/proofreader'
 import { translateThoughts } from '~/lib/translator'
@@ -242,7 +242,7 @@ export const useOpenAiStore = defineStore('openai', () => {
       state.successfulCalls.value++
       completed = true
     } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') {
+      if (isAbortError(error)) {
         completed = true
         return
       }

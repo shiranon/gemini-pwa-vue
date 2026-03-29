@@ -5,7 +5,7 @@
 
 import { defineStore } from 'pinia'
 import { useClaudeApi, type ClaudeCombinedResponse } from '~/composables/useClaudeApi'
-import { createApiStoreState, createChatCallbacks, sleep, toApiError, type ChatCallbackHooks, type SendChatMessageOptions } from '~/lib/apiStoreCommon'
+import { createApiStoreState, createChatCallbacks, isAbortError, sleep, toApiError, type ChatCallbackHooks, type SendChatMessageOptions } from '~/lib/apiStoreCommon'
 import { proofreadText } from '~/lib/proofreader'
 import { translateThoughts } from '~/lib/translator'
 import { useChatStore } from '~/stores/chat'
@@ -178,7 +178,7 @@ export const useClaudeStore = defineStore('claude', () => {
       state.successfulCalls.value++
       completed = true
     } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') {
+      if (isAbortError(error)) {
         completed = true
         return
       }

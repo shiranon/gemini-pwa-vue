@@ -5,7 +5,7 @@
 
 import type { Content } from '@google/genai'
 import { defineStore } from 'pinia'
-import { createApiStoreState, createChatCallbacks, sleep, toApiError, type ChatCallbackHooks, type SendChatMessageOptions } from '~/lib/apiStoreCommon'
+import { createApiStoreState, createChatCallbacks, isAbortError, sleep, toApiError, type ChatCallbackHooks, type SendChatMessageOptions } from '~/lib/apiStoreCommon'
 import { useGeminiApi, type CombinedResponse } from '~/composables/useGeminiApi'
 import { proofreadText } from '~/lib/proofreader'
 import { translateThoughts } from '~/lib/translator'
@@ -255,7 +255,7 @@ export const useGeminiStore = defineStore('gemini', () => {
       state.successfulCalls.value++
       completed = true
     } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') {
+      if (isAbortError(error)) {
         completed = true
         return
       }
