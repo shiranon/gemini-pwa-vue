@@ -70,7 +70,8 @@ const profiles = computed(() => {
   return [defaultProfile, ...customProfiles]
 })
 
-const handleProfileChange = (profileId: string) => {
+const handleProfileChange = (profileId: unknown) => {
+  if (typeof profileId !== 'string') return
   settingsStore.updateSettings({ currentProfileId: profileId })
   logger.info(`[Profile Switch] プロファイルが切り替えられました: ${profileId}`, { component: 'ProfileSwitchModal' })
 }

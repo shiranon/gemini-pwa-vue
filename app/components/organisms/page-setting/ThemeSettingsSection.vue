@@ -65,7 +65,8 @@ const props = defineProps<Props>()
 
 const presetOptions = computed(() => getThemePresetOptions())
 
-const onPresetSelect = (value: string) => {
+const onPresetSelect = (value: unknown) => {
+  if (typeof value !== 'string') return
   const id = value as ThemePresetId
   const bubbles = getThemeBubbleColors(id)
   props.updateLocalSetting('themePreset', id)

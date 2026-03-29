@@ -408,7 +408,7 @@ const updateMessageImageWidthPercent = (value: number | null | undefined) => {
   props.updateLocalSetting('messageImageWidthPercent', clamped as AppSettings['messageImageWidthPercent'])
 }
 
-const updateMessageImageJustify = (value: string) => {
+const updateMessageImageJustify = (value: unknown) => {
   if (value === 'start' || value === 'center' || value === 'end') {
     props.updateLocalSetting('messageImageJustify', value as AppSettings['messageImageJustify'])
   }

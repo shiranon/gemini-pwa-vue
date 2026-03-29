@@ -15,7 +15,11 @@
           <Label class="text-base font-medium">関数呼び出しモード</Label>
           <RadioGroup
             :model-value="activeProfileSettings?.functionCallingMode"
-            @update:model-value="(value: string) => updateProfileSetting('functionCallingMode', value as 'auto' | 'any' | 'none')"
+            @update:model-value="
+              (value: unknown) => {
+                if (typeof value === 'string') updateProfileSetting('functionCallingMode', value as 'auto' | 'any' | 'none')
+              }
+            "
           >
             <div class="space-y-2">
               <div class="flex items-center space-x-2">
