@@ -14,6 +14,8 @@ mock.module('openai', () => ({
       },
     },
   })),
+  // apiStoreCommon の isAbortError が instanceof で参照するためクラスとしてモックする
+  APIUserAbortError: class APIUserAbortError extends Error {},
 }))
 
 mock.module('~/composables/useFunctionCalling', () => ({

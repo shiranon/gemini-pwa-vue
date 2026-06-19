@@ -28,8 +28,9 @@ Supports **Gemini AI**, **OpenAI**, and **Claude** APIs with streaming, function
 - `bun run build` - Build for production
 - `bun run typecheck` - Run TypeScript type checking
 - `bun run lint` - Run ESLint (auto-fixes with Prettier formatting)
-- `bun run test` - Run all Vitest tests with TZ=Asia/Tokyo
+- `bun run test` - Run all tests via the isolated runner (`scripts/run-tests.ts`), each spec file in its own process with TZ=Asia/Tokyo
 - `bun test [file]` - Run specific test file (e.g., `bun test rollDice.spec.ts`)
+  - NOTE: Do not run a bare `bun test` (whole suite in one process). `mock.module` leaks across files in bun and breaks unrelated suites. Use `bun run test` (isolated) or `bun test <file>` (single file).
 - `bun run check-all` - Run lint, typecheck, and test in sequence
 - `bun run generate` - Generate static site
 - `bun run preview` - Preview production build on http://localhost:8880
@@ -409,7 +410,7 @@ tests/
 ```
 
 ### Running Tests
-- Run all tests: `bun test`
+- Run all tests: `bun run test` (isolated runner — one process per spec file; avoids `mock.module` cross-file leakage)
 - Run specific test file: `bun test [filename]` (e.g., `bun test rollDice.spec.ts`)
 - Tests run with TZ=Asia/Tokyo timezone for consistency
 - Vitest configuration in `vitest.config.ts`
@@ -523,7 +524,7 @@ bun run build     # Confirm production build
 
 **IMPORTANT: DO NOT run `bun test` during normal development. Tests should only be run manually by the user when needed.**
 
-Note: Pre-commit hooks (via Lefthook) automatically run `bun lint`, `bun typecheck`, and `bun test` in parallel on staged files.
+Note: Pre-commit hooks (via Lefthook) automatically run `bun lint`, `bun typecheck`, and `bun run test` (isolated runner) in parallel on staged files.
 
 ## Component Migration Pattern
 When replacing components with shadcn-vue:

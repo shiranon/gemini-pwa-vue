@@ -314,7 +314,7 @@ export const useGeminiApi = () => {
       return combined
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Gemini API call failed'
-      throw new Error(errorMessage)
+      throw new Error(errorMessage, { cause: error })
     }
   }
 
@@ -564,7 +564,7 @@ export const useGeminiApi = () => {
       }
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Gemini streaming API call failed'
-      throw new Error(errorMessage)
+      throw new Error(errorMessage, { cause: error })
     }
   }
 

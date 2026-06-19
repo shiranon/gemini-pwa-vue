@@ -313,7 +313,7 @@ export const useSettingsProfilesStore = defineStore('settingsProfiles', () => {
       return profile
     } catch (error) {
       logger.error('プロファイルのインポートエラー:', { component: 'settingsProfiles' }, error)
-      throw new Error('プロファイルのインポートに失敗しました')
+      throw new Error('プロファイルのインポートに失敗しました', { cause: error })
     }
   }
 

@@ -88,6 +88,6 @@ export const downloadJson = (data: unknown, filename: string): void => {
     URL.revokeObjectURL(url)
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
-    throw new Error(`JSONのダウンロードに失敗しました: ${message}`)
+    throw new Error(`JSONのダウンロードに失敗しました: ${message}`, { cause: err })
   }
 }

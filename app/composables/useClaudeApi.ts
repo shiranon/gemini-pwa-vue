@@ -661,14 +661,14 @@ export const useClaudeApi = () => {
     } catch (error: unknown) {
       // 共通関数を使用してエラーメッセージを構築
       const errorMessage = buildApiErrorMessage(error, 'Claude API call failed', 'Claude')
-      throw new Error(errorMessage)
+      throw new Error(errorMessage, { cause: error })
     }
   }
 
   /**
    * Claude API をストリーミングで呼び出す
    */
-  const generateContentStream = async function* (messages: ChatMessage[], settings: ClaudeApiSettings, options?: { signal?: AbortSignal }) {
+  const generateContentStream = async function* (messages: ChatMessage[], settings: ClaudeApiSettings, options?: { signal?: AbortSignal }): AsyncGenerator<ClaudeStreamingChunk> {
     const claude = createClaudeClient(settings.apiKey)
     const toolConfig = buildToolConfig(settings)
 
@@ -848,7 +848,7 @@ export const useClaudeApi = () => {
     } catch (error: unknown) {
       // 共通関数を使用してエラーメッセージを構築
       const errorMessage = buildApiErrorMessage(error, 'Claude streaming API call failed', 'Claude')
-      throw new Error(errorMessage)
+      throw new Error(errorMessage, { cause: error })
     }
   }
 

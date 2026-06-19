@@ -106,8 +106,11 @@ export const useClaudeStore = defineStore('claude', () => {
             state.streamingContent.value = assistantMessage.content
           }
 
-          // 思考プロセスは将来対応予定（Claudeの拡張思考モード）
-          // 現時点ではClaudeStreamingChunkにthoughtsは含まれない
+          // 思考プロセス(Claude拡張思考)の蓄積
+          // useClaudeApi はストリーミング完了時に累積済みの thoughts を一度だけ渡すため、そのまま設定する
+          if (chunk.thoughts) {
+            accumulatedThoughts = chunk.thoughts
+          }
 
           // Tool Call の蓄積
           if (chunk.toolCalls) {

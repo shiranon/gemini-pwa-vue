@@ -240,7 +240,8 @@ export interface SettingsProfile {
 
 /** 全ての設定を統合した型 */
 export interface AppSettings
-  extends GeminiParameters,
+  extends
+    GeminiParameters,
     GeminiAdvancedSettings,
     ThoughtTranslationSettings,
     RetrySettings,
