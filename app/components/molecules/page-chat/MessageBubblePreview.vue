@@ -43,8 +43,7 @@
           class="border-primary/30 bg-primary/10 text-primary mt-2 overflow-x-auto rounded border p-2"
           :style="codeSampleStyle"
         >
-{"url": "https://example.com"}</pre
-        >
+{"url": "https://example.com"}</pre>
       </div>
 
       <div
