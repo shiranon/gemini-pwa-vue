@@ -36,8 +36,7 @@
           <pre
             class="border-border bg-muted/80 text-foreground mt-1 overflow-x-auto rounded border p-2"
             :style="codeBlockStyle"
-            >{{ formatArgs(call.args) }}</pre
-          >
+            >{{ formatArgs(call.args) }}</pre>
         </div>
 
         <div
@@ -65,8 +64,7 @@
             <pre
               class="border-primary/40 bg-primary/10 text-primary mt-1 overflow-x-auto rounded border p-2"
               :style="codeBlockStyle"
-              >{{ formatResult(getResult(index)?.result) }}</pre
-            >
+              >{{ formatResult(getResult(index)?.result) }}</pre>
           </div>
         </div>
       </li>

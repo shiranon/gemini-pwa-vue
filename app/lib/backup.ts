@@ -248,6 +248,6 @@ export const downloadBackup = async (filename?: string) => {
     const backupData = await exportFullData()
     downloadJson(backupData, filename || `gemini-pwa-backup-${new Date().toISOString().slice(0, 10)}.json`)
   } catch (err) {
-    throw new Error('バックアップのダウンロードに失敗しました: ' + (err instanceof Error ? err.message : String(err)))
+    throw new Error('バックアップのダウンロードに失敗しました: ' + (err instanceof Error ? err.message : String(err)), { cause: err })
   }
 }

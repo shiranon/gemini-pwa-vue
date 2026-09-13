@@ -105,7 +105,7 @@ export function useHistoryManagement() {
       router.push('/')
     } catch (raisedError) {
       logger.error('チャットの選択に失敗:', { component: 'useHistoryManagement' }, raisedError)
-      throw new Error('チャットの読み込みに失敗しました')
+      throw new Error('チャットの読み込みに失敗しました', { cause: raisedError })
     }
   }
 
@@ -268,9 +268,9 @@ export function useHistoryManagement() {
       return importedChats.length
     } catch (error) {
       if (error instanceof Error) {
-        throw new TypeError(`インポートに失敗しました: ${error.message}`)
+        throw new TypeError(`インポートに失敗しました: ${error.message}`, { cause: error })
       }
-      throw new Error('インポートに失敗しました')
+      throw new Error('インポートに失敗しました', { cause: error })
     }
   }
 

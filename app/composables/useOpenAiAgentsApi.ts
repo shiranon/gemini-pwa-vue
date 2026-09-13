@@ -506,7 +506,7 @@ export const useOpenAiAgentsApi = () => {
     } catch (error: unknown) {
       // 共通関数を使用してエラーメッセージを構築
       const errorMessage = buildApiErrorMessage(error, 'OpenAI Agents API call failed', 'OpenAI')
-      throw new Error(errorMessage)
+      throw new Error(errorMessage, { cause: error })
     }
   }
 
@@ -613,7 +613,7 @@ export const useOpenAiAgentsApi = () => {
     } catch (error: unknown) {
       // 共通関数を使用してエラーメッセージを構築
       const errorMessage = buildApiErrorMessage(error, 'OpenAI Agents streaming API call failed', 'OpenAI')
-      throw new Error(errorMessage)
+      throw new Error(errorMessage, { cause: error })
     }
   }
 

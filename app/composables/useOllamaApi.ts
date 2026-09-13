@@ -315,7 +315,7 @@ export const useOllamaApi = () => {
       }
     } catch (error: unknown) {
       const errorMessage = buildApiErrorMessage(error, 'Ollama API call failed', 'Ollama')
-      throw new Error(errorMessage)
+      throw new Error(errorMessage, { cause: error })
     }
   }
 
@@ -469,7 +469,7 @@ export const useOllamaApi = () => {
       }
     } catch (error: unknown) {
       const errorMessage = buildApiErrorMessage(error, 'Ollama streaming API call failed', 'Ollama')
-      throw new Error(errorMessage)
+      throw new Error(errorMessage, { cause: error })
     }
   }
 
